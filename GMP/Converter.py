@@ -140,3 +140,7 @@ async def get_conversion_status(job_id: str):
     
     return conversion_dict
 
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+

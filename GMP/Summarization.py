@@ -1,11 +1,13 @@
 from fastapi import FastAPI, HTTPException
 from pymongo import MongoClient
-import openai
+from openai import OpenAI
 from typing import Dict
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
 import logging
+import uuid
+from datetime import datetime
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -24,14 +26,14 @@ if not OPENAI_API_KEY:
 
 app = FastAPI()
 
-# OpenAI API 키 설정
-openai.api_key = OPENAI_API_KEY
+# OpenAI 클라이언트 초기화
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 # MongoDB 연결
 try:
-    client = MongoClient(MONGODB_URI)
-    db = client[MONGODB_DB]
-    summaries = db.summaries
+    mongo_client = MongoClient(MONGODB_URI)
+    db = mongo_client[MONGODB_DB]
+    summaries = db.summaries  # collection 참조
     logger.info("MongoDB 연결 성공")
 except Exception as e:
     logger.error(f"MongoDB 연결 실패: {str(e)}")
@@ -51,15 +53,15 @@ class SummarizationStatus(BaseModel):
 async def summarize_text(request: SummarizationRequest):
     try:
         # GPT API 호출
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "텍스트를 간단하게 요약해주세요."},
                 {"role": "user", "content": request.text}
             ]
         )
         
-        summary = response.choices[0].message.content
+        summary = completion.choices[0].message.content
         job_id = str(uuid.uuid4())
         current_time = datetime.utcnow()
         
@@ -99,4 +101,4 @@ async def get_summary(job_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8002)
