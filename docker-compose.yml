@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  converter:
+    build: .
+    command: uvicorn GMP.Converter:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - mongodb
+      - redis
+
+  transcription:
+    build: .
+    command: uvicorn GMP.Transcription:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./uploads:/app/uploads
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - mongodb
+      - redis
+
+  summarization:
+    build: .
+    command: uvicorn GMP.Summarization:app --host 0.0.0.0 --port 8002
+    ports:
+      - "8002:8002"
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - mongodb
+      - redis
+
+  celery_worker:
+    build: .
+    command: celery -A GMP.tasks worker --loglevel=info
+    volumes:
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - mongodb
+      - redis
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+
+volumes:
+  mongodb_data: 
