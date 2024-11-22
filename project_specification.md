@@ -70,16 +70,41 @@ class SummarizationStatus(BaseModel):
 ```
 
 ## 5. 환경 설정
-- MongoDB 연결 설정 (MONGODB_URI="mongodb://localhost:27017/", MONGODB_DB="mars_converter")
-- Redis 브로커 설정 (broker_url='redis://localhost:6379/0', result_backend='redis://localhost:6379/0')
-- 파일 디렉토리 설정 (UPLOAD_DIR="uploads", OUTPUT_DIR="outputs")
-- OpenAI API 키 설정 (OPENAI_API_KEY)
+### 5.1 데이터베이스 설정
+- 각 마이크로서비스별 MongoDB 설정
+  - Converter 서비스: MONGODB_DB="converter_db"
+  - Transcription 서비스: MONGODB_DB="transcription_db"
+  - Summarization 서비스: MONGODB_DB="summarization_db"
+- MongoDB 연결 URI: MONGODB_URI="mongodb://localhost:27017/"
+
+### 5.2 메시지 브로커 설정
+- Redis 브로커 설정
+  - broker_url='redis://localhost:6379/0'
+  - result_backend='redis://localhost:6379/0'
+
+### 5.3 파일 시스템 설정
+- 파일 디렉토리 설정
+  - UPLOAD_DIR="uploads"
+  - OUTPUT_DIR="outputs"
 - Whisper 모델 캐시 디렉토리 설정
-- 오디오 변환 설정:
-  - 출력 형식: WAV (16비트 PCM)
-  - 샘플레이트: 16kHz (Whisper 모델 최적화)
-  - 채널: 모노 (1채널)
-  - 비트 심도: 16비트
+  - WHISPER_CACHE_DIR="/app/whisper_cache"
+
+### 5.4 API 설정
+- OpenAI API 키 설정 (OPENAI_API_KEY)
+
+### 5.5 오디오 변환 설정
+- 출력 형식: WAV (16비트 PCM)
+- 샘플레이트: 16kHz (Whisper 모델 최적화)
+- 채널: 모노 (1채널)
+- 비트 심도: 16비트
+```
+
+주요 변경사항:
+1. 데이터베이스 설정을 각 마이크로서비스별로 분리하여 명확하게 정의
+2. 환경 설정을 카테고리별로 구분하여 가독성 향상
+3. 현재 구현된 아키텍처를 정확히 반영하도록 수정
+
+이렇게 수정하면 현재 구현된 코드와 명세서가 일치하게 됩니다.
 
 ## 6. 구현된 기능
 - [x] 기본 프로젝트 구조 설정
@@ -89,7 +114,10 @@ class SummarizationStatus(BaseModel):
 - [x] Summarization 서비스 구현 및 테스트
 - [x] Transcription 서비스 완성
 - [x] Converter 서비스 완성
+- [x] 서비스 간 HTTP 통신 구현
 - [ ] 전체 서비스 통합 테스트
+- [ ] 테스트 자동화 구현
+
 
 ## 7. 보안
 - 환경 변수를 통한 민감 정보 관리
@@ -114,3 +142,24 @@ MIT 라이센스
   - redis==5.0.1
   - openai-whisper==20231117
   - openai (최신 버전)
+
+## 10. 변경 이력
+
+### 11.22
+
+- 서비스 간 HTTP 통신 구현
+  - Transcription -> Converter 서비스 통신
+  - Summarization -> Transcription 서비스 통신
+  - httpx 라이브러리를 사용한 비동기 통신 구현
+  - 작업 상태 폴링 메커니즘 추가
+
+- 통합 테스트 프레임워크 구현
+  - integration_test.py 추가
+  - 전체 파이프라인 테스트 구현
+  - 서비스 상태 확인 테스트 추가
+  - 비동기 테스트 지원
+
+### 필수 패키지 추가
+- httpx==0.25.2
+- pytest-asyncio==0.23.5
+- pytest==7.4.3
