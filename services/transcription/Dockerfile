@@ -12,13 +12,12 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 애플리케이션 코드 복사
-COPY GMP /app/GMP
-COPY .env .
+COPY app /app/app
 
 # 필요한 디렉토리 생성
-RUN mkdir -p uploads outputs
+RUN mkdir -p uploads whisper_cache
 
 # 포트 설정
-EXPOSE 8000 8001 8002
+EXPOSE 8000
 
 # 실행 명령어는 docker-compose에서 정의 
