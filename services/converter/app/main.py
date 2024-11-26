@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pymongo import MongoClient
-from datetime import datetime
+from datetime import datetime, UTC
 import os
 import uuid
 import logging
@@ -45,41 +45,87 @@ async def health_check():
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
+@app.get("/convert/{job_id}")
+async def get_conversion_status(job_id: str):
+    try:
+        # MongoDB에서 작업 상태 조회
+        conversion = db.conversions.find_one({"job_id": job_id})
+        
+        if not conversion:
+            raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다")
+            
+        # datetime 객체를 문자열로 변환
+        response = {
+            "job_id": conversion["job_id"],
+            "status": conversion.get("status", "unknown"),
+            "input_file": conversion.get("input_file"),
+            "output_file": conversion.get("output_file"),
+            "error": conversion.get("error"),
+            "created_at": conversion["created_at"].isoformat() if conversion.get("created_at") else None,
+            "updated_at": conversion["updated_at"].isoformat() if conversion.get("updated_at") else None
+        }
+        return response
+        
+    except Exception as e:
+        logger.error(f"상태 확인 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/convert")
 async def convert_audio_file(file: UploadFile = File(...)):
     try:
         # 작업 ID 생성
         job_id = str(uuid.uuid4())
-        current_time = datetime.utcnow()
+        current_time = datetime.now(UTC)
         
+        logger.info(f"새 변환 작업 시작: {job_id}")
+        logger.info(f"Redis URL: {os.getenv('REDIS_URL', 'redis://redis:6379/0')}")  # Redis URL 로깅
         # 파일 저장
         input_path = os.path.join(UPLOAD_DIR, f"{job_id}_{file.filename}")
         with open(input_path, "wb") as buffer:
             content = await file.read()
             buffer.write(content)
         
+        logger.info(f"파일 저장됨: {input_path}")
+        
         # 작업 상태 저장
         conversion = {
             "job_id": job_id,
-            "status": "pending",
+            "status": "pending",  # 명시적으로 status 필드 포함
             "input_file": input_path,
             "created_at": current_time,
             "updated_at": current_time
         }
         
         # MongoDB에 저장
-        db.conversions.insert_one(conversion)
+        result = db.conversions.insert_one(conversion)
+        logger.info(f"MongoDB에 저장됨: {result.inserted_id}")
         
-        # Celery 작업 시작
-        convert_audio.delay(
-            job_id=job_id,
-            input_path=input_path,
-            output_dir=OUTPUT_DIR,
-            db_connection_string=MONGODB_URI
-        )
+        # Celery 작업 시작 전 로깅
+        logger.info("Celery 작업 시작 시도...")
+        try:
+            task = convert_audio.apply_async(
+                args=[],
+                kwargs={
+                    'job_id': job_id,
+                    'input_path': input_path,
+                    'output_dir': OUTPUT_DIR,
+                    'db_connection_string': MONGODB_URI
+                },
+                queue='converter'  # 명시적으로 큐 지정
+            )
+            logger.info(f"Celery 작업 시작됨: task_id={task.id}, status={task.status}")
+        except Exception as e:
+            logger.error(f"Celery 작업 시작 실패: {str(e)}")
+            raise
+
         
         return {"job_id": job_id, "status": "pending"}
         
     except Exception as e:
-        logger.error(f"Error in convert_audio: {str(e)}")
+        logger.error(f"변환 중 오류 발생: {str(e)}")
+        if 'input_path' in locals():
+            try:
+                os.remove(input_path)
+            except:
+                pass
         raise HTTPException(status_code=500, detail=str(e))

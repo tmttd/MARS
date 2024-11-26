@@ -5,6 +5,9 @@ import whisper
 import os
 import logging
 from pathlib import Path
+from .config import Settings
+from httpx import AsyncClient
+import asyncio
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -72,6 +75,17 @@ def transcribe_audio(job_id: str, input_path: str, db_connection_string: str):
                 }
             }
         )
+
+        # 웹훅 호출을 위한 비동기 함수
+        async def send_webhook():
+            async with AsyncClient() as client:
+                await client.post(
+                    f"{Settings.API_GATEWAY_URL}/webhook/transcription/{job_id}",
+                    json={"status": "completed"}
+                )
+
+        # 비동기 웹훅 호출 실행
+        asyncio.run(send_webhook())
         
         return {"status": "completed", "text": transcribed_text}
         

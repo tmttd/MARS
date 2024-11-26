@@ -1,13 +1,11 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pymongo import MongoClient
 from datetime import datetime
-import httpx
 import os
 import uuid
 import logging
 from .models import Transcript
 from .tasks import transcribe_audio
-import asyncio
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -17,7 +15,6 @@ logger = logging.getLogger(__name__)
 MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
 MONGODB_DB = os.getenv("MONGODB_DB", "transcription_db")
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/app/uploads")
-CONVERTER_URL = os.getenv("CONVERTER_SERVICE_URL", "http://converter:8000")
 
 app = FastAPI(title="Audio Transcription Service")
 
@@ -47,97 +44,97 @@ async def health_check():
 
 @app.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
-    if not file.filename.endswith(('.wav', '.mp3', '.m4a')):
-        raise HTTPException(status_code=400, detail="지원되지 않는 파일 형식입니다")
-    
     try:
-        # Converter 서비스에 변환 요청
-        async with httpx.AsyncClient() as client:
-            files = {"file": (file.filename, await file.read())}
-            response = await client.post(
-                f"{CONVERTER_URL}/convert",
-                files=files,
-                timeout=30.0
-            )
+        # 파일 형식 검사
+        logger.info(f"수신된 파일: {file.filename}, 타입: {file.content_type}")
+        if not file.filename.endswith('.wav'):
+            raise HTTPException(status_code=400, detail="WAV 파일만 지원됩니다")
+        
+        # 고유한 파일명 생성
+        job_id = str(uuid.uuid4())
+        file_path = os.path.join(UPLOAD_DIR, f"{job_id}_{file.filename}")
+        
+        # 파일 저장
+        try:
+            with open(file_path, "wb") as f:
+                content = await file.read()
+                f.write(content)
+            logger.info(f"파일 저장됨: {file_path}")
+        except Exception as e:
+            logger.error(f"파일 저장 실패: {str(e)}")
+            raise HTTPException(status_code=500, detail="파일 저장 실패")
             
-            if response.status_code != 200:
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail="오디오 변환 실패"
-                )
-            
-            converter_data = response.json()
-            converter_job_id = converter_data["job_id"]
-            
-            # 변환 완료 대기
-            for _ in range(30):  # 최대 60초 대기
-                status_response = await client.get(
-                    f"{CONVERTER_URL}/convert/{converter_job_id}"
-                )
-                status_data = status_response.json()
-                
-                if status_data["status"] == "completed":
-                    converted_file_path = status_data["output_file"]
-                    break
-                elif status_data["status"] == "failed":
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"변환 실패: {status_data.get('error', '알 수 없는 오류')}"
-                    )
-                
-                await asyncio.sleep(2)
-            else:
-                raise HTTPException(
-                    status_code=408,
-                    detail="변환 시간 초과"
-                )
-            
-            # Transcription 작업 시작
-            job_id = str(uuid.uuid4())
-            current_time = datetime.utcnow()
-            
-            transcript = {
-                "job_id": job_id,
-                "status": "pending",
-                "input_file": converted_file_path,
-                "created_at": current_time,
-                "updated_at": current_time
-            }
-            
-            # MongoDB에 저장
+        # Transcription 작업 시작
+        current_time = datetime.utcnow()
+        
+        transcript = {
+            "job_id": job_id,
+            "status": "pending",
+            "input_file": file_path,
+            "created_at": current_time,
+            "updated_at": current_time
+        }
+        
+        # MongoDB에 저장
+        try:
             db.transcripts.insert_one(transcript)
-            
-            # Celery 작업 시작
+            logger.info(f"MongoDB에 작업 저장됨: {job_id}")
+        except Exception as e:
+            logger.error(f"MongoDB 저장 실패: {str(e)}")
+            raise HTTPException(status_code=500, detail="데이터베이스 저장 실패")
+        
+        # Celery 작업 시작
+        try:
             transcribe_audio.delay(
                 job_id=job_id,
-                input_path=converted_file_path,
+                input_path=file_path,
                 db_connection_string=MONGODB_URI
             )
+            logger.info(f"Celery 작업 시작됨: {job_id}")
+        except Exception as e:
+            logger.error(f"Celery 작업 시작 실패: {str(e)}")
+            raise HTTPException(status_code=500, detail="작업 시작 실패")
+        
+        return {"job_id": job_id, "status": "pending"}
             
-            return {"job_id": job_id, "status": "pending"}
-            
-    except httpx.RequestError as e:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Converter 서비스 통신 오류: {str(e)}"
-        )
     except Exception as e:
-        logger.error(f"Error in transcribe_audio: {str(e)}")
+        logger.error(f"Transcribe 엔드포인트 오류: {str(e)}")
+        if isinstance(e, HTTPException):
+            raise
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/transcript/{job_id}")
 async def get_transcript(job_id: str):
     try:
+        logger.info(f"작업 상태 조회 시작: {job_id}")
+        
+        # MongoDB 연결 상태 확인
+        try:
+            # client.admin.command('ping') 대신 client.admin.command('ping') 사용
+            client.admin.command('ping')
+        except Exception as db_error:
+            logger.error(f"MongoDB 연결 오류: {str(db_error)}")
+            raise HTTPException(status_code=500, detail="데이터베이스 연결 오류")
+            
+        # 작업 조회
         transcript = db.transcripts.find_one({"job_id": job_id})
+        logger.info(f"조회된 작업: {transcript}")
+        
         if not transcript:
+            logger.error(f"작업을 찾을 수 없음: {job_id}")
             raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다")
             
-        return {
+        response = {
             "job_id": job_id,
             "status": transcript["status"],
             "text": transcript.get("text"),
             "error": transcript.get("error")
         }
+        logger.info(f"응답 데이터: {response}")
+        return response
+        
     except Exception as e:
-        logger.error(f"Error in get_transcript: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e)) 
+        logger.error(f"작업 상태 조회 중 오류 발생: {str(e)}, 타입: {type(e)}")
+        if isinstance(e, HTTPException):
+            raise
+        raise HTTPException(status_code=500, detail=str(e))

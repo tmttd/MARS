@@ -4,7 +4,9 @@ from pymongo import MongoClient
 from openai import OpenAI
 import os
 import logging
-
+from .config import Settings
+from httpx import AsyncClient
+import asyncio
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -70,6 +72,15 @@ def summarize_text(job_id: str, text: str, db_connection_string: str):
                 }
             }
         )
+        
+        async def send_webhook():
+            async with AsyncClient() as client:
+                await client.post(
+                    f"{Settings.API_GATEWAY_URL}/webhook/summarization/{job_id}",
+                    json={"status": "completed"}
+                )
+
+        asyncio.run(send_webhook())
         
         return {"status": "completed", "summary": summary}
         
