@@ -63,7 +63,7 @@ def summarize_text(job_id: str, db_connection_string: str):
         
         # GPT를 사용한 텍스트 요약
         response = openai_client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "주어진 텍스트는 부동산 거래 관련 문의 내용입니다.\
                     부동산 사장의 입장에서 도움이 될 만한 정보만 추려서 두 문장 내로 요약해주세요."},

@@ -1,17 +1,23 @@
 from celery import Celery
 from datetime import datetime
 from pymongo import MongoClient
-import whisper
 import os
 import logging
-from pathlib import Path
-from .config import settings
 from httpx import AsyncClient
 import asyncio
+import torch
+from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
+import gc
 import json
+from pathlib import Path
+from .config import settings
 
-# 로깅 설정
-logging.basicConfig(level=logging.INFO)
+# 로깅 설정 수정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 logger = logging.getLogger(__name__)
 
 # Whisper 모델 캐시 디렉토리 설정
@@ -29,8 +35,57 @@ celery.conf.update(
     task_default_queue='transcription',
     task_routes={
         'transcribe_audio': {'queue': 'transcription'}
-    }
+    },
+    worker_log_level='INFO',  # 워커 로그 레벨을 INFO로 설정
+    worker_log_format='%(asctime)s - %(levelname)s - %(message)s',
+    worker_task_log_format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
+# 전역 변수로 모델과 파이프라인 선언
+model = None
+pipe = None
+
+def initialize_model():
+    global model, pipe
+    
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+    
+    logger.info(f"모델 초기화 중... (device: {device})")
+    
+    model_id = "openai/whisper-large-v3-turbo"
+    
+    # 기본 모델 로드
+    model = AutoModelForSpeechSeq2Seq.from_pretrained(
+        model_id, 
+        torch_dtype=torch_dtype,
+        low_cpu_mem_usage=True,
+        cache_dir=str(WHISPER_CACHE_DIR)
+    )
+    
+    model.to(device)
+    
+    # CPU 최적화 설정 - 스레드 수 증가
+    torch.set_num_threads(10)  # CPU 스레드 수를 10개로 설정
+    torch.set_grad_enabled(False)
+    
+    processor = AutoProcessor.from_pretrained(model_id, cache_dir=str(WHISPER_CACHE_DIR))
+    
+    pipe = pipeline(
+        "automatic-speech-recognition",
+        model=model,
+        tokenizer=processor.tokenizer,
+        feature_extractor=processor.feature_extractor,
+        chunk_length_s=30,
+        batch_size=8,
+        torch_dtype=torch_dtype,
+        device=device,
+        generate_kwargs={
+            "language": "ko",
+            "task": "transcribe",
+            "use_cache": True
+        }
+    )
 
 @celery.task(name='transcribe_audio')
 def transcribe_audio(job_id: str, input_path: str, db_connection_string: str):
@@ -40,12 +95,7 @@ def transcribe_audio(job_id: str, input_path: str, db_connection_string: str):
         # MongoDB 연결
         client = MongoClient(db_connection_string)
         db = client.transcription_db
-        
-        # 출력 디렉토리 확인 및 생성
-        output_dir = Path(settings.OUTPUT_DIR)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / f"{job_id}.txt"
-        
+
         # 상태 업데이트: 처리 중
         db.transcripts.update_one(
             {"job_id": job_id},
@@ -61,23 +111,37 @@ def transcribe_audio(job_id: str, input_path: str, db_connection_string: str):
         if not os.path.exists(input_path):
             raise FileNotFoundError(f"오디오 파일을 찾을 수 없습니다: {input_path}")
         
-        # Whisper 모델 로드
-        logger.info("Whisper 모델 로드 중...")
-        model = whisper.load_model("base", download_root=str(WHISPER_CACHE_DIR))
+        # 메모리 정리
+        gc.collect()
+        torch.cuda.empty_cache() if torch.cuda.is_available() else None
+        
+        # 모델이 초기화되지 않았다면 초기화
+        global model, pipe
+        if model is None or pipe is None:
+            initialize_model()
         
         # 음성-텍스트 변환
         logger.info(f"변환 중: {input_path}")
-        result = model.transcribe(input_path)
+        result = pipe(input_path)
         
-        if not result or 'text' not in result:
-            raise ValueError("변환 실패: 텍스트 출력 없음")
+        if isinstance(result, dict) and 'chunks' in result:
+            # 청크 텍스트들을 하나로 결합
+            transcribed_text = " ".join(chunk['text'].strip() for chunk in result['chunks']).strip()
+        else:
+            # 단일 텍스트인 경우
+            transcribed_text = result.get('text', '').strip()
             
-        transcribed_text = result['text']
+        if not transcribed_text:
+            raise ValueError("변환 실패: 텍스트 출력 없음")
+        
+        # 출력 디렉토리 확인 및 생성
+        output_dir = Path(settings.OUTPUT_DIR)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / f"{job_id}.txt"
         
         # 텍스트 파일로 저장
         try:
             with open(output_path, "w", encoding="utf-8") as f:
-                # JSON 형식으로 메타데이터와 함께 저장
                 json.dump({
                     "job_id": job_id,
                     "text": transcribed_text,
@@ -112,6 +176,10 @@ def transcribe_audio(job_id: str, input_path: str, db_connection_string: str):
         # 비동기 웹훅 호출 실행
         asyncio.run(send_webhook())
         
+        # 작업 완료 후 메모리 정리
+        gc.collect()
+        torch.cuda.empty_cache() if torch.cuda.is_available() else None
+        
         return {"status": "completed", "text": transcribed_text}
         
     except Exception as e:
@@ -133,6 +201,3 @@ def transcribe_audio(job_id: str, input_path: str, db_connection_string: str):
     
 # task 함수를 변수에 할당하여 export
 transcribe_audio_task = celery.task(name='transcribe_audio', bind=True)(transcribe_audio)
-
-# 또는 다음과 같이 할 수도 있습니다:
-# transcribe_audio_task = transcribe_audio

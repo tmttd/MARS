@@ -66,6 +66,12 @@ services:
   transcription-worker:
     build: ./services/transcription
     command: celery -A app.tasks worker --loglevel=debug -Q transcription
+    deploy:
+      resources:
+        limits:
+          memory: 24G  # 16G에서 24G로 증가
+        reservations:
+          memory: 12G  # 8G에서 12G로 증가
     volumes:
       - ./datas/audio_converted:/app/audio_outputs
       - ./datas/transcription_outputs:/app/text_outputs
@@ -94,7 +100,7 @@ services:
       - MONGODB_URI=mongodb://summarization-db:27017/
       - MONGODB_DB=summarization_db
       - REDIS_URL=redis://redis:6379/0
-      - OPENAI_API_KEY=key
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - TRANSCRIPTION_SERVICE_URL=http://transcription:8000
       - UPLOAD_DIR=/app/text_outputs
       - OUTPUT_DIR=/app/summary_outputs
@@ -115,7 +121,7 @@ services:
       - MONGODB_URI=mongodb://summarization-db:27017/
       - MONGODB_DB=summarization_db
       - REDIS_URL=redis://redis:6379/0
-      - OPENAI_API_KEY=key
+      - OPENAI_API_KEY=${OPENAI_API_KEY} 
       - UPLOAD_DIR=/app/text_outputs
       - OUTPUT_DIR=/app/summary_outputs
       - CACHE_DIR=/app/cache
