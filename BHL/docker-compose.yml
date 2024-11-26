@@ -1,0 +1,191 @@
+networks:
+  mars_network:
+    driver: bridge
+
+services:
+  converter:
+    build: ./services/converter
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./datas/audio_uploads:/app/uploads
+      - ./datas/audio_converted:/app/audio_outputs
+    environment:
+      - MONGODB_URI=mongodb://converter-db:27017/
+      - MONGODB_DB=converter_db
+      - REDIS_URL=redis://redis:6379/0
+      - UPLOAD_DIR=/app/uploads
+      - OUTPUT_DIR=/app/audio_outputs
+    networks:
+      - mars_network
+    depends_on:
+      - converter-db
+      - redis
+
+  converter-worker:
+    build: ./services/converter
+    command: celery -A app.tasks worker --loglevel=debug -Q converter  # info에서 debug로 변경
+    volumes:
+      - ./datas/audio_uploads:/app/uploads
+      - ./datas/audio_converted:/app/audio_outputs
+    environment:
+      - MONGODB_URI=mongodb://converter-db:27017/
+      - MONGODB_DB=converter_db
+      - REDIS_URL=redis://redis:6379/0
+      - UPLOAD_DIR=/app/uploads
+      - OUTPUT_DIR=/app/audio_outputs
+    networks:
+      - mars_network
+    depends_on:
+      - converter-db
+      - redis
+
+  transcription:
+    build: ./services/transcription
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./datas/audio_converted:/app/audio_outputs
+      - ./datas/transcription_outputs:/app/text_outputs
+    environment:
+      - MONGODB_URI=mongodb://transcription-db:27017/
+      - MONGODB_DB=transcription_db
+      - REDIS_URL=redis://redis:6379/0
+      - CONVERTER_SERVICE_URL=http://converter:8000
+      - UPLOAD_DIR=/app/audio_outputs
+      - OUTPUT_DIR=/app/text_outputs
+    networks:
+      - mars_network
+    depends_on:
+      - transcription-db
+      - redis
+      - converter
+
+  transcription-worker:
+    build: ./services/transcription
+    command: celery -A app.tasks worker --loglevel=debug -Q transcription
+    volumes:
+      - ./datas/audio_converted:/app/audio_outputs
+      - ./datas/transcription_outputs:/app/text_outputs
+      - ./datas/whisper_cache:/app/whisper_cache
+    environment:
+      - MONGODB_URI=mongodb://transcription-db:27017/
+      - MONGODB_DB=transcription_db
+      - REDIS_URL=redis://redis:6379/0
+      - UPLOAD_DIR=/app/audio_outputs
+      - OUTPUT_DIR=/app/text_outputs
+    networks:
+      - mars_network
+    depends_on:
+      - transcription-db
+      - redis
+
+  summarization:
+    build: ./services/summarization
+    volumes:
+      - ./datas/transcription_outputs:/app/text_outputs
+      - ./datas/summarization_outputs:/app/summary_outputs
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8002:8000"
+    environment:
+      - MONGODB_URI=mongodb://summarization-db:27017/
+      - MONGODB_DB=summarization_db
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=key
+      - TRANSCRIPTION_SERVICE_URL=http://transcription:8000
+      - UPLOAD_DIR=/app/text_outputs
+      - OUTPUT_DIR=/app/summary_outputs
+    networks:
+      - mars_network
+    depends_on:
+      - summarization-db
+      - redis
+
+  summarization-worker:
+    build: ./services/summarization
+    command: celery -A app.tasks worker --loglevel=debug -Q summarization
+    volumes:
+      - ./datas/transcription_outputs:/app/text_outputs
+      - ./datas/summarization_outputs:/app/summary_outputs
+      - ./datas/summarization_cache:/app/cache
+    environment:
+      - MONGODB_URI=mongodb://summarization-db:27017/
+      - MONGODB_DB=summarization_db
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=key
+      - UPLOAD_DIR=/app/text_outputs
+      - OUTPUT_DIR=/app/summary_outputs
+      - CACHE_DIR=/app/cache
+    networks:
+      - mars_network
+    depends_on:
+      - summarization-db
+      - redis
+
+  converter-db:
+    image: mongo:latest
+    volumes:
+      - ./converter_db:/data/db
+    networks:
+      - mars_network
+
+  transcription-db:
+    image: mongo:latest
+    volumes:
+      - ./transcription_db:/data/db
+    networks:
+      - mars_network
+
+  summarization-db:
+    image: mongo:latest
+    volumes:
+      - ./summarization_db:/data/db
+    networks:
+      - mars_network
+
+  redis:
+    image: redis:7.2
+    ports:
+      - "6379:6379"
+    networks:
+      - mars_network
+
+  api_gateway:
+    build: ./services/api_gateway
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./datas/audio_converted:/app/audio_outputs
+      - ./datas/transcription_outputs:/app/text_outputs
+      - ./datas/summarization_outputs:/app/summary_outputs
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CONVERTER_SERVICE_URL=http://converter:8000
+      - TRANSCRIPTION_SERVICE_URL=http://transcription:8000
+      - SUMMARIZATION_SERVICE_URL=http://summarization:8000
+      - AUDIO_OUTPUT_DIR=/app/audio_outputs
+      - TEXT_OUTPUT_DIR=/app/text_outputs
+      - SUMMARY_OUTPUT_DIR=/app/summary_outputs
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    networks:
+      - mars_network
+    depends_on:
+      - redis
+      - converter
+      - transcription
+      - summarization
+
+volumes:
+  whisper_cache:
+  converter_db:
+  transcription_db:
+  summarization_db:
+  datas:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/datas
+      o: bind
