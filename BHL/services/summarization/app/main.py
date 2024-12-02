@@ -4,7 +4,7 @@ from datetime import datetime
 import os
 import uuid
 import logging
-from .models import SummarizationRequest
+from .models import PropertyExtraction
 from .tasks import celery, summarize_text_task
 from .config import settings
 

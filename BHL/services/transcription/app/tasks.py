@@ -76,8 +76,10 @@ def initialize_model():
         model=model,
         tokenizer=processor.tokenizer,
         feature_extractor=processor.feature_extractor,
-        chunk_length_s=30,
+        chunk_length_s=10,
+        stride_length_s=2,
         batch_size=8,
+        return_timestamps=True,
         torch_dtype=torch_dtype,
         device=device,
         generate_kwargs={
@@ -124,11 +126,24 @@ def transcribe_audio(job_id: str, input_path: str, db_connection_string: str):
         logger.info(f"변환 중: {input_path}")
         result = pipe(input_path)
         
+        # 타임스탬프가 있는 청크들을 시간순으로 정렬하고 처리
         if isinstance(result, dict) and 'chunks' in result:
-            # 청크 텍스트들을 하나로 결합
-            transcribed_text = " ".join(chunk['text'].strip() for chunk in result['chunks']).strip()
+            # 청크들을 시작 시간 기준으로 정렬
+            sorted_chunks = sorted(result['chunks'], key=lambda x: x.get('timestamp', (0, 0))[0])
+            
+            # 중복 제거와 함께 청크 텍스트 결합
+            transcribed_text = ""
+            last_end_time = 0
+            
+            for chunk in sorted_chunks:
+                start_time, end_time = chunk.get('timestamp', (0, 0))
+                text = chunk['text'].strip()
+                
+                # 시간 순서가 맞고 의미 있는 텍스트가 있는 경우만 추가
+                if start_time >= last_end_time and text:
+                    transcribed_text += " " + text
+                    last_end_time = end_time
         else:
-            # 단일 텍스트인 경우
             transcribed_text = result.get('text', '').strip()
             
         if not transcribed_text:

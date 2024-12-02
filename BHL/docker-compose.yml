@@ -5,12 +5,13 @@ networks:
 services:
   converter:
     build: ./services/converter
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
     volumes:
       - ./datas/audio_uploads:/app/uploads
       - ./datas/audio_converted:/app/audio_outputs
+      - ./services/converter:/app
     environment:
       - MONGODB_URI=mongodb://converter-db:27017/
       - MONGODB_DB=converter_db
@@ -27,6 +28,7 @@ services:
     build: ./services/converter
     command: celery -A app.tasks worker --loglevel=debug -Q converter  # info에서 debug로 변경
     volumes:
+      - ./services/converter:/app
       - ./datas/audio_uploads:/app/uploads
       - ./datas/audio_converted:/app/audio_outputs
     environment:
@@ -43,10 +45,11 @@ services:
 
   transcription:
     build: ./services/transcription
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8001:8000"
     volumes:
+      - ./services/transcription:/app
       - ./datas/audio_converted:/app/audio_outputs
       - ./datas/transcription_outputs:/app/text_outputs
     environment:
@@ -73,6 +76,7 @@ services:
         reservations:
           memory: 12G  # 8G에서 12G로 증가
     volumes:
+      - ./services/transcription:/app
       - ./datas/audio_converted:/app/audio_outputs
       - ./datas/transcription_outputs:/app/text_outputs
       - ./datas/whisper_cache:/app/whisper_cache
@@ -91,9 +95,10 @@ services:
   summarization:
     build: ./services/summarization
     volumes:
+      - ./services/summarization:/app
       - ./datas/transcription_outputs:/app/text_outputs
       - ./datas/summarization_outputs:/app/summary_outputs
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8002:8000"
     environment:
@@ -114,6 +119,7 @@ services:
     build: ./services/summarization
     command: celery -A app.tasks worker --loglevel=debug -Q summarization
     volumes:
+      - ./services/summarization:/app
       - ./datas/transcription_outputs:/app/text_outputs
       - ./datas/summarization_outputs:/app/summary_outputs
       - ./datas/summarization_cache:/app/cache
