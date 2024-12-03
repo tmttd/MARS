@@ -1,3 +1,5 @@
+version: '3.8'
+
 networks:
   mars_network:
     driver: bridge
@@ -98,6 +100,7 @@ services:
       - ./services/summarization:/app
       - ./datas/transcription_outputs:/app/text_outputs
       - ./datas/summarization_outputs:/app/summary_outputs
+      - ./datas/sqlite:/app/data
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8002:8000"
@@ -109,6 +112,7 @@ services:
       - TRANSCRIPTION_SERVICE_URL=http://transcription:8000
       - UPLOAD_DIR=/app/text_outputs
       - OUTPUT_DIR=/app/summary_outputs
+      - SQLITE_DIR=/app/data
     networks:
       - mars_network
     depends_on:
@@ -123,6 +127,7 @@ services:
       - ./datas/transcription_outputs:/app/text_outputs
       - ./datas/summarization_outputs:/app/summary_outputs
       - ./datas/summarization_cache:/app/cache
+      - ./datas/sqlite:/app/data
     environment:
       - MONGODB_URI=mongodb://summarization-db:27017/
       - MONGODB_DB=summarization_db
@@ -131,6 +136,7 @@ services:
       - UPLOAD_DIR=/app/text_outputs
       - OUTPUT_DIR=/app/summary_outputs
       - CACHE_DIR=/app/cache
+      - SQLITE_DIR=/app/data
     networks:
       - mars_network
     depends_on:
@@ -189,6 +195,25 @@ services:
       - converter
       - transcription
       - summarization
+
+  property-frontend:
+    build:
+      context: ./property-frontend
+      args:
+        - REACT_APP_API_URL=http://localhost:8003
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - api_gateway
+    networks:
+      - mars_network
 
 volumes:
   whisper_cache:

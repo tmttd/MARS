@@ -6,6 +6,7 @@ import os
 import logging
 from .config import settings
 from .models import PropertyExtraction
+from .database import init_db, insert_extraction
 from httpx import AsyncClient
 import asyncio
 import json
@@ -38,6 +39,9 @@ celery.conf.update(
 def summarize_text(job_id: str, db_connection_string: str):
     try:
         logger.info(f"텍스트 요약 시작: job {job_id}")
+        
+        # SQLite 데이터베이스 초기화
+        init_db()
         
         # 입력 파일 경로 설정
         input_file = os.path.join(settings.UPLOAD_DIR, f"{job_id}.txt")
@@ -109,7 +113,7 @@ def summarize_text(job_id: str, db_connection_string: str):
         
         extraction = completion.choices[0].message.parsed.model_dump()
 
-        # 성공 상태 업데이트
+        # MongoDB에 저장
         db.summaries.update_one(
             {"job_id": job_id},
             {
@@ -120,6 +124,9 @@ def summarize_text(job_id: str, db_connection_string: str):
                 }
             }
         )
+        
+        # SQLite에도 저장
+        insert_extraction(job_id, extraction)
         
         # 출력 파일 경로 설정
         output_file = os.path.join(settings.OUTPUT_DIR, f"{job_id}.json")
