@@ -10,6 +10,7 @@ import os
 from .config import Settings
 from .models import ProcessingJob, StageStatus
 from typing import List, Dict, Any
+from pymongo import MongoClient
 
 # 로깅 설정
 logging.basicConfig(
@@ -258,3 +259,31 @@ async def get_extractions():
             return response.json()
         except httpx.HTTPError as e:
             raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/job/{job_id}")
+async def get_job_status(job_id: str):
+    try:
+        # 작업 데이터베이스 연결
+        client = MongoClient(settings.WORK_MONGODB_URI)
+        work_db = client[settings.WORK_MONGODB_DB]
+        
+        # 각 컬렉션에서 job_id로 조회
+        conversion = work_db.audio_conversions.find_one({"job_id": job_id}, {'_id': 0})
+        transcription = work_db.transcriptions.find_one({"job_id": job_id}, {'_id': 0})
+        summary = work_db.summaries.find_one({"job_id": job_id}, {'_id': 0})
+        
+        # 결과 조합
+        result = {
+            "job_id": job_id,
+            "conversion": conversion,
+            "transcription": transcription,
+            "summary": summary
+        }
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"작업 조회 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        client.close()

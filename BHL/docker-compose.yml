@@ -7,7 +7,7 @@ networks:
 services:
   converter:
     build: ./services/converter
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level warning
     ports:
       - "8000:8000"
     volumes:
@@ -17,18 +17,22 @@ services:
     environment:
       - MONGODB_URI=mongodb://converter-db:27017/
       - MONGODB_DB=converter_db
+      - WORK_MONGODB_URI=mongodb://work-db:27017/
+      - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
       - UPLOAD_DIR=/app/uploads
       - OUTPUT_DIR=/app/audio_outputs
+      - PYTHONWARNINGS=ignore
     networks:
       - mars_network
     depends_on:
       - converter-db
+      - work-db
       - redis
 
   converter-worker:
     build: ./services/converter
-    command: celery -A app.tasks worker --loglevel=debug -Q converter  # info에서 debug로 변경
+    command: celery -A app.tasks worker --loglevel=info -Q converter
     volumes:
       - ./services/converter:/app
       - ./datas/audio_uploads:/app/uploads
@@ -36,18 +40,22 @@ services:
     environment:
       - MONGODB_URI=mongodb://converter-db:27017/
       - MONGODB_DB=converter_db
+      - WORK_MONGODB_URI=mongodb://work-db:27017/
+      - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
       - UPLOAD_DIR=/app/uploads
       - OUTPUT_DIR=/app/audio_outputs
+      - PYTHONWARNINGS=ignore
     networks:
       - mars_network
     depends_on:
       - converter-db
+      - work-db
       - redis
 
   transcription:
     build: ./services/transcription
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level warning
     ports:
       - "8001:8000"
     volumes:
@@ -57,26 +65,30 @@ services:
     environment:
       - MONGODB_URI=mongodb://transcription-db:27017/
       - MONGODB_DB=transcription_db
+      - WORK_MONGODB_URI=mongodb://work-db:27017/
+      - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
       - CONVERTER_SERVICE_URL=http://converter:8000
       - UPLOAD_DIR=/app/audio_outputs
       - OUTPUT_DIR=/app/text_outputs
+      - PYTHONWARNINGS=ignore
     networks:
       - mars_network
     depends_on:
       - transcription-db
+      - work-db
       - redis
       - converter
 
   transcription-worker:
     build: ./services/transcription
-    command: celery -A app.tasks worker --loglevel=debug -Q transcription
+    command: celery -A app.tasks worker --loglevel=info -Q transcription
     deploy:
       resources:
         limits:
-          memory: 24G  # 16G에서 24G로 증가
+          memory: 24G
         reservations:
-          memory: 12G  # 8G에서 12G로 증가
+          memory: 12G
     volumes:
       - ./services/transcription:/app
       - ./datas/audio_converted:/app/audio_outputs
@@ -85,13 +97,17 @@ services:
     environment:
       - MONGODB_URI=mongodb://transcription-db:27017/
       - MONGODB_DB=transcription_db
+      - WORK_MONGODB_URI=mongodb://work-db:27017/
+      - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
       - UPLOAD_DIR=/app/audio_outputs
       - OUTPUT_DIR=/app/text_outputs
+      - PYTHONWARNINGS=ignore
     networks:
       - mars_network
     depends_on:
       - transcription-db
+      - work-db
       - redis
 
   summarization:
@@ -100,69 +116,104 @@ services:
       - ./services/summarization:/app
       - ./datas/transcription_outputs:/app/text_outputs
       - ./datas/summarization_outputs:/app/summary_outputs
-      - ./datas/sqlite:/app/data
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level warning
     ports:
       - "8002:8000"
     environment:
       - MONGODB_URI=mongodb://summarization-db:27017/
       - MONGODB_DB=summarization_db
+      - WORK_MONGODB_URI=mongodb://work-db:27017/
+      - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - TRANSCRIPTION_SERVICE_URL=http://transcription:8000
       - UPLOAD_DIR=/app/text_outputs
       - OUTPUT_DIR=/app/summary_outputs
-      - SQLITE_DIR=/app/data
+      - PYTHONWARNINGS=ignore
     networks:
       - mars_network
     depends_on:
       - summarization-db
+      - work-db
       - redis
 
   summarization-worker:
     build: ./services/summarization
-    command: celery -A app.tasks worker --loglevel=debug -Q summarization
+    command: celery -A app.tasks worker --loglevel=info -Q summarization
     volumes:
       - ./services/summarization:/app
       - ./datas/transcription_outputs:/app/text_outputs
       - ./datas/summarization_outputs:/app/summary_outputs
       - ./datas/summarization_cache:/app/cache
-      - ./datas/sqlite:/app/data
     environment:
       - MONGODB_URI=mongodb://summarization-db:27017/
       - MONGODB_DB=summarization_db
+      - WORK_MONGODB_URI=mongodb://work-db:27017/
+      - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
-      - OPENAI_API_KEY=${OPENAI_API_KEY} 
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - UPLOAD_DIR=/app/text_outputs
       - OUTPUT_DIR=/app/summary_outputs
       - CACHE_DIR=/app/cache
-      - SQLITE_DIR=/app/data
+      - PYTHONWARNINGS=ignore
     networks:
       - mars_network
     depends_on:
       - summarization-db
+      - work-db
       - redis
 
   converter-db:
     image: mongo:latest
+    command: mongod --quiet --logpath /dev/null
     volumes:
       - ./converter_db:/data/db
     networks:
       - mars_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   transcription-db:
     image: mongo:latest
+    command: mongod --quiet --logpath /dev/null
     volumes:
       - ./transcription_db:/data/db
     networks:
       - mars_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   summarization-db:
     image: mongo:latest
+    command: mongod --quiet --logpath /dev/null
     volumes:
       - ./summarization_db:/data/db
     networks:
       - mars_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  work-db:
+    image: mongo:latest
+    command: mongod --quiet --logpath /dev/null
+    volumes:
+      - ./work_db:/data/db
+    networks:
+      - mars_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   redis:
     image: redis:7.2
@@ -170,6 +221,11 @@ services:
       - "6379:6379"
     networks:
       - mars_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   api_gateway:
     build: ./services/api_gateway
@@ -187,7 +243,8 @@ services:
       - AUDIO_OUTPUT_DIR=/app/audio_outputs
       - TEXT_OUTPUT_DIR=/app/text_outputs
       - SUMMARY_OUTPUT_DIR=/app/summary_outputs
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+      - PYTHONWARNINGS=ignore
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level warning
     networks:
       - mars_network
     depends_on:
@@ -214,6 +271,11 @@ services:
       - api_gateway
     networks:
       - mars_network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   whisper_cache:

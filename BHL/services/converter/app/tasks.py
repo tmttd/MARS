@@ -24,47 +24,63 @@ celery.conf.update(
     result_serializer='json',
     worker_prefetch_multiplier=1,
     task_acks_late=True,
-    task_default_queue='converter',  # 추가
-    task_queues={  # 추가
+    task_default_queue='converter',
+    task_queues={
         'converter': {
             'exchange': 'converter',
             'routing_key': 'converter',
         }
     },
-    task_default_exchange='converter',  # 추가
-    task_default_routing_key='converter'  # 추가
+    task_default_exchange='converter',
+    task_default_routing_key='converter'
 )
 
-@celery.task(name='convert_audio', bind=True)
-def convert_audio(self, job_id: str, input_path: str, output_dir: str, db_connection_string: str):
-    logger.info(f"작업 수신됨: task_id={self.request.id}, job_id={job_id}")
-    logger.info(f"Redis URL: {os.getenv('REDIS_URL')}")
-    logger.info(f"입력 경로: {input_path}")
-    logger.info(f"출력 디렉토리: {output_dir}")
-    
+@celery.task(name='convert_audio')
+def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_string: str, work_db_connection_string: str, work_db_name: str):
     try:
-        logger.info(f"오디오 변환 시작: job {job_id}")
+        logger.info(f"작업 수신됨: task_id={celery.current_task.request.id}, job_id={job_id}")
         
-        # MongoDB 연결
+        # MongoDB 연결 (로그용)
         client = MongoClient(db_connection_string)
         db = client.converter_db
         
-        # 상태 업데이트: 처리 중
-        db.conversions.update_one(
-            {"job_id": job_id},
-            {
-                "$set": {
-                    "status": "processing",
-                    "updated_at": datetime.now(UTC)
-                }
+        # 작업 데이터베이스 연결
+        work_client = MongoClient(work_db_connection_string)
+        work_db = work_client[work_db_name]
+        
+        # 작업 시작 로그
+        now = datetime.now(UTC)
+        db.logs.insert_one({
+            "job_id": job_id,
+            "service": "converter",
+            "event": "processing_started",
+            "status": "processing",
+            "timestamp": now,
+            "message": f"Converting audio file: {input_path}",
+            "metadata": {
+                "created_at": now,
+                "updated_at": now
             }
-        )
+        })
         
         # 파일 존재 확인
         if not os.path.exists(input_path):
-            raise FileNotFoundError(f"오디오 파일을 찾을 수 없습니다: {input_path}")
+            error_msg = f"오디오 파일을 찾을 수 없습니다: {input_path}"
+            now = datetime.now(UTC)
+            db.logs.insert_one({
+                "job_id": job_id,
+                "service": "converter",
+                "event": "error",
+                "status": "failed",
+                "timestamp": now,
+                "message": error_msg,
+                "metadata": {
+                    "updated_at": now
+                }
+            })
+            raise FileNotFoundError(error_msg)
             
-        # 출력 파일 경로 설정 (wav로 통일)
+        # 출력 파일 경로 설정
         output_filename = f"{job_id}.wav"
         output_path = os.path.join(output_dir, output_filename)
         
@@ -84,65 +100,81 @@ def convert_audio(self, job_id: str, input_path: str, output_dir: str, db_connec
         
         logger.info(f"변환 완료: {output_path}")
         
-        # 변환 성공 시에만 원본 파일 삭제
-        try:
-            os.remove(input_path)
-            logger.info(f"원본 파일 삭제 완료: {input_path}")
-        except Exception as e:
-            logger.warning(f"원본 파일 삭제 실패: {str(e)}")
+        # 원본 파일 삭제
+        os.remove(input_path)
+        logger.info(f"원본 파일 삭제 완료: {input_path}")
         
-        # 성공 상태 업데이트
-        db.conversions.update_one(
+        # 작업 데이터 업데이트
+        work_db.jobs.update_one(
             {"job_id": job_id},
             {
                 "$set": {
-                    "status": "completed",
-                    "output_file": output_path,
-                    "updated_at": datetime.now(UTC)
+                    "converter": {
+                        "input_file": input_path,
+                        "output_file": output_path
+                    }
                 }
             }
         )
         
-        logger.info(f"작업 완료: job {job_id}")
+        # 작업 완료 로그
+        now = datetime.now(UTC)
+        db.logs.insert_one({
+            "job_id": job_id,
+            "service": "converter",
+            "event": "conversion_completed",
+            "status": "completed",
+            "timestamp": now,
+            "message": f"Audio conversion completed: {output_path}",
+            "metadata": {
+                "updated_at": now
+            }
+        })
         
-        # 작업 완료 후 웹훅 호출
+        # API Gateway에 웹훅 전송
         async def send_webhook():
             async with AsyncClient() as client:
                 await client.post(
                     f"{settings.API_GATEWAY_URL}/webhook/conversion/{job_id}",
                     json={"status": "completed"}
                 )
-
-        # 비동기 웹훅 호출 실행
+        
         asyncio.run(send_webhook())
+        
+        # 연결 종료
+        client.close()
+        work_client.close()
         
         return {"status": "completed", "output_file": output_path}
         
     except Exception as e:
         logger.error(f"변환 중 오류 발생: {str(e)}")
-        # 오류 발생 시 원본 파일 유지 (디버깅 목적)
-        logger.info(f"변환 실패로 원본 파일 유지: {input_path}")
-        
-        # 오류 상태 업데이트
         try:
-            db.conversions.update_one(
-                {"job_id": job_id},
-                {
-                    "$set": {
-                        "status": "failed",
-                        "error": str(e),
-                        "updated_at": datetime.now(UTC)
-                    }
+            # 오류 로그 기록
+            now = datetime.now(UTC)
+            db.logs.insert_one({
+                "job_id": job_id,
+                "service": "converter",
+                "event": "error",
+                "status": "failed",
+                "timestamp": now,
+                "message": f"Audio conversion failed: {str(e)}",
+                "metadata": {
+                    "error": str(e),
+                    "updated_at": now
                 }
-            )
-        except Exception as update_error:
-            logger.error(f"오류 상태 업데이트 실패: {str(update_error)}")
+            })
+        except Exception as inner_e:
+            logger.error(f"오류 상태 업데이트 실패: {str(inner_e)}")
+        finally:
+            client.close()
+            work_client.close()
+            if os.path.exists(input_path):
+                try:
+                    os.remove(input_path)
+                except:
+                    pass
         raise
-    finally:
-        client.close()  # MongoDB 연결 종료
 
 # task 함수를 변수에 할당하여 export
 convert_audio_task = celery.task(name='convert_audio', bind=True)(convert_audio)
-
-# 또는 다음과 같이 할 수도 있습니다:
-# convert_audio_task = convert_audio

@@ -5,6 +5,10 @@ class Settings(BaseSettings):
     MONGODB_URI: str = "mongodb://localhost:27017/"
     MONGODB_DB: str = "transcription_db"
     
+    # 작업 데이터베이스 설정
+    WORK_MONGODB_URI: str = "mongodb://localhost:27017/"
+    WORK_MONGODB_DB: str = "mars_work_db"
+    
     # 디렉토리 설정
     UPLOAD_DIR: str = "/app/audio_outputs"
     OUTPUT_DIR: str = "/app/text_outputs"

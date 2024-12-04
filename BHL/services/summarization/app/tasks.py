@@ -1,15 +1,14 @@
 from celery import Celery
-from datetime import datetime
+from datetime import datetime, UTC
 from pymongo import MongoClient
 from openai import OpenAI
 import os
 import logging
-from .config import settings
-from .models import PropertyExtraction
-from .database import init_db, insert_extraction
 from httpx import AsyncClient
 import asyncio
 import json
+from .config import settings
+from .models import PropertyExtraction
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -19,7 +18,6 @@ logger = logging.getLogger(__name__)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY 환경 변수가 설정되지 않았습니다")
-
 
 # Celery 설정
 celery = Celery('summarization')
@@ -36,41 +34,49 @@ celery.conf.update(
 )
 
 @celery.task(name='summarize_text')
-def summarize_text(job_id: str, db_connection_string: str):
+def summarize_text(job_id: str, db_connection_string: str, work_db_connection_string: str, work_db_name: str):
     try:
-        logger.info(f"텍스트 요약 시작: job {job_id}")
+        # MongoDB 연결 (로그용)
+        client = MongoClient(db_connection_string)
+        db = client.summarization_db
         
-        # SQLite 데이터베이스 초기화
-        init_db()
+        # 작업 데이터베이스 연결
+        work_client = MongoClient(work_db_connection_string)
+        work_db = work_client[work_db_name]
         
+        # 작업 시작 로그
+        now = datetime.now(UTC)
+        db.logs.insert_one({
+            "job_id": job_id,
+            "service": "summarization",
+            "event": "processing_started",
+            "status": "processing",
+            "timestamp": now,
+            "message": "텍스트 요약 처리 중",
+            "metadata": {
+                "created_at": now,
+                "updated_at": now
+            }
+        })
+        
+        # 입업 조회
+        job = work_db.jobs.find_one({"job_id": job_id})
+        if not job or not job.get("summarization"):
+            raise ValueError("작업을 찾을 수 없습니다")
+            
         # 입력 파일 경로 설정
-        input_file = os.path.join(settings.UPLOAD_DIR, f"{job_id}.txt")
+        input_file = job["summarization"]["input_file"]
         
         # 텍스트 파일 읽기
         with open(input_file, 'r', encoding='utf-8') as f:
             text_to_summarize = f.read()
             
-        # MongoDB 연결
-        client = MongoClient(db_connection_string)
-        db = client.summarization_db
-        
-        # 상태 업데이트: 처리 중
-        db.summaries.update_one(
-            {"job_id": job_id},
-            {
-                "$set": {
-                    "status": "processing",
-                    "updated_at": datetime.utcnow()
-                }
-            }
-        )
-        
         # OpenAI 클라이언트 초기화
         openai_client = OpenAI(api_key=OPENAI_API_KEY)
         
         # GPT를 사용한 텍스트 요약
         completion = openai_client.beta.chat.completions.parse(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": """You are an AI assistant tasked with extracting structured real estate listing information from a phone call transcript. Your goal is to analyze the given transcript and convert the relevant information into a structured JSON format."""},
                 {"role": "user", "content": f""" Here is the call transcript you need to analyze:
@@ -103,8 +109,8 @@ def summarize_text(job_id: str, db_connection_string: str):
                 - Your response must be in Korean.
 
                 If any information is missing or uncertain:
-                - Use Nonefor missing numeric values.
-                - Use an None for missing string values.
+                - Use None for missing numeric values.
+                - Use None for missing string values.
                 - If a value is uncertain but an estimate is provided, include the estimate and add a note about the uncertainty in the "memo" field.
                 - If you're unsure about any information, include a note in the "비고" (Notes) field explaining the uncertainty."""}
             ],
@@ -112,36 +118,48 @@ def summarize_text(job_id: str, db_connection_string: str):
         )
         
         extraction = completion.choices[0].message.parsed.model_dump()
-
-        # MongoDB에 저장
-        db.summaries.update_one(
-            {"job_id": job_id},
-            {
-                "$set": {
-                    "status": "completed",
-                    "updated_at": datetime.utcnow(),
-                    "extraction": extraction
-                }
-            }
-        )
-        
-        # SQLite에도 저장
-        insert_extraction(job_id, extraction)
         
         # 출력 파일 경로 설정
         output_file = os.path.join(settings.OUTPUT_DIR, f"{job_id}.json")
-        
-        # 요약 결과를 파일로 저장
         os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
         
+        # 요약 결과를 파일로 저장
         summary = {
             "job_id": job_id,
             "extraction": extraction,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.now(UTC).isoformat()
         }
         
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(summary, f, ensure_ascii=False, indent=2)
+            
+        # 작업 데이터 업데이트
+        work_db.jobs.update_one(
+            {"job_id": job_id},
+            {
+                "$set": {
+                    "summarization": {
+                        "input_file": input_file,
+                        "output_file": output_file,
+                        "extraction": extraction
+                    }
+                }
+            }
+        )
+        
+        # 작업 완료 로그
+        now = datetime.now(UTC)
+        db.logs.insert_one({
+            "job_id": job_id,
+            "service": "summarization",
+            "event": "summarization_completed",
+            "status": "completed",
+            "timestamp": now,
+            "message": "텍스트 요약 완료",
+            "metadata": {
+                "updated_at": now
+            }
+        })
             
         async def send_webhook():
             async with AsyncClient() as client:
@@ -151,28 +169,36 @@ def summarize_text(job_id: str, db_connection_string: str):
                 )
 
         asyncio.run(send_webhook())
-            
+        
+        # 연결 종료
+        client.close()
+        work_client.close()
+        
         return {"status": "completed", "extraction": extraction}
         
     except Exception as e:
         logger.error(f"요약 중 오류 발생: {str(e)}")
         try:
-            db.summaries.update_one(
-                {"job_id": job_id},
-                {
-                    "$set": {
-                        "status": "failed",
-                        "error": str(e),
-                        "updated_at": datetime.utcnow()
-                    }
+            # 오류 로그 기록
+            now = datetime.now(UTC)
+            db.logs.insert_one({
+                "job_id": job_id,
+                "service": "summarization",
+                "event": "error",
+                "status": "failed",
+                "timestamp": now,
+                "message": f"요약 실패: {str(e)}",
+                "metadata": {
+                    "error": str(e),
+                    "updated_at": now
                 }
-            )
-        except Exception as update_error:
-            logger.error(f"오류 상태 업데이트 실패: {str(update_error)}")
-        raise 
+            })
+        except Exception as inner_e:
+            logger.error(f"오류 상태 업데이트 실패: {str(inner_e)}")
+        finally:
+            client.close()
+            work_client.close()
+        raise
     
 # task 함수를 변수에 할당하여 export
 summarize_text_task = celery.task(name='summarize_text', bind=True)(summarize_text)
-
-# 또는 다음과 같이 할 수도 있습니다:
-# summarize_text_task = summarize_text
