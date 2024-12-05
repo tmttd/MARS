@@ -1,4 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from redis import Redis
 from datetime import datetime, UTC
 import httpx
@@ -8,6 +9,8 @@ import logging
 import os
 from .config import Settings
 from .models import ProcessingJob, StageStatus
+from typing import List, Dict, Any
+from pymongo import MongoClient
 
 # 로깅 설정
 logging.basicConfig(
@@ -21,8 +24,20 @@ settings = Settings()
 
 app = FastAPI(title="Audio Processing API Gateway")
 
+# CORS 설정 추가
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Redis 연결
 redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
+
+# 환경 변수
+SUMMARIZATION_SERVICE_URL = os.getenv("SUMMARIZATION_SERVICE_URL", "http://summarization:8000")
 
 @app.post("/Total_Processing")
 async def Total_Processing(file: UploadFile = File(...)):
@@ -232,3 +247,43 @@ async def summarization_webhook(job_id: str):
     except Exception as e:
         logger.error(f"요약 웹훅 처리 중 오류 발생: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# 프론트엔드를 위한 엔드포인트
+@app.get("/extractions")
+async def get_extractions():
+    """프론트엔드를 위한 추출 데이터 조회 엔드포인트"""
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(f"{SUMMARIZATION_SERVICE_URL}/extractions")
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/job/{job_id}")
+async def get_job_status(job_id: str):
+    try:
+        # 작업 데이터베이스 연결
+        client = MongoClient(settings.WORK_MONGODB_URI)
+        work_db = client[settings.WORK_MONGODB_DB]
+        
+        # 각 컬렉션에서 job_id로 조회
+        conversion = work_db.audio_conversions.find_one({"job_id": job_id}, {'_id': 0})
+        transcription = work_db.transcriptions.find_one({"job_id": job_id}, {'_id': 0})
+        summary = work_db.summaries.find_one({"job_id": job_id}, {'_id': 0})
+        
+        # 결과 조합
+        result = {
+            "job_id": job_id,
+            "conversion": conversion,
+            "transcription": transcription,
+            "summary": summary
+        }
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"작업 조회 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        client.close()

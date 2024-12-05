@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pymongo import MongoClient
-from datetime import datetime
+from datetime import datetime, UTC
 import os
 import uuid
 import logging
@@ -8,9 +8,8 @@ from .models import Transcript
 from .tasks import celery, transcribe_audio_task
 from .config import settings
 
-
 # 로깅 설정
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title=settings.PROJECT_NAME)
@@ -19,6 +18,8 @@ app = FastAPI(title=settings.PROJECT_NAME)
 try:
     client = MongoClient(settings.MONGODB_URI)
     db = client[settings.MONGODB_DB]
+    work_client = MongoClient(settings.WORK_MONGODB_URI)
+    work_db = work_client[settings.WORK_MONGODB_DB]
     logger.info("MongoDB 연결 성공")
 except Exception as e:
     logger.error(f"MongoDB 연결 실패: {str(e)}")
@@ -31,70 +32,78 @@ os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 async def health_check():
     try:
         client.admin.command('ping')
+        work_client.admin.command('ping')
         return {
             "status": "healthy",
             "database": "connected",
+            "work_database": "connected",
             "upload_dir": os.path.exists(settings.UPLOAD_DIR)
         }
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
 @app.post("/transcribe")
-async def transcribe_audio(job_id: str):
+async def transcribe_audio_endpoint(job_id: str):
     try:
-        # 파일 경로 확인
-        file_path = os.path.join(settings.UPLOAD_DIR, f"{job_id}.wav")
-        logger.info(f"처리할 파일 경로: {file_path}, job_id: {job_id}")
-
-        # 파일 존재 여부 및 형식 검사
-        if not os.path.exists(file_path):
-            logger.error(f"파일을 찾을 수 없음: {file_path}")
-            raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다")
+        # 입력 파일 경로 확인
+        input_file = os.path.join(settings.UPLOAD_DIR, f"{job_id}.wav")
+        logger.info(f"처리�� 파일 경로: {input_file}, job_id: {job_id}")
+        
+        if not os.path.exists(input_file):
+            raise HTTPException(status_code=404, detail="입력 파일을 찾을 수 없습니다")
             
-        if not file_path.endswith('.wav'):
-            logger.error(f"지원하지 않는 파일 형식: {file_path}")
-            raise HTTPException(status_code=400, detail="WAV 파일만 지원됩니다")
-
-        # Transcription 작업 시작
-        current_time = datetime.utcnow()
+        current_time = datetime.now(UTC)
         
-        transcript = {
-            "job_id": job_id,  # 전달받은 job_id 사용
-            "status": "pending",
-            "input_file": file_path,
-            "created_at": current_time,
-            "updated_at": current_time
-        }
+        # 작업 데이터 초기화/업데이트
+        work_db.jobs.update_one(
+            {"job_id": job_id},
+            {
+                "$set": {
+                    "transcription": {
+                        "input_file": input_file
+                    }
+                }
+            },
+            upsert=True
+        )
         
-        # MongoDB에 저장
-        try:
-            db.transcripts.insert_one(transcript)
-            logger.info(f"MongoDB에 작업 저장됨: {job_id}")
-        except Exception as e:
-            logger.error(f"MongoDB 저장 실패: {str(e)}")
-            raise HTTPException(status_code=500, detail="데이터베이스 저장 실패")
+        # 로그 기록
+        db.logs.insert_one({
+            "job_id": job_id,
+            "service": "transcription",
+            "event": "processing_started",
+            "status": "processing",
+            "timestamp": current_time,
+            "message": f"음성-텍스트 변환 시작: {input_file}",
+            "metadata": {
+                "created_at": current_time,
+                "updated_at": current_time
+            }
+        })
         
         # Celery 작업 시작
         try:
             task = transcribe_audio_task.apply_async(
                 kwargs={
                     'job_id': job_id,
-                    'input_path': file_path,
-                    'db_connection_string': settings.MONGODB_URI
+                    'input_path': input_file,
+                    'output_dir': settings.OUTPUT_DIR,
+                    'db_connection_string': settings.MONGODB_URI,
+                    'work_db_connection_string': settings.WORK_MONGODB_URI,
+                    'work_db_name': settings.WORK_MONGODB_DB
                 },
-                queue='transcription'  # 큐 이름 명시적 지정
+                queue='transcription'
             )
-            logger.info(f"Celery 작업 시작됨: {job_id}, task_id: {task.id}")
+            logger.info(f"Celery 작업 시작됨: {task.id}")
+            
         except Exception as e:
             logger.error(f"Celery 작업 시작 실패: {str(e)}")
-            raise HTTPException(status_code=500, detail="작업 시작 실패")
+            raise
         
-        return {"job_id": job_id, "status": "pending"}
-            
+        return {"job_id": job_id, "status": "processing"}
+        
     except Exception as e:
         logger.error(f"Transcribe 엔드포인트 오류: {str(e)}")
-        if isinstance(e, HTTPException):
-            raise
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/transcript/{job_id}")
@@ -104,25 +113,34 @@ async def get_transcript(job_id: str):
         
         # MongoDB 연결 상태 확인
         try:
-            # client.admin.command('ping') 대신 client.admin.command('ping') 사용
             client.admin.command('ping')
+            work_client.admin.command('ping')
         except Exception as db_error:
             logger.error(f"MongoDB 연결 오류: {str(db_error)}")
             raise HTTPException(status_code=500, detail="데이터베이스 연결 오류")
             
         # 작업 조회
-        transcript = db.transcripts.find_one({"job_id": job_id})
-        logger.info(f"조회된 작업: {transcript}")
+        job = work_db.jobs.find_one({"job_id": job_id})
+        logger.info(f"조회된 작업: {job}")
         
-        if not transcript:
+        if not job:
             logger.error(f"작업을 찾을 수 없음: {job_id}")
             raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다")
             
+        # transcription 필드가 없거나 output_file이 없는 경우
+        if not job.get("transcription") or not job["transcription"].get("output_file"):
+            raise HTTPException(status_code=400, detail="변환이 아직 완료되지 않았습니다")
+            
+        # 파일 존재 확인
+        output_file = job["transcription"]["output_file"]
+        if not os.path.exists(output_file):
+            raise HTTPException(status_code=404, detail="변환된 파일을 찾을 수 없습니다")
+            
         response = {
             "job_id": job_id,
-            "status": transcript["status"],
-            "text": transcript.get("text"),
-            "error": transcript.get("error")
+            "status": "completed",  # 파일이 존재하면 완료된 것으로 간주
+            "text": job["transcription"].get("text"),
+            "output_file": output_file
         }
         logger.info(f"응답 데이터: {response}")
         return response
