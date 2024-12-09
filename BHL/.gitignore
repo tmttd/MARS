@@ -165,3 +165,6 @@ datas/*
 converter_db/
 summarization_db/*
 transcription_db/*
+
+work_db/
+call_db/
