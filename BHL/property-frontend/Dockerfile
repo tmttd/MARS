@@ -13,6 +13,7 @@ RUN npm install
 
 # 소스 코드 복사 및 빌드
 COPY . .
+RUN npm install react-icons
 RUN npm run build
 
 # 프로덕션 스테이지
