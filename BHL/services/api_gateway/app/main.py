@@ -26,7 +26,7 @@ app = FastAPI(title="Audio Processing API Gateway")
 # CORS 설정 추가
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # 프론트엔드가 실행되는 도메인
+    allow_origins=["*"],  # 프론트엔드가 실행되는 도메인
     allow_credentials=True,
     allow_methods=["*"],  # 모든 HTTP 메서드 허용
     allow_headers=["*"],  # 모든 헤더 허용
@@ -275,7 +275,6 @@ async def summarization_webhook(job_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 프론트엔드를 위한 엔드포인트
 @app.get("/extractions")
 async def get_extractions():
     """프론트엔드를 위한 추출 데이터 조회 엔드포인트"""
@@ -283,8 +282,21 @@ async def get_extractions():
         try:
             response = await client.get(f"{SUMMARIZATION_SERVICE_URL}/extractions")
             response.raise_for_status()
-            return response.json()
+            data = response.json()
+            if not isinstance(data, dict) or "extractions" not in data:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Invalid response format from summarization service",
+                )
+            return data
         except httpx.HTTPError as e:
+            logger.error(f"Summarization service error: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to fetch data from summarization service: {str(e)}",
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -339,3 +351,65 @@ async def get_job_status(job_id: str):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         client.close()
+
+
+@app.get("/calls")
+async def get_calls():
+    try:
+        logger.info("Attempting to connect to call-db")
+        client = MongoClient(settings.CALL_DB_URI)
+        call_db = client[settings.CALL_DB_NAME]
+
+        # 데이터베이스 연결 확인
+        client.admin.command("ping")
+
+        # 모든 통화 기록 조회
+        calls = list(call_db.calls.find({}, {"_id": 0}))
+        logger.info(f"Found {len(calls)} calls")
+
+        if not calls:
+            logger.warning("No calls found in database")
+            return {"calls": []}
+
+        # 날짜 필드 ISO 형식으로 변환
+        for call in calls:
+            if "created_at" in call:
+                call["created_at"] = call["created_at"].isoformat()
+
+        return {"calls": calls}
+
+    except Exception as e:
+        logger.error(f"통화 기록 조회 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if "client" in locals():
+            client.close()
+
+
+@app.put("/calls/{job_id}")
+async def update_call(job_id: str, call_data: dict):
+    try:
+        logger.info(f"Attempting to update call with job_id: {job_id}")
+        client = MongoClient(settings.CALL_DB_URI)
+        call_db = client[settings.CALL_DB_NAME]
+
+        # 데이터베이스 연결 확인
+        client.admin.command("ping")
+
+        # summarization.extraction 형식으로 데이터 변환
+        update_data = {"summarization": {"extraction": call_data}}
+
+        # 통화 기록 업데이트
+        result = call_db.calls.update_one({"job_id": job_id}, {"$set": update_data})
+
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="Call not found")
+
+        return {"message": "Call updated successfully"}
+
+    except Exception as e:
+        logger.error(f"통화 기록 업데이트 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if "client" in locals():
+            client.close()

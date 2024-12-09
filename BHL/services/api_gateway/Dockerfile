@@ -18,4 +18,5 @@ RUN mkdir -p /app/outputs
 
 EXPOSE 8000
 
-# 실행 명령어는 docker-compose에서 정의
+# 실행 명령어 추가
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

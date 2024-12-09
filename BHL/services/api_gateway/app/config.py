@@ -1,14 +1,21 @@
 from pydantic_settings import BaseSettings
+import os
 
 
 class Settings(BaseSettings):
     # Redis 설정
-    REDIS_URL: str = "redis://redis:6379/0"
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
     # 마이크로서비스 URL 설정
-    CONVERTER_SERVICE_URL: str = "http://converter:8000"
-    TRANSCRIPTION_SERVICE_URL: str = "http://transcription:8000"
-    SUMMARIZATION_SERVICE_URL: str = "http://summarization:8000"
+    CONVERTER_SERVICE_URL: str = os.getenv(
+        "CONVERTER_SERVICE_URL", "http://converter:8000"
+    )
+    TRANSCRIPTION_SERVICE_URL: str = os.getenv(
+        "TRANSCRIPTION_SERVICE_URL", "http://transcription:8000"
+    )
+    SUMMARIZATION_SERVICE_URL: str = os.getenv(
+        "SUMMARIZATION_SERVICE_URL", "http://summarization:8000"
+    )
 
     # 출력 디렉토리 경로 설정
     AUDIO_OUTPUT_DIR: str = "/app/audio_outputs"
@@ -27,6 +34,8 @@ class Settings(BaseSettings):
     CONVERTER_SERVICE_URL: str = "http://converter:8000"
     TRANSCRIPTION_SERVICE_URL: str = "http://transcription:8000"
     SUMMARIZATION_SERVICE_URL: str = "http://summarization:8000"
+    CALL_DB_URI: str = os.getenv("CALL_DB_URI", "mongodb://call-db:27017")
+    CALL_DB_NAME: str = os.getenv("CALL_DB_NAME", "call_data_db")
 
     class Config:
         case_sensitive = True

@@ -1,4 +1,4 @@
-version: '3.8'
+# version: '3.8'
 
 networks:
   mars_network:
@@ -237,21 +237,14 @@ services:
       - ./datas/summarization_outputs:/app/summary_outputs
     environment:
       - REDIS_URL=redis://redis:6379/0
-      - CONVERTER_SERVICE_URL=http://converter:8000
-      - TRANSCRIPTION_SERVICE_URL=http://transcription:8000
-      - SUMMARIZATION_SERVICE_URL=http://summarization:8000
-      - AUDIO_OUTPUT_DIR=/app/audio_outputs
-      - TEXT_OUTPUT_DIR=/app/text_outputs
-      - SUMMARY_OUTPUT_DIR=/app/summary_outputs
-      - PYTHONWARNINGS=ignore
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level warning
-    networks:
-      - mars_network
+      - CALL_DB_URI=mongodb://call-db:27017
+      - CALL_DB_NAME=call_data_db
     depends_on:
       - redis
-      - converter
-      - transcription
-      - summarization
+      - work-db
+      - call-db
+    networks:
+      - mars_network
 
   property-frontend:
     build:
@@ -262,20 +255,25 @@ services:
       - "3000:80"
     environment:
       - NODE_ENV=production
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     depends_on:
       - api_gateway
+      - work-db
+      - call-db
     networks:
       - mars_network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+
+  call-db:
+    image: mongo
+    container_name: call-db
+    ports:
+      - "27018:27017"
+    volumes:
+      - call_db_data:/data/db
+      - ./services/scripts/init-call-db.js:/docker-entrypoint-initdb.d/init-call-db.js:ro
+    environment:
+      - MONGO_INITDB_DATABASE=call_data_db
+    networks:
+      - mars_network
 
 volumes:
   whisper_cache:
@@ -288,3 +286,4 @@ volumes:
       type: none
       device: ${PWD}/datas
       o: bind
+  call_db_data:
