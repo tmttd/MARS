@@ -8,8 +8,9 @@ services:
   converter:
     build: ./services/converter
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level warning
+    restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./datas/audio_uploads:/app/uploads
       - ./datas/audio_converted:/app/audio_outputs
@@ -29,10 +30,17 @@ services:
       - converter-db
       - work-db
       - redis
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+        reservations:
+          memory: 100M
 
   converter-worker:
     build: ./services/converter
     command: celery -A app.tasks worker --loglevel=info -Q converter
+    restart: unless-stopped
     volumes:
       - ./services/converter:/app
       - ./datas/audio_uploads:/app/uploads
@@ -52,12 +60,19 @@ services:
       - converter-db
       - work-db
       - redis
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+        reservations:
+          memory: 100M
 
   transcription:
     build: ./services/transcription
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level warning
+    restart: unless-stopped
     ports:
-      - "8001:8000"
+      - "127.0.0.1:8001:8000"
     volumes:
       - ./services/transcription:/app
       - ./datas/audio_converted:/app/audio_outputs
@@ -83,17 +98,17 @@ services:
   transcription-worker:
     build: ./services/transcription
     command: celery -A app.tasks worker --loglevel=info -Q transcription
+    restart: unless-stopped
     deploy:
       resources:
         limits:
-          memory: 24G
+          memory: 200M
         reservations:
-          memory: 12G
+          memory: 100M
     volumes:
       - ./services/transcription:/app
       - ./datas/audio_converted:/app/audio_outputs
       - ./datas/transcription_outputs:/app/text_outputs
-      - ./datas/whisper_cache:/app/whisper_cache
     environment:
       - MONGODB_URI=mongodb://transcription-db:27017/
       - MONGODB_DB=transcription_db
@@ -103,6 +118,8 @@ services:
       - UPLOAD_DIR=/app/audio_outputs
       - OUTPUT_DIR=/app/text_outputs
       - PYTHONWARNINGS=ignore
+      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      - HUGGINGFACE_API_URL=https://api-inference.huggingface.co/models/openai/whisper-large-v3
     networks:
       - mars_network
     depends_on:
@@ -117,8 +134,9 @@ services:
       - ./datas/transcription_outputs:/app/text_outputs
       - ./datas/summarization_outputs:/app/summary_outputs
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level warning
+    restart: unless-stopped
     ports:
-      - "8002:8000"
+      - "127.0.0.1:8002:8000"
     environment:
       - MONGODB_URI=mongodb://summarization-db:27017/
       - MONGODB_DB=summarization_db
@@ -136,10 +154,17 @@ services:
       - summarization-db
       - work-db
       - redis
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+        reservations:
+          memory: 100M
 
   summarization-worker:
     build: ./services/summarization
     command: celery -A app.tasks worker --loglevel=info -Q summarization
+    restart: unless-stopped
     volumes:
       - ./services/summarization:/app
       - ./datas/transcription_outputs:/app/text_outputs
@@ -162,10 +187,17 @@ services:
       - summarization-db
       - work-db
       - redis
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+        reservations:
+          memory: 100M
 
   converter-db:
     image: mongo:latest
     command: mongod --quiet --logpath /dev/null
+    restart: unless-stopped
     volumes:
       - ./converter_db:/data/db
     networks:
@@ -175,10 +207,17 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+        reservations:
+          memory: 100M
 
   transcription-db:
     image: mongo:latest
     command: mongod --quiet --logpath /dev/null
+    restart: unless-stopped
     volumes:
       - ./transcription_db:/data/db
     networks:
@@ -188,10 +227,17 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+        reservations:
+          memory: 100M
 
   summarization-db:
     image: mongo:latest
     command: mongod --quiet --logpath /dev/null
+    restart: unless-stopped
     volumes:
       - ./summarization_db:/data/db
     networks:
@@ -201,10 +247,17 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+        reservations:
+          memory: 100M
 
   work-db:
     image: mongo:latest
     command: mongod --quiet --logpath /dev/null
+    restart: unless-stopped
     volumes:
       - ./work_db:/data/db
     networks:
@@ -214,11 +267,18 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+        reservations:
+          memory: 100M
 
   redis:
     image: redis:7.2
+    restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     networks:
       - mars_network
     logging:
@@ -226,9 +286,16 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+        reservations:
+          memory: 50M
 
   api_gateway:
     build: ./services/api_gateway
+    restart: unless-stopped
     ports:
       - "8003:8000"
     volumes:
@@ -252,6 +319,12 @@ services:
       - converter
       - transcription
       - summarization
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+        reservations:
+          memory: 100M
 
   property-frontend:
     build:
@@ -260,6 +333,7 @@ services:
         - REACT_APP_API_URL=http://localhost:8003
     ports:
       - "3000:80"
+    restart: unless-stopped
     environment:
       - NODE_ENV=production
     healthcheck:
@@ -277,8 +351,36 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  sqs_consumer:
+    image: your-dockerhub-username/mars-sqs-consumer:1.0.0
+    restart: unless-stopped
+    environment:
+      - AWS_REGION=ap-northeast-2
+      - SQS_QUEUE_URL=${SQS_QUEUE_URL}
+      - API_ENDPOINT=http://api_gateway:8000/api/v1/total_processing
+      - PYTHONWARNINGS=ignore
+    networks:
+      - mars_network
+    depends_on:
+      - api_gateway
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; from app.main import ConsumerService; sys.exit(0 if ConsumerService().check_health() else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+        reservations:
+          memory: 100M
+
 volumes:
-  whisper_cache:
   converter_db:
   transcription_db:
   summarization_db:

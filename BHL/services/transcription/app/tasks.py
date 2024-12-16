@@ -1,16 +1,18 @@
 from celery import Celery
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from pymongo import MongoClient
 import os
 import logging
 from httpx import AsyncClient
 import asyncio
-from huggingface_hub import InferenceClient
 import gc
 import json
 from pathlib import Path
 from .config import settings
+import requests
 
+
+UTC = timezone.utc
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
