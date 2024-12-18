@@ -352,7 +352,7 @@ services:
         max-file: "3"
 
   sqs_consumer:
-    image: your-dockerhub-username/mars-sqs-consumer:1.0.0
+    build: ./services/sqs_consumer
     restart: unless-stopped
     environment:
       - AWS_REGION=ap-northeast-2
