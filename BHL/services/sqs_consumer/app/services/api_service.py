@@ -10,12 +10,16 @@ class APIService:
     def process_file(self, file_path: str, original_filename: str) -> bool:
         """파일을 API로 전송하여 처리"""
         try:
+            print(f"[DEBUG] Attempting to call API at: {self.api_endpoint}")
             with open(file_path, 'rb') as file:
                 files = {'file': (original_filename, file)}
                 response = requests.post(
                     self.api_endpoint,
                     files=files
                 )
+            
+            print(f"[DEBUG] API Response Headers: {response.headers}")
+            print(f"[DEBUG] API Response Content: {response.content}")
             
             if response.status_code == 200:
                 print(f"Successfully processed file: {original_filename}")
