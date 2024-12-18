@@ -32,7 +32,13 @@ celery.conf.update(
         }
     },
     task_default_exchange='converter',
-    task_default_routing_key='converter'
+    task_default_routing_key='converter',
+    worker_max_memory_per_child=200000,
+    worker_max_tasks_per_child=10,
+    task_time_limit=600,
+    task_soft_time_limit=540,
+    task_default_retry_delay=180,
+    task_max_retries=3
 )
 
 @celery.task(name='convert_audio')

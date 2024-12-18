@@ -61,7 +61,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 200M
+          memory: 300M
         reservations:
           memory: 100M
 
@@ -279,6 +279,8 @@ services:
       - "127.0.0.1:6379:6379"
     networks:
       - mars_network
+    sysctls:
+      vm.overcommit_memory: 1
     logging:
       driver: "json-file"
       options:
