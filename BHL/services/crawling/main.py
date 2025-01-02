@@ -108,9 +108,9 @@ except Exception as e:
     logger.error(f"MongoDB 연결 실패: {str(e)}")
     raise
 
+# ChromeDriver 설정
 chrome_options = Options()
-
-service = Service(r'C:\Users\pqstv\tmttd\MARS\BHL\services\crawling\chromedriver-win64\chromedriver.exe')
+service = Service('/opt/homebrew/bin/chromedriver')  # 실제 ChromeDriver 경로 지정
 driver = webdriver.Chrome(service=service, options=chrome_options)
 wait = WebDriverWait(driver, 10)
 

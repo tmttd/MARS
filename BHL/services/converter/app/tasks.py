@@ -1,5 +1,5 @@
 from celery import Celery
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from pymongo import MongoClient
 from pydub import AudioSegment
 import os
@@ -8,6 +8,7 @@ from httpx import AsyncClient
 from .config import settings
 import asyncio
 
+UTC = timezone.utc
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
