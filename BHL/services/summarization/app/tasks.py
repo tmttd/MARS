@@ -1,5 +1,5 @@
 from celery import Celery
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pymongo import MongoClient
 from openai import OpenAI
 import os
@@ -10,7 +10,6 @@ import json
 from .config import settings
 from .models import PropertyExtraction
 
-UTC = timezone.utc
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

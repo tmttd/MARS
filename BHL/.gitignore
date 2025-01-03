@@ -161,7 +161,10 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-datas/*
-converter_db/
-summarization_db/*
-transcription_db/*
+
+# MongoDB data directories
+**/work_db/
+**/transcription_db/
+**/converter_db/
+**/summarization_db/
+**/datas/

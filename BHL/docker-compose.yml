@@ -253,30 +253,6 @@ services:
       - transcription
       - summarization
 
-  property-frontend:
-    build:
-      context: ./property-frontend
-      args:
-        - REACT_APP_API_URL=http://localhost:8003
-    ports:
-      - "3000:80"
-    environment:
-      - NODE_ENV=production
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    depends_on:
-      - api_gateway
-    networks:
-      - mars_network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
 volumes:
   whisper_cache:
   converter_db:

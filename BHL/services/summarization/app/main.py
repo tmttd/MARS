@@ -1,14 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from pymongo import MongoClient
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 import os
 import logging
 from .models import PropertyExtraction
 from .tasks import celery, summarize_text_task
 from .config import settings
 from fastapi.middleware.cors import CORSMiddleware
-
-UTC = timezone.utc
 
 # 로깅 설정
 logging.basicConfig(level=logging.WARNING)
