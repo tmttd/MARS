@@ -31,7 +31,6 @@ class PersonInfo(BaseModel):
     name: Optional[str] = Field(None, description="성명")
     contact: Optional[str] = Field(None, description="연락처")
     property_address: Optional[str] = Field(None, description="매물주소")
-    memo: Optional[str] = Field(None, description="메모")
 
 
 class PropertyExtraction(BaseModel):

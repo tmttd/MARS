@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pymongo import MongoClient
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 import os
 import uuid
 import logging
@@ -8,6 +8,7 @@ from .models import Transcript
 from .tasks import celery, transcribe_audio_task
 from .config import settings
 
+UTC = timezone.utc
 # 로깅 설정
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)

@@ -1,16 +1,19 @@
 from celery import Celery
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from pymongo import MongoClient
 import os
 import logging
 from httpx import AsyncClient
 import asyncio
-from huggingface_hub import InferenceClient
 import gc
 import json
 from pathlib import Path
 from .config import settings
+import requests
+from huggingface_hub import InferenceClient
 
+
+UTC = timezone.utc
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -118,6 +121,13 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
             }
         )
         
+        # 원본 파일 삭제
+        os.remove(input_path)
+        converted_path = input_path.replace('/app/audio_outputs', './datas/audio_converted')
+        if os.path.exists(converted_path):
+            os.remove(converted_path)
+        logger.info(f"원본 파일 삭제 완료: {input_path}, {converted_path}")
+
         # 작업 완료 로그
         now = datetime.now(UTC)
         db.logs.insert_one({
