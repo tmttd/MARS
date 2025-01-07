@@ -210,6 +210,20 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  call-db:
+    image: mongo:latest
+    container_name: call-db
+    command: mongod --quiet --logpath /dev/null
+    ports:
+      - "27018:27017"
+    volumes:
+      - call_db_data:/data/db
+      - ./services/scripts/init-call-db.js:/docker-entrypoint-initdb.d/init-call-db.js:ro
+    environment:
+      - MONGO_INITDB_DATABASE=call_data_db
+    networks:
+      - mars_network
+
   work-db:
     image: mongo:latest
     command: mongod --quiet --logpath /dev/null
@@ -249,17 +263,33 @@ services:
       - WORK_MONGODB_URI=mongodb://work-db:27017/
       - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
-      - CONVERTER_SERVICE_URL=http://converter:8000
-      - TRANSCRIPTION_SERVICE_URL=http://transcription:8000
-      - SUMMARIZATION_SERVICE_URL=http://summarization:8000
-      - S3_SERVICE_URL=http://s3_service:8000
       - PYTHONWARNINGS=ignore
+      - CALL_DB_URI=mongodb://call-db:27017
+      - CALL_DB_NAME=call_data_db
     networks:
       - mars_network
     depends_on:
       - work-db
       - redis
       - s3_service
+
+  property-frontend:
+    build:
+      context: ./property-frontend
+      args:
+        - REACT_APP_API_URL=http://localhost:8003
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - api_gateway
+      - work-db
+      - call-db
+    networks:
+      - mars_network
+
+
 
   s3_service:
     build: ./services/s3_service
@@ -283,9 +313,11 @@ volumes:
   converter_db:
   transcription_db:
   summarization_db:
+  call_db_data:
   datas:
     driver: local
     driver_opts:
       type: none
       device: ${PWD}/datas
       o: bind
+      

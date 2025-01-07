@@ -37,7 +37,8 @@ def insert_test_call_data():
                         "move_in_date": "2024-06-30",
                         "call_summary": "매매 문의, 대출 가능 여부 확인",
                         "memo": "신축 아파트 선호",
-                    }
+                    },
+                    "file_name": "테스트2.m4a"
                 },
             },
             {
@@ -62,7 +63,8 @@ def insert_test_call_data():
                         "move_in_date": "2024-04-15",
                         "call_summary": "전세 문의, 즉시 입주 희망",
                         "memo": "주차 2대 가능 필수",
-                    }
+                    },
+                    "file_name": "테스트2.m4a"
                 },
             },
         ]

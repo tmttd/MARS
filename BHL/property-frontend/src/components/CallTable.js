@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Table, Button, Form, Badge } from 'react-bootstrap';
 import { callService } from '../services/api';
+import { audioService } from '../services/api';
 
 const CallTable = ({ calls, onUpdate }) => {
   const [editMode, setEditMode] = useState({});
@@ -45,6 +46,11 @@ const CallTable = ({ calls, onUpdate }) => {
     });
   };
 
+  const handlePlayAudio = async (fileName) => {
+    const audioUrl = await audioService.playAudio("테스트2.m4a");
+    window.open(audioUrl, '_blank');
+  };
+
   return (
     <div className="table-responsive">
       <Table striped bordered hover>
@@ -68,6 +74,7 @@ const CallTable = ({ calls, onUpdate }) => {
             <th>통화요약</th>
             <th>메모</th>
             <th>작업</th>
+            <th>음성재생</th>
           </tr>
         </thead>
         <tbody>
@@ -108,6 +115,11 @@ const CallTable = ({ calls, onUpdate }) => {
                   <td><Form.Control value={editData[call.job_id]?.memo || ''} 
                       onChange={(e) => handleChange(call.job_id, 'memo', e.target.value)} /></td>
                   <td>
+                    <Button variant="secondary" size="sm" onClick={() => handlePlayAudio(call.file_name)}>
+                      <i className="bi bi-play-circle"></i> 재생
+                    </Button>
+                  </td>
+                  <td>
                     <Button variant="success" size="sm" onClick={() => handleSave(call.job_id)}>저장</Button>
                   </td>
                 </>
@@ -132,6 +144,11 @@ const CallTable = ({ calls, onUpdate }) => {
                   <td>{call.memo || '-'}</td>
                   <td>
                     <Button variant="primary" size="sm" onClick={() => handleEdit(call.job_id)}>수정</Button>
+                  </td>
+                  <td>
+                    <Button variant="secondary" size="sm" onClick={() => handlePlayAudio(call.file_name)}>
+                      <i className="bi bi-play-circle"></i> 재생
+                    </Button>
                   </td>
                 </>
               )}

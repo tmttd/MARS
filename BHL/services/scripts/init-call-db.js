@@ -10,6 +10,7 @@ const complexNames = ["래미안아파트", "서초스타타워", "잠실리센�
 const loanStatuses = ["가능", "불가"];
 const callSummaries = ["매매 문의", "전세 문의", "대출 가능 여부 확인"];
 const memos = ["신축 아파트 선호", "주차 2대 가능 필수", "역세권"];
+const fileNames = ["테스트2.m4a"];
 
 function getRandomItem(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
@@ -24,6 +25,7 @@ function getRandomDate() {
 const testData = Array.from({ length: 10 }, (_, i) => ({
   "job_id": `call${i + 1}`,
   "created_at": new Date(),
+  "file_name": "테스트2.m4a",
   "summarization": {
     "extraction": {
       "call_number": i + 1,

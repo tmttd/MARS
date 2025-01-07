@@ -132,6 +132,7 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
                 args=[],
                 kwargs={
                     'job_id': job_id,
+                    'file_name': file.filename,
                     'input_path': input_path,
                     'output_dir': OUTPUT_DIR,
                     'db_connection_string': MONGODB_URI,

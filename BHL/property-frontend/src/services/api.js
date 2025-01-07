@@ -58,6 +58,7 @@ export const callService = {
         return {
           job_id: item.job_id,
           created_at: item.created_at,
+          file_name: item.file_name,
           ...extraction,
           // 필드가 없는 경우 기본값 설정
           call_number: extraction.call_number || '-',
@@ -84,6 +85,13 @@ export const callService = {
       console.error('Update Error:', error);
       throw new Error('통화 기록 업데이트에 실패했습니다.');
     }
+  }
+};
+
+export const audioService = {
+  playAudio: async (fileName) => {
+    const response = await api.get(`/audio/stream/${fileName}`);
+    return response.data.url;
   }
 };
 
