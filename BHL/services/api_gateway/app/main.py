@@ -35,11 +35,6 @@ app.add_middleware(
 # Redis 연결
 redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
 
-# 환경 변수
-SUMMARIZATION_SERVICE_URL = os.getenv(
-    "SUMMARIZATION_SERVICE_URL", "http://summarization:8000"
-)
-
 
 @app.post("/Total_Processing")
 async def Total_Processing(file: UploadFile = File(...)):
@@ -280,7 +275,7 @@ async def get_extractions():
     """프론트엔드를 위한 추출 데이터 조회 엔드포인트"""
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(f"{SUMMARIZATION_SERVICE_URL}/extractions")
+            response = await client.get(f"{settings.SUMMARIZATION_SERVICE_URL}/extractions")
             response.raise_for_status()
             data = response.json()
             if not isinstance(data, dict) or "extractions" not in data:
@@ -413,3 +408,37 @@ async def update_call(job_id: str, call_data: dict):
     finally:
         if "client" in locals():
             client.close()
+            
+@app.get("/audio/files")
+async def get_audio_files():
+    try:
+        # 오디오 파일 목록 조회
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{settings.S3_SERVICE_URL}/audio/files")
+            response.raise_for_status()
+            return response.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"오디오 파일 목록 조회 중 오류 발생: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="오디오 파일 목록을 가져오는 중 오류가 발생했습니다"
+        )
+
+@app.get("/audio/stream/{name}")
+async def get_audio_stream(name: str):
+    try:
+        # 오디오 스트림 URL 조회
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{settings.S3_SERVICE_URL}/audio/stream/{name}")
+            response.raise_for_status()
+            return response.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"오디오 스트림 URL 조회 중 오류 발생: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="오디오 스트림 URL을 가져오는 중 오류가 발생했습니다"
+        )

@@ -1,4 +1,4 @@
-# version: '3.8'
+version: '3.8'
 
 networks:
   mars_network:
@@ -22,6 +22,10 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - UPLOAD_DIR=/app/uploads
       - OUTPUT_DIR=/app/audio_outputs
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - AWS_REGION=${AWS_REGION}
       - PYTHONWARNINGS=ignore
     networks:
       - mars_network
@@ -45,6 +49,10 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - UPLOAD_DIR=/app/uploads
       - OUTPUT_DIR=/app/audio_outputs
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - AWS_REGION=${AWS_REGION}
       - PYTHONWARNINGS=ignore
     networks:
       - mars_network
@@ -229,49 +237,44 @@ services:
 
   api_gateway:
     build: ./services/api_gateway
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level warning
     ports:
       - "8003:8000"
     volumes:
+      - ./services/api_gateway:/app
       - ./datas/audio_converted:/app/audio_outputs
       - ./datas/transcription_outputs:/app/text_outputs
       - ./datas/summarization_outputs:/app/summary_outputs
     environment:
+      - WORK_MONGODB_URI=mongodb://work-db:27017/
+      - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
-      - CALL_DB_URI=mongodb://call-db:27017
-      - CALL_DB_NAME=call_data_db
+      - CONVERTER_SERVICE_URL=http://converter:8000
+      - TRANSCRIPTION_SERVICE_URL=http://transcription:8000
+      - SUMMARIZATION_SERVICE_URL=http://summarization:8000
+      - S3_SERVICE_URL=http://s3_service:8000
+      - PYTHONWARNINGS=ignore
+    networks:
+      - mars_network
     depends_on:
+      - work-db
       - redis
-      - work-db
-      - call-db
-    networks:
-      - mars_network
+      - s3_service
 
-  property-frontend:
-    build:
-      context: ./property-frontend
-      args:
-        - REACT_APP_API_URL=http://localhost:8003
+  s3_service:
+    build: ./services/s3_service
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level warning
     ports:
-      - "3000:80"
-    environment:
-      - NODE_ENV=production
-    depends_on:
-      - api_gateway
-      - work-db
-      - call-db
-    networks:
-      - mars_network
-
-  call-db:
-    image: mongo
-    container_name: call-db
-    ports:
-      - "27018:27017"
+      - "8004:8000"
     volumes:
-      - call_db_data:/data/db
-      - ./services/scripts/init-call-db.js:/docker-entrypoint-initdb.d/init-call-db.js:ro
+      - ./services/s3_service:/app
+      - ./datas/audio_converted:/app/audio_outputs
     environment:
-      - MONGO_INITDB_DATABASE=call_data_db
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - AWS_REGION=${AWS_REGION}
+      - PYTHONWARNINGS=ignore
     networks:
       - mars_network
 
@@ -286,4 +289,3 @@ volumes:
       type: none
       device: ${PWD}/datas
       o: bind
-  call_db_data:

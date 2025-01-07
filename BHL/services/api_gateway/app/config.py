@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     CONVERTER_SERVICE_URL: str = "http://converter:8000"
     TRANSCRIPTION_SERVICE_URL: str = "http://transcription:8000"
     SUMMARIZATION_SERVICE_URL: str = "http://summarization:8000"
+    S3_SERVICE_URL: str = "http://s3_service:8000"
     CALL_DB_URI: str = os.getenv("CALL_DB_URI", "mongodb://call-db:27017")
     CALL_DB_NAME: str = os.getenv("CALL_DB_NAME", "call_data_db")
 
