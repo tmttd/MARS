@@ -7,6 +7,7 @@ import logging
 from .models import AudioConversion
 from .tasks import celery, convert_audio_task
 from .config import settings
+from .utils import parse_string_to_datetime
 
 UTC = timezone.utc
 # 로깅 설정
@@ -97,6 +98,16 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
             buffer.write(content)
         
         logger.info(f"파일 저장됨: {input_path}")
+
+        if len(recording_date:=file.filename[:-4].split("_"))>=2:
+            customer_name = recording_date[0]
+            customer_number = recording_date[1]
+            recording_date = recording_date[2]
+
+        else:
+            customer_name = recording_date[0]
+            customer_number = recording_date[0]
+            recording_date = recording_date[1]
         
         # 작업 데이터 초기화/업데이트
         work_db.jobs.update_one(
@@ -104,8 +115,14 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
             {
                 "$set": {
                     "job_id": job_id,
+                    "file_name": file.filename,
                     "converter": {
-                        "input_file": input_path
+                        "input_file": input_path,
+                        "output_file": OUTPUT_DIR,
+                        'file_name': file.filename,
+                        "customer_name": customer_name,
+                        "customer_number": customer_number,
+                        "recording_date": parse_string_to_datetime(recording_date)
                     }
                 }
             },
@@ -132,7 +149,6 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
                 args=[],
                 kwargs={
                     'job_id': job_id,
-                    'file_name': file.filename,
                     'input_path': input_path,
                     'output_dir': OUTPUT_DIR,
                     'db_connection_string': MONGODB_URI,

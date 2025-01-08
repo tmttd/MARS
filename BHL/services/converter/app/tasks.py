@@ -110,10 +110,8 @@ def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_s
             {"job_id": job_id},
             {
                 "$set": {
-                    "converter": {
-                        "input_file": input_path,
-                        "output_file": output_path
-                    }
+                    "converter.input_file": input_path,
+                    "converter.output_file": output_path
                 }
             }
         )
