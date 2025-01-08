@@ -3,7 +3,7 @@ import { Container, Spinner, Alert, Form, Row, Col, Card } from 'react-bootstrap
 import { FaSearch, FaPhone, FaBuilding } from 'react-icons/fa';
 import CallTable from '../components/CallTable';
 import { callService } from '../services/api';
-import './PropertyList.css';
+import '../styles/PropertyList.css';
 
 const CallList = () => {
   const [calls, setCalls] = useState([]);
@@ -71,7 +71,7 @@ const CallList = () => {
     <Container fluid className="py-4 bg-light min-vh-100">
       <Card className="shadow-sm mb-4">
         <Card.Body>
-          <h1 className="text-primary mb-4">
+          <h1 className="text-primary mb-4" style={{ fontSize: '1.5rem' }}>
             <FaPhone className="me-2" />
             통화 기록 목록
           </h1>

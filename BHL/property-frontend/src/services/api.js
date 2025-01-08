@@ -76,6 +76,17 @@ export const callService = {
       throw new Error('통화 기록을 불러오는데 실패했습니다.');
     }
   },
+
+
+  getCall: async (jobId) => {
+    try {
+      const response = await api.get(`/calls/${jobId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Get Call Error:', error);
+      throw new Error('통화 기록을 불러오는데 실패했습니다.');
+    }
+  },
   
   updateCall: async (jobId, data) => {
     try {
