@@ -48,25 +48,25 @@ async def transcribe_audio_endpoint(job_id: str):
     try:
         # 입력 파일 경로 확인
         input_file = os.path.join(settings.UPLOAD_DIR, f"{job_id}.wav")
-        logger.info(f"처리�� 파일 경로: {input_file}, job_id: {job_id}")
+        logger.info(f"처리 파일 경로: {input_file}, job_id: {job_id}")
         
         if not os.path.exists(input_file):
             raise HTTPException(status_code=404, detail="입력 파일을 찾을 수 없습니다")
             
         current_time = datetime.now(UTC)
         
-        # 작업 데이터 초기화/업데이트
-        work_db.jobs.update_one(
-            {"job_id": job_id},
-            {
-                "$set": {
-                    "transcription": {
-                        "input_file": input_file
-                    }
-                }
-            },
-            upsert=True
-        )
+        # # 작업 데이터 초기화/업데이트
+        # work_db.calls.update_one(
+        #     {"job_id": job_id},
+        #     {
+        #         "$set": {
+        #             "transcription": {
+        #                 "input_file": input_file
+        #             }
+        #         }
+        #     },
+        #     upsert=True
+        # )
         
         # 로그 기록
         db.logs.insert_one({
@@ -121,27 +121,23 @@ async def get_transcript(job_id: str):
             raise HTTPException(status_code=500, detail="데이터베이스 연결 오류")
             
         # 작업 조회
-        job = work_db.jobs.find_one({"job_id": job_id})
+        job = work_db.calls.find_one({"job_id": job_id})
         logger.info(f"조회된 작업: {job}")
         
         if not job:
             logger.error(f"작업을 찾을 수 없음: {job_id}")
             raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다")
             
-        # transcription 필드가 없거나 output_file이 없는 경우
-        if not job.get("transcription") or not job["transcription"].get("output_file"):
-            raise HTTPException(status_code=400, detail="변환이 아직 완료되지 않았습니다")
-            
         # 파일 존재 확인
-        output_file = job["transcription"]["output_file"]
-        if not os.path.exists(output_file):
-            raise HTTPException(status_code=404, detail="변환된 파일을 찾을 수 없습니다")
+        log = db.logs.find_one({"job_id": job_id, "status": "completed"})
+        if not log:
+            raise HTTPException(status_code=404, detail="변환이 완료되지 않았습니다")
             
         response = {
             "job_id": job_id,
             "status": "completed",  # 파일이 존재하면 완료된 것으로 간주
-            "text": job["transcription"].get("text"),
-            "output_file": output_file
+            "text": job.get("text"),
+            "output_file": log["output_file"]
         }
         logger.info(f"응답 데이터: {response}")
         return response

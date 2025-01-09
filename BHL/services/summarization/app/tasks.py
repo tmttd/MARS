@@ -59,17 +59,12 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
             }
         })
         
-        # 입업 조회
-        job = work_db.jobs.find_one({"job_id": job_id})
-        if not job or not job.get("summarization"):
+        # 작업 조회
+        job = work_db.calls.find_one({"job_id": job_id})
+        if not job:
             raise ValueError("작업을 찾을 수 없습니다")
             
-        # 입력 파일 경로 설정
-        input_file = job["summarization"]["input_file"]
-        
-        # 텍스트 파일 읽기
-        with open(input_file, 'r', encoding='utf-8') as f:
-            text_to_summarize = f.read()
+        text_to_summarize = job.get("text")
             
         # OpenAI 클라이언트 초기화
         openai_client = OpenAI(api_key=OPENAI_API_KEY)
@@ -126,7 +121,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         # 요약 결과를 파일로 저장
         summary = {
             "job_id": job_id,
-            "extraction": extraction,
+            "extracted_property_info": extraction,
             "created_at": datetime.now(UTC).isoformat()
         }
         
@@ -134,15 +129,11 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
             json.dump(summary, f, ensure_ascii=False, indent=2)
             
         # 작업 데이터 업데이트
-        work_db.jobs.update_one(
+        work_db.calls.update_one(
             {"job_id": job_id},
             {
                 "$set": {
-                    "summarization": {
-                        "input_file": input_file,
-                        "output_file": output_file,
-                        "extraction": extraction
-                    }
+                    "extracted_property_info": extraction
                 }
             }
         )

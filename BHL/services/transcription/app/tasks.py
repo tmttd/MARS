@@ -108,15 +108,11 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
             raise
         
         # 작업 데이터 업데이트
-        work_db.jobs.update_one(
+        work_db.calls.update_one(
             {"job_id": job_id},
             {
                 "$set": {
-                    "transcription": {
-                        "input_file": input_path,
-                        "output_file": output_file,
-                        "text": transcribed_text
-                    }
+                    "text": transcribed_text
                 }
             }
         )
@@ -135,6 +131,7 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
             "service": "transcription",
             "event": "transcription_completed",
             "status": "completed",
+            "output_file": output_file,
             "timestamp": now,
             "message": f"Transcription completed: {output_file}",
             "metadata": {

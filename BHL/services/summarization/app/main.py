@@ -82,18 +82,18 @@ async def summarize(job_id: str):
         
         current_time = datetime.now(UTC)
         
-        # 작업 데이터 초기화/업데이트
-        work_db.jobs.update_one(
-            {"job_id": job_id},
-            {
-                "$set": {
-                    "summarization": {
-                        "input_file": input_file
-                    }
-                }
-            },
-            upsert=True
-        )
+        # # 작업 데이터 초기화/업데이트
+        # work_db.calls.update_one(
+        #     {"job_id": job_id},
+        #     {
+        #         "$set": {
+        #             "summarization": {
+        #                 "input_file": input_file
+        #             }
+        #         }
+        #     },
+        #     upsert=True
+        # )
         
         # 로그 기록
         db.logs.insert_one({
