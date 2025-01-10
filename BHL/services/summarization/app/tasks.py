@@ -114,19 +114,19 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         
         extraction = completion.choices[0].message.parsed.model_dump()
         
-        # 출력 파일 경로 설정
-        output_file = os.path.join(settings.OUTPUT_DIR, f"{job_id}.json")
-        os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
+        # # 출력 파일 경로 설정
+        # output_file = os.path.join(settings.OUTPUT_DIR, f"{job_id}.json")
+        # os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
         
-        # 요약 결과를 파일로 저장
-        summary = {
-            "job_id": job_id,
-            "extracted_property_info": extraction,
-            "created_at": datetime.now(UTC).isoformat()
-        }
+        # # 요약 결과를 파일로 저장
+        # summary = {
+        #     "job_id": job_id,
+        #     "extracted_property_info": extraction,
+        #     "created_at": datetime.now(UTC).isoformat()
+        # }
         
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(summary, f, ensure_ascii=False, indent=2)
+        # with open(output_file, 'w', encoding='utf-8') as f:
+        #     json.dump(summary, f, ensure_ascii=False, indent=2)
             
         # 작업 데이터 업데이트
         work_db.calls.update_one(

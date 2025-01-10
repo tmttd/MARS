@@ -136,8 +136,7 @@ async def get_transcript(job_id: str):
         response = {
             "job_id": job_id,
             "status": "completed",  # 파일이 존재하면 완료된 것으로 간주
-            "text": job.get("text"),
-            "output_file": log["output_file"]
+            "text": job.get("text")
         }
         logger.info(f"응답 데이터: {response}")
         return response

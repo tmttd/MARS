@@ -71,14 +71,14 @@ async def get_extractions_endpoint():
 @app.post("/summarize/{job_id}")
 async def summarize(job_id: str):
     try:
-        # 입력 파일 경로 확인
-        input_file = os.path.join(settings.UPLOAD_DIR, f"{job_id}.txt")
-        if not os.path.exists(input_file):
-            logger.error(f"입력 파일을 찾을 수 없음: {input_file}")
-            raise HTTPException(status_code=404, detail="입력 파일을 찾을 수 없습니다")
+        # # 입력 파일 경로 확인
+        # input_file = os.path.join(settings.UPLOAD_DIR, f"{job_id}.txt")
+        # if not os.path.exists(input_file):
+        #     logger.error(f"입력 파일을 찾을 수 없음: {input_file}")
+        #     raise HTTPException(status_code=404, detail="입력 파일을 찾을 수 없습니다")
 
-        # 출력 디렉토리 확인 및 생성
-        os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
+        # # 출력 디렉토리 확인 및 생성
+        # os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
         
         current_time = datetime.now(UTC)
         

@@ -125,34 +125,30 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
         transcribed_text = " ".join(segments_texts)
         logger.info(f"전체 음성 변환 완료: {len(segments_texts)}개 세그먼트")
         
-        # 출력 파일 경로 설정
-        output_file = os.path.join(output_dir, f"{job_id}.txt")
-        os.makedirs(output_dir, exist_ok=True)
+        # # 출력 파일 경로 설정
+        # output_file = os.path.join(output_dir, f"{job_id}.txt")
+        # os.makedirs(output_dir, exist_ok=True)
         
-        # 텍스트 파일로 저장
-        try:
-            with open(output_file, "w", encoding="utf-8") as f:
-                json.dump({
-                    "job_id": job_id,
-                    "text": transcribed_text,
-                    "created_at": datetime.now(UTC).isoformat(),
-                    "input_file": input_path
-                }, f, ensure_ascii=False, indent=2)
-            logger.info(f"텍스트 파일 저장 완료: {output_file}")
-        except Exception as save_error:
-            logger.error(f"텍스트 파일 저장 실패: {str(save_error)}")
-            raise
+        # # 텍스트 파일로 저장
+        # try:
+        #     with open(output_file, "w", encoding="utf-8") as f:
+        #         json.dump({
+        #             "job_id": job_id,
+        #             "text": transcribed_text,
+        #             "created_at": datetime.now(UTC).isoformat(),
+        #             "input_file": input_path
+        #         }, f, ensure_ascii=False, indent=2)
+        #     logger.info(f"텍스트 파일 저장 완료: {output_file}")
+        # except Exception as save_error:
+        #     logger.error(f"텍스트 파일 저장 실패: {str(save_error)}")
+        #     raise
         
         # 작업 데이터 업데이트
-        work_db.jobs.update_one(
+        work_db.calls.update_one(
             {"job_id": job_id},
             {
                 "$set": {
-                    "transcription": {
-                        "input_file": input_path,
-                        "output_file": output_file,
-                        "text": transcribed_text
-                    }
+                    "text": transcribed_text
                 }
             }
         )
@@ -172,7 +168,7 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
             "event": "transcription_completed",
             "status": "completed",
             "timestamp": now,
-            "message": f"Transcription completed: {output_file}",
+            "message": f"Transcription completed: {transcribed_text}",
             "metadata": {
                 "updated_at": now
             }
