@@ -11,12 +11,18 @@ from pathlib import Path
 from .config import settings
 import requests
 from huggingface_hub import InferenceClient
-
+from pydub import AudioSegment
+import math
 
 UTC = timezone.utc
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Huggingface API 키 확인
+HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
+if not HUGGINGFACE_API_KEY:
+    raise ValueError("HUGGINGFACE_API_KEY 환경 변수가 설정되지 않았습니다")
 
 # Celery 설정
 celery = Celery('transcription')
@@ -79,16 +85,46 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
                 }
             })
             raise FileNotFoundError(error_msg)
-        
+
         # 음성-텍스트 변환
         logger.info(f"변환 중: {input_path}")
         whisper_client = InferenceClient(
             "openai/whisper-large-v3-turbo",
-            token="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",
+            token=os.getenv('HUGGINGFACE_API_KEY'),
+            headers={"x-wait-for-model": "true"}
         )
-        transcribed_text = whisper_client.automatic_speech_recognition(input_path)
-        logger.info(f"음성 변환 완료: {transcribed_text}")
-
+        
+        # 음성 파일 로드
+        audio = AudioSegment.from_file(input_path)
+        
+        # 1분 = 60000 밀리초
+        segment_length = 60000
+        segments_texts = []
+        
+        # 전체 길이를 1분 단위로 나누기
+        for i in range(0, len(audio), segment_length):
+            # 세그먼트 추출
+            segment = audio[i:min(i+segment_length, len(audio))]
+            
+            # 임시 파일로 저장
+            temp_segment_path = f"/tmp/{job_id}_segment_{i//segment_length}.wav"
+            segment.export(temp_segment_path, format="wav")
+            
+            try:
+                # Whisper로 변환
+                logger.info(f"세그먼트 변환 중: {i//segment_length + 1}/{math.ceil(len(audio)/segment_length)}")
+                segment_text = whisper_client.automatic_speech_recognition(temp_segment_path)
+                segments_texts.append(segment_text.text)
+                
+            finally:
+                # 임시 파일 삭제
+                if os.path.exists(temp_segment_path):
+                    os.remove(temp_segment_path)
+        
+        # 전체 텍스트 합치기
+        transcribed_text = " ".join(segments_texts)
+        logger.info(f"전체 음성 변환 완료: {len(segments_texts)}개 세그먼트")
+        
         # 출력 파일 경로 설정
         output_file = os.path.join(output_dir, f"{job_id}.txt")
         os.makedirs(output_dir, exist_ok=True)
@@ -108,11 +144,15 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
             raise
         
         # 작업 데이터 업데이트
-        work_db.calls.update_one(
+        work_db.jobs.update_one(
             {"job_id": job_id},
             {
                 "$set": {
-                    "text": transcribed_text
+                    "transcription": {
+                        "input_file": input_path,
+                        "output_file": output_file,
+                        "text": transcribed_text
+                    }
                 }
             }
         )
@@ -131,7 +171,6 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
             "service": "transcription",
             "event": "transcription_completed",
             "status": "completed",
-            "output_file": output_file,
             "timestamp": now,
             "message": f"Transcription completed: {output_file}",
             "metadata": {
