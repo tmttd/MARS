@@ -95,15 +95,20 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
         
         logger.info(f"파일 저장됨: {input_path}")
 
-        if len(recording_date:=file.filename[:-4].split("_"))>=2:
-            customer_name = recording_date[0]
-            customer_contact = recording_date[1]
-            recording_date = recording_date[2]
+        # 먼저 파일명에서 확장자를 제거하고 분리
+        filename_without_ext = file.filename[:-4]
+        parts = filename_without_ext.split("_")
+        
+        # 그 다음 분리된 부분을 처리
+        if len(parts) >= 3:
+            customer_name = parts[0]
+            customer_contact = parts[1]
+            recording_date = parts[2]
 
         else:
-            customer_name = recording_date[0]
-            customer_contact = recording_date[0]
-            recording_date = recording_date[1]
+            customer_name = ''
+            customer_contact = parts[0]
+            recording_date = parts[1]
         
         # 작업 데이터 초기화/업데이트
         work_db.calls.update_one(
