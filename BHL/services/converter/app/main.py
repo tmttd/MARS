@@ -124,7 +124,7 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
                     "job_id": job_id,
                     "file_name": file.filename,
                     "customer_name": customer_name,
-                    "customer_number": customer_contact,
+                    "customer_contact": customer_contact,
                     "recording_date": parse_string_to_datetime(recording_date)
                 }
             },
