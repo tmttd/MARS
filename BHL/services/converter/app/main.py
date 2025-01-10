@@ -95,15 +95,22 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
         
         logger.info(f"파일 저장됨: {input_path}")
 
-        if len(recording_date:=file.filename[:-4].split("_"))>=2:
-            customer_name = recording_date[0]
-            customer_contact = recording_date[1]
-            recording_date = recording_date[2]
+        try:
+            # 파일명에 고객 이름, 고객 연락처, 녹음 날짜를 추출
+            if len(recording_date:=file.filename[:-4].split("_"))>2:
+                logger.info(f"파일명: {file.filename}")
+                customer_name = recording_date[0]
+                customer_number = recording_date[1]
+                recording_date = recording_date[2]
+            else:
+                logger.info(f"파일명: {file.filename}")
+                customer_name = recording_date[0]
+                customer_number = recording_date[0]
+                recording_date = recording_date[1]
 
-        else:
-            customer_name = recording_date[0]
-            customer_contact = recording_date[0]
-            recording_date = recording_date[1]
+        except Exception as e:
+            logger.error(f"파일명 처리 중 오류 발생: {str(e)}")
+            raise HTTPException(status_code=400, detail="파일명 처리 중 오류 발생")
         
         # 작업 데이터 초기화/업데이트
         work_db.calls.update_one(
@@ -113,7 +120,7 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
                     "job_id": job_id,
                     "file_name": file.filename,
                     "customer_name": customer_name,
-                    "customer_contact": customer_contact,
+                    "customer_number": customer_number,
                     "recording_date": parse_string_to_datetime(recording_date)
                 }
             },

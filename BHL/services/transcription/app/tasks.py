@@ -13,6 +13,7 @@ import requests
 from huggingface_hub import InferenceClient
 from pydub import AudioSegment
 import math
+import time
 
 UTC = timezone.utc
 # 로깅 설정
@@ -91,19 +92,20 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
         whisper_client = InferenceClient(
             "openai/whisper-large-v3-turbo",
             token=os.getenv('HUGGINGFACE_API_KEY'),
-            headers={"x-wait-for-model": "true"}
+            headers={"x-wait-for-model": "true"},
         )
         
         # 음성 파일 로드
         audio = AudioSegment.from_file(input_path)
         
         # 1분 = 60000 밀리초
-        segment_length = 60000
+        segment_length = 240000
         segments_texts = []
         
-        # 전체 길이를 1분 단위로 나누기
+        # 전체 길이를 4분 단위로 나누기
         for i in range(0, len(audio), segment_length):
             # 세그먼트 추출
+            time.sleep(1)
             segment = audio[i:min(i+segment_length, len(audio))]
             
             # 임시 파일로 저장
