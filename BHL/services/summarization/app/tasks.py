@@ -91,7 +91,6 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                     unit_number: Optional[str] = Field(None, description="호수")
                     floor: Optional[int] = Field(None, description="층")
                     deposit: Optional[int] = Field(None, description="보증금 (만원)")
-                    monthly_rent: Optional[int] = Field(None, description="월세 (만원)")
                     premium: Optional[int] = Field(None, description="권리금 (상가인 경우, 만원)")
                     owner_name: Optional[str] = Field(None, description="소유주 이름")
                     owner_contact: Optional[str] = Field(None, description="소유주 연락처")

@@ -23,7 +23,6 @@ class Properties(BaseModel):
     property_type: Optional[PropertyType] = Field(None, description="매물 종류")
     floor: Optional[int] = Field(None, description="층")
     area: Optional[int] = Field(None, description="면적")
-    monthly_rent: Optional[int] = Field(None, description="월세 (만원)")
     premium: Optional[int] = Field(None, description="권리금 (상가인 경우, 만원)")
     owner_property_memo: Optional[str] = Field(None, description="현재 매물에 대한 소유주 관련 메모")
     tenant_property_memo: Optional[str] = Field(None, description="현재 매물에 대한 세입자 관련 메모")
