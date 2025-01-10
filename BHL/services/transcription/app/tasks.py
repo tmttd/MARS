@@ -13,6 +13,7 @@ import requests
 from huggingface_hub import InferenceClient
 from openai import OpenAI
 from pydub import AudioSegment
+from pydub.silence import split_on_silence
 import math
 import time
 
@@ -100,38 +101,57 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
             token=os.getenv('HUGGINGFACE_API_KEY'),
             headers={"x-wait-for-model": "true"},
         )
-        
+
         # 음성 파일 로드
         audio = AudioSegment.from_file(input_path)
-        
-        # 1분 = 60000 밀리초
-        segment_length = 240000
+
+        # 묵음 기준으로 파일 분할 (묵음이 1초 이상, -40 dBFS 이하일 때 분리)
+        chunks = split_on_silence(
+            audio,
+            min_silence_len=1000,      # 1초 이상의 묵음
+            silence_thresh=-40         # -40 dBFS 이하를 묵음으로 판단
+        )
+
+        logger.info(f"묵음 기준으로 {len(chunks)}개의 청크로 분할됨")
+
+        # 시간 기준 병합 (약 4분 = 240000밀리초)
+        target_duration = 240000  # 4분
+        merged_chunks = []
+        current_chunk = AudioSegment.empty()
+
+        for chunk in chunks:
+            # 현재 청크에 다음 청크를 추가해도 4분 미만이면 병합 계속
+            if len(current_chunk) + len(chunk) <= target_duration:
+                current_chunk += chunk
+            else:
+                # 4분을 초과하면 현재까지 병합된 청크 저장 후 새 청크 시작
+                merged_chunks.append(current_chunk)
+                current_chunk = chunk
+
+        # 남은 부분 처리: 남은 current_chunk가 존재하면 추가
+        if len(current_chunk) > 0:
+            merged_chunks.append(current_chunk)
+
+        logger.info(f"병합 후 청크 수: {len(merged_chunks)}개 (각 약 4분 단위)")
+
         segments_texts = []
-        
-        # 전체 길이를 4분 단위로 나누기
-        for i in range(0, len(audio), segment_length):
-            # 세그먼트 추출
-            time.sleep(1)
-            segment = audio[i:min(i+segment_length, len(audio))]
-            
-            # 임시 파일로 저장
-            temp_segment_path = f"/tmp/{job_id}_segment_{i//segment_length}.wav"
-            segment.export(temp_segment_path, format="wav")
-            
+
+        for idx, chunk in enumerate(merged_chunks):
+            temp_segment_path = f"/tmp/{job_id}_chunk_{idx}.wav"
+            chunk.export(temp_segment_path, format="wav")
+
             try:
-                # Whisper로 변환
-                logger.info(f"세그먼트 변환 중: {i//segment_length + 1}/{math.ceil(len(audio)/segment_length)}")
-                segment_text = whisper_client.automatic_speech_recognition(temp_segment_path)
-                segments_texts.append(segment_text.text)
-                
+                logger.info(f"청크 {idx+1}/{len(merged_chunks)} 변환 중...")
+                segment_result = whisper_client.automatic_speech_recognition(temp_segment_path)
+                segments_texts.append(segment_result.text)
             finally:
-                # 임시 파일 삭제
                 if os.path.exists(temp_segment_path):
                     os.remove(temp_segment_path)
-        
-        # 전체 텍스트 합치기
+            time.sleep(1)  # 요청 간 딜레이
+
         transcribed_text = " ".join(segments_texts)
-        logger.info(f"전체 음성 변환 완료: {len(segments_texts)}개 세그먼트")
+        logger.info(f"전체 음성 변환 완료: {len(merged_chunks)}개 청크 처리됨")
+        logger.info(transcribed_text)
         
         
         # gpt-4o로 텍스트 보정하기
