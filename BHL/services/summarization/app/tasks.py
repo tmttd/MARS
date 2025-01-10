@@ -165,7 +165,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         client.close()
         work_client.close()
         
-        return {"status": "completed", "extraction": extraction}
+        return {"status": "completed", "extracted_property_info": extraction}
         
     except Exception as e:
         logger.error(f"요약 중 오류 발생: {str(e)}")
