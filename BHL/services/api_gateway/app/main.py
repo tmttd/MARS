@@ -270,8 +270,8 @@ async def summarization_webhook(job_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/extractions")
-async def get_extractions():
+@app.get("/calls")
+async def get_calls():
     """프론트엔드를 위한 추출 데이터 조회 엔드포인트"""
     async with httpx.AsyncClient() as client:
         try:

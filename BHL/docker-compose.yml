@@ -289,7 +289,21 @@ services:
     networks:
       - mars_network
 
-
+  database:
+    build: ./services/database
+    command: uvicorn database.main:app --host 0.0.0.0 --port 8000 --reload --log-level warning
+    ports:
+      - "8005:8000"
+    volumes:
+      - ./services/database:/app
+    environment:
+      - MONGODB_URL=mongodb://work-db:27017
+      - WORK_MONGODB_DB=mars_work_db
+      - PYTHONWARNINGS=ignore
+    networks:
+      - mars_network
+    depends_on:
+      - work-db
 
   s3_service:
     build: ./services/s3_service
