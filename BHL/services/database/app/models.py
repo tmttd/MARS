@@ -1,12 +1,124 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from typing import Optional
+from datetime import datetime
+from bson import ObjectId
 
-# Pydantic 모델 정의
+class PyObjectId(ObjectId):
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        if not ObjectId.is_valid(v):
+            raise ValueError("Invalid ObjectId")
+        return ObjectId(v)
+
+    @classmethod
+    def __modify_schema__(cls, field_schema):
+        field_schema.update(type="string")
+
+
+class OwnerInfo(BaseModel):
+    owner_name: str
+    owner_contact: str
+
+class TenantInfo(BaseModel):
+    tenant_name: str
+    tenant_contact: str
+
+class ExtractedPropertyInfo(BaseModel):
+    property_name: Optional[str] = None
+    price: Optional[float] = None
+    loan_available: Optional[bool] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    legal_dong: Optional[str] = None
+    detail_address: Optional[str] = None
+    transaction_type: Optional[str] = None
+    property_type: Optional[str] = None
+    floor: Optional[str] = None
+    area: Optional[float] = None
+    premium: Optional[float] = None
+    owner_property_memo: Optional[str] = None
+    tenant_property_memo: Optional[str] = None
+    owner_info: Optional[OwnerInfo] = None
+    tenant_info: Optional[TenantInfo] = None
+    moving_memo: Optional[str] = None
+
 class Call(BaseModel):
-    customer_name: str
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    job_id: str
     customer_contact: str
-    recording_date: str
+    customer_name: str
+    file_name: str
+    recording_date: datetime
+    text: str
+    extracted_property_info: Optional[ExtractedPropertyInfo] = None
+    summary_content: Optional[str] = None
+    summary_title: Optional[str] = None
+
+    class Config:
+        allow_population_by_reference = True
+        arbitrary_types_allowed = True
+        json_encoders = {
+            ObjectId: str,
+            datetime: lambda v: v.isoformat()
+        }
+
+class CallCreate(BaseModel):
+    job_id: str
+    customer_contact: str
+    customer_name: str = ""
+    file_name: str
+    recording_date: datetime
+    text: str
+    extracted_property_info: Optional[ExtractedPropertyInfo] = None
+    summary_content: Optional[str] = None
+    summary_title: Optional[str] = None
+
+class CallUpdate(BaseModel):
+    customer_contact: Optional[str] = None
+    customer_name: Optional[str] = None
+    text: Optional[str] = None
+    extracted_property_info: Optional[ExtractedPropertyInfo] = None
+    summary_content: Optional[str] = None
+    summary_title: Optional[str] = None
+
+class PropertyInfo(BaseModel):
+    property_name: str
+    price: str
+    loan_available: Optional[bool] = None
+    city: str
+    district: str
+    legal_dong: str
+    detail_address: str
+    transaction_type: str  # 상가/오피스텔/아파트
+    property_type: str     # 전세/월세/매매
+    floor: Optional[str] = None
+    area: Optional[float] = None
+    premium: Optional[float] = None
+    owner_property_memo: Optional[str] = None
+    tenant_property_memo: Optional[str] = None
+    owner_info: Optional[OwnerInfo] = None
+    tenant_info: Optional[TenantInfo] = None
+    moving_memo: Optional[str] = None
 
 class Property(BaseModel):
-    name: str
-    location: str
-    price: float
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    property_id: str
+    property_info: PropertyInfo
+
+    class Config:
+        allow_population_by_reference = True
+        arbitrary_types_allowed = True
+        json_encoders = {
+            ObjectId: str
+        }
+
+class PropertyCreate(BaseModel):
+    property_id: str
+    property_info: PropertyInfo
+
+class PropertyUpdate(BaseModel):
+    property_info: Optional[PropertyInfo] = None

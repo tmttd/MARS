@@ -262,6 +262,7 @@ services:
     environment:
       - WORK_MONGODB_URI=mongodb://work-db:27017/
       - WORK_MONGODB_DB=mars_work_db
+      - DATABASE_SERVICE_URL=http://database:8000
       - REDIS_URL=redis://redis:6379/0
       - PYTHONWARNINGS=ignore
       - CALL_DB_URI=mongodb://call-db:27017
@@ -272,6 +273,7 @@ services:
       - work-db
       - redis
       - s3_service
+      - database
 
   property-frontend:
     build:

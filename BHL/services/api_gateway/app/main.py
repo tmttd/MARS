@@ -1,4 +1,5 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Response, Query, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from redis import Redis
 from datetime import datetime, UTC
@@ -9,8 +10,9 @@ import logging
 import os
 from .config import Settings
 from .models import ProcessingJob, StageStatus
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from pymongo import MongoClient
+from pydantic import BaseModel
 
 # 로깅 설정
 logging.basicConfig(
@@ -23,6 +25,9 @@ settings = Settings()
 
 app = FastAPI(title="Audio Processing API Gateway")
 
+# 환경 변수 설정
+DATABASE_SERVICE_URL = os.getenv("DATABASE_SERVICE_URL", "http://database:8000")
+
 # CORS 설정 추가
 app.add_middleware(
     CORSMiddleware,
@@ -34,7 +39,6 @@ app.add_middleware(
 
 # Redis 연결
 redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
-
 
 @app.post("/Total_Processing")
 async def Total_Processing(file: UploadFile = File(...)):
@@ -269,56 +273,6 @@ async def summarization_webhook(job_id: str):
         logger.error(f"요약 웹훅 처리 중 오류 발생: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
-@app.get("/calls")
-async def get_calls():
-    """프론트엔드를 위한 추출 데이터 조회 엔드포인트"""
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(f"{settings.SUMMARIZATION_SERVICE_URL}/extractions")
-            response.raise_for_status()
-            data = response.json()
-            if not isinstance(data, dict) or "extractions" not in data:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Invalid response format from summarization service",
-                )
-            return data
-        except httpx.HTTPError as e:
-            logger.error(f"Summarization service error: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to fetch data from summarization service: {str(e)}",
-            )
-        except Exception as e:
-            logger.error(f"Unexpected error: {str(e)}")
-            raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.put("/extractions/{job_id}")
-async def update_extraction(job_id: str, extraction: dict):
-    try:
-        # 작업 데이터베이스 연결
-        client = MongoClient(settings.WORK_MONGODB_URI)
-        work_db = client[settings.WORK_MONGODB_DB]
-
-        # 데이터 업데이트
-        result = work_db.jobs.update_one(
-            {"job_id": job_id}, {"$set": {"summarization.extraction": extraction}}
-        )
-
-        if result.matched_count == 0:
-            raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다")
-
-        return {"status": "success", "message": "데이터가 업데이트되었습니다"}
-
-    except Exception as e:
-        logger.error(f"데이터 업데이트 중 오류 발생: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        client.close()
-
-
 @app.get("/job/{job_id}")
 async def get_job_status(job_id: str):
     try:
@@ -347,67 +301,156 @@ async def get_job_status(job_id: str):
     finally:
         client.close()
 
+# 공통 헤더 전달을 위한 유틸리티 함수
+async def proxy_request(method: str, url: str, **kwargs):
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.request(method, url, **kwargs)
+            return Response(content=response.content, status_code=response.status_code, headers=dict(response.headers))
+        except httpx.RequestError as exc:
+            logger.error(f"Request error: {exc}")
+            raise HTTPException(status_code=500, detail="Internal server error") from exc
 
-@app.get("/calls")
-async def get_calls():
+# ### Calls 엔드포인트 ###
+
+# ### 통화 기록 조회(전체 조회, 필터링 조회 가능) 엔드포인트 ###
+
+@app.get("/calls/", response_model=List[dict])
+async def list_calls(
+    limit: Optional[int] = Query(10),
+    customer_contact: Optional[str] = Query(None),
+    customer_name: Optional[str] = Query(None),
+    property_name: Optional[str] = Query(None),
+    recording_date: Optional[str] = Query(None),
+    before_date: Optional[str] = Query(None),
+    after_date: Optional[str] = Query(None)
+):
     try:
-        logger.info("Attempting to connect to call-db")
-        client = MongoClient(settings.CALL_DB_URI)
-        call_db = client[settings.CALL_DB_NAME]
-
-        # 데이터베이스 연결 확인
-        client.admin.command("ping")
-
-        # 모든 통화 기록 조회
-        calls = list(call_db.calls.find({}, {"_id": 0}))
-        logger.info(f"Found {len(calls)} calls")
-
-        if not calls:
-            logger.warning("No calls found in database")
-            return {"calls": []}
-
-        # 날짜 필드 ISO 형식으로 변환
-        for call in calls:
-            if "created_at" in call:
-                call["created_at"] = call["created_at"].isoformat()
-
-        return {"calls": calls}
-
+        params = {
+            "customer_contact": customer_contact,
+            "customer_name": customer_name,
+            "property_name": property_name,
+            "recording_date": recording_date,
+            "before_date": before_date,
+            "after_date": after_date
+        }
+        # 필터링된 쿼리 파라미터 제거
+        params = {k: v for k, v in params.items() if v is not None}
+        url = f"{DATABASE_SERVICE_URL}/calls/?limit={limit}"
+        return await proxy_request("GET", url, params=params)
     except Exception as e:
-        logger.error(f"통화 기록 조회 중 오류 발생: {str(e)}")
+        logger.error(f"List Calls error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        if "client" in locals():
-            client.close()
 
-
-@app.put("/calls/{job_id}")
-async def update_call(job_id: str, call_data: dict):
+@app.post("/calls/", response_model=dict)
+async def create_call(request: Request):
     try:
-        logger.info(f"Attempting to update call with job_id: {job_id}")
-        client = MongoClient(settings.CALL_DB_URI)
-        call_db = client[settings.CALL_DB_NAME]
-
-        # 데이터베이스 연결 확인
-        client.admin.command("ping")
-
-        # summarization.extraction 형식으로 데이터 변환
-        update_data = {"summarization": {"extraction": call_data}}
-
-        # 통화 기록 업데이트
-        result = call_db.calls.update_one({"job_id": job_id}, {"$set": update_data})
-
-        if result.modified_count == 0:
-            raise HTTPException(status_code=404, detail="Call not found")
-
-        return {"message": "Call updated successfully"}
-
+        data = await request.json()
+        url = f"{DATABASE_SERVICE_URL}/calls/"
+        return await proxy_request("POST", url, json=data)
     except Exception as e:
-        logger.error(f"통화 기록 업데이트 중 오류 발생: {str(e)}")
+        logger.error(f"Create Call error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        if "client" in locals():
-            client.close()
+
+@app.get("/calls/{call_id}", response_model=dict)
+async def read_call(call_id: str):
+    try:
+        url = f"{DATABASE_SERVICE_URL}/calls/{call_id}"
+        return await proxy_request("GET", url)
+    except Exception as e:
+        logger.error(f"Read Call error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/calls/{call_id}", response_model=dict)
+async def update_call(call_id: str, request: Request):
+    try:
+        data = await request.json()
+        url = f"{DATABASE_SERVICE_URL}/calls/{call_id}"
+        return await proxy_request("PUT", url, json=data)
+    except Exception as e:
+        logger.error(f"Update Call error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/calls/{call_id}", response_model=dict)
+async def delete_call(call_id: str):
+    try:
+        url = f"{DATABASE_SERVICE_URL}/calls/{call_id}"
+        return await proxy_request("DELETE", url)
+    except Exception as e:
+        logger.error(f"Delete Call error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ### Properties 엔드포인트 ###
+
+# ### 부동산 정보 조회 엔드포인트(전체 조회, 필터링 조회 가능) ###
+@app.get("/properties/", response_model=List[dict])
+async def list_properties(
+    limit: Optional[int] = Query(10),
+    property_name: Optional[str] = Query(None),
+    city: Optional[str] = Query(None),
+    district: Optional[str] = Query(None),
+    transaction_type: Optional[str] = Query(None),
+    property_type: Optional[str] = Query(None),
+    owner_name: Optional[str] = Query(None),
+    tenant_name: Optional[str] = Query(None)
+):
+    try:
+        params = {
+            "property_name": property_name,
+            "city": city,
+            "district": district,
+            "transaction_type": transaction_type,
+            "property_type": property_type,
+            "owner_name": owner_name,
+            "tenant_name": tenant_name,
+            "limit": limit  # limit 파라미터 추가
+        }
+        # 필터링된 쿼리 파라미터 제거
+        params = {k: v for k, v in params.items() if v is not None}
+        url = f"{DATABASE_SERVICE_URL}/properties/"
+        return await proxy_request("GET", url, params=params)
+    except Exception as e:
+        logger.error(f"List Properties error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/properties/", response_model=dict)
+async def create_property(request: Request):
+    try:
+        data = await request.json()
+        url = f"{DATABASE_SERVICE_URL}/properties/"
+        return await proxy_request("POST", url, json=data)
+    except Exception as e:
+        logger.error(f"Create Property error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/properties/{property_id}", response_model=dict)
+async def read_property(property_id: str):
+    try:
+        url = f"{DATABASE_SERVICE_URL}/properties/{property_id}"
+        return await proxy_request("GET", url)
+    except Exception as e:
+        logger.error(f"Read Property error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/properties/{property_id}", response_model=dict)
+async def update_property(property_id: str, request: Request):
+    try:
+        data = await request.json()
+        url = f"{DATABASE_SERVICE_URL}/properties/{property_id}"
+        return await proxy_request("PUT", url, json=data)
+    except Exception as e:
+        logger.error(f"Update Property error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/properties/{property_id}", response_model=dict)
+async def delete_property(property_id: str):
+    try:
+        url = f"{DATABASE_SERVICE_URL}/properties/{property_id}"
+        return await proxy_request("DELETE", url)
+    except Exception as e:
+        logger.error(f"Delete Property error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
             
 @app.get("/audio/files")
 async def get_audio_files():

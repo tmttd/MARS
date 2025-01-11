@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     SUMMARIZATION_SERVICE_URL: str = os.getenv(
         "SUMMARIZATION_SERVICE_URL", "http://summarization:8000"
     )
+    DATABASE_SERVICE_URL: str = os.getenv(
+        "DATABASE_SERVICE_URL", "http://database:8000"
+    )
 
     # 출력 디렉토리 경로 설정
     AUDIO_OUTPUT_DIR: str = "/app/audio_outputs"
