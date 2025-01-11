@@ -10,7 +10,7 @@ const api = axios.create({
 });
 
 export const propertyService = {
-  getAllProperties: async (limit = 10, filters = {}) => {
+  getProperties: async (limit = 10, filters = {}) => {
     try {
       const params = {
         limit,
@@ -66,7 +66,7 @@ export const propertyService = {
 };
 
 export const callService = {
-  getAllCalls: async (limit = 10, filters = {}) => {
+  getCalls: async (limit = 10, filters = {}) => {
     try {
       const params = {
         limit,

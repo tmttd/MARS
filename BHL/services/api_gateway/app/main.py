@@ -327,6 +327,7 @@ async def list_calls(
 ):
     try:
         params = {
+            "limit": limit,
             "customer_contact": customer_contact,
             "customer_name": customer_name,
             "property_name": property_name,

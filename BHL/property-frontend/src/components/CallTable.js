@@ -14,15 +14,15 @@ const CallTable = ({ calls, onUpdate }) => {
     return date.toLocaleString('ko-KR');
   };
 
-  const handleEdit = (jobId) => {
-    setEditMode({ ...editMode, [jobId]: true });
-    setEditData({ ...editData, [jobId]: calls.find(c => c.job_id === jobId) });
+  const handleEdit = (id) => {
+    setEditMode({ ...editMode, [id]: true });
+    setEditData({ ...editData, [id]: calls.find(c => c.id === id) });
   };
 
-  const handleSave = async (jobId) => {
+  const handleSave = async (id) => {
     try {
-      const callData = { ...editData[jobId] };
-      const originalCall = calls.find(c => c.job_id === jobId);
+      const callData = { ...editData[id] };
+      const originalCall = calls.find(c => c.id === id);
       
       // 변경된 값이 있는지 확인
       const hasChanges = Object.keys(callData).some(key => 
@@ -34,45 +34,45 @@ const CallTable = ({ calls, onUpdate }) => {
         return;
       }
 
-      delete callData.job_id;
+      delete callData.id;
       
-      await callService.updateCall(jobId, callData);
-      setEditMode({ ...editMode, [jobId]: false });
+      await callService.updateCall(id, callData);
+      setEditMode({ ...editMode, [id]: false });
       if (onUpdate) onUpdate();
     } catch (error) {
       alert('저장 중 오류가 발생했습니다.');
     }
   };
 
-  const handleCancel = (jobId) => {
-    setEditMode({ ...editMode, [jobId]: false });
-    setEditData({ ...editData, [jobId]: null });
+  const handleCancel = (id) => {
+    setEditMode({ ...editMode, [id]: false });
+    setEditData({ ...editData, [id]: null });
   };
 
-  const handleChange = (jobId, field, value) => {
+  const handleChange = (id, field, value) => {
     setEditData({
       ...editData,
-      [jobId]: {
-        ...editData[jobId],
+      [id]: {
+        ...editData[id],
         [field]: value
       }
     });
   };
 
-  const handleDetail = (jobId) => {
-    navigate(`/calls/${jobId}`, {
-      state: { callData: calls.find(c => c.job_id === jobId) }
+  const handleDetail = (id) => {
+    navigate(`/calls/${id}`, {
+      state: { callData: calls.find(c => c.id === id) }
     });
   };
 
-  const renderCell = (call, field, jobId) => {
-    if (editMode[jobId]) {
+  const renderCell = (call, field, id) => {
+    if (editMode[id]) {
       return (
         <Form.Control
           size="sm"
           type="text"
-          value={editData[jobId]?.[field] || ''}
-          onChange={(e) => handleChange(jobId, field, e.target.value)}
+          value={editData[id]?.[field] || ''}
+          onChange={(e) => handleChange(id, field, e.target.value)}
         />
       );
     }
@@ -92,42 +92,42 @@ const CallTable = ({ calls, onUpdate }) => {
             <th>거래 유형</th>
             <th>건물명</th>
             <th>상세주소</th>
+            <th>통화주제</th>
             <th>통화요약</th>
-            <th>메모</th>
             <th style={{ minWidth: '130px' }}></th>
           </tr>
         </thead>
         <tbody>
           {calls.map((call, index) => (
-            <tr key={call.job_id}>
+            <tr key={call.id}>
               <td>{index + 1}</td>
-              <td>{formatDateTime(call.call_datetime)}</td>
-              <td>{renderCell(call, 'name', call.job_id)}</td>
-              <td>{renderCell(call, 'contact', call.job_id)}</td>
-              <td>{renderCell(call, 'property_type', call.job_id)}</td>
-              <td>{renderCell(call, 'transaction_type', call.job_id)}</td>
-              <td>{renderCell(call, 'complex_name', call.job_id)}</td>
+              <td>{formatDateTime(call.recording_date)}</td>
+              <td>{renderCell(call, 'customer_name', call.id)}</td>
+              <td>{renderCell(call, 'customer_contact', call.id)}</td>
+              <td>{renderCell(call.extracted_property_info, 'property_type', call.id)}</td>
+              <td>{renderCell(call.extracted_property_info, 'transaction_type', call.id)}</td>
+              <td>{renderCell(call.extracted_property_info, 'property_name', call.id)}</td>
               <td>
-                {editMode[call.job_id] ? (
+                {editMode[call.id] ? (
                   <Form.Control
                     size="sm"
                     type="text"
-                    value={editData[call.job_id]?.detailed_address || ''}
-                    onChange={(e) => handleChange(call.job_id, 'detailed_address', e.target.value)}
+                    value={editData[call.id]?.detailed_address || ''}
+                    onChange={(e) => handleChange(call.id, 'detailed_address', e.target.value)}
                   />
                 ) : (
                   `${call.city || ''} ${call.district || ''} ${call.neighborhood || ''}`
                 )}
               </td>
-              <td>{renderCell(call, 'call_summary', call.job_id)}</td>
-              <td>{renderCell(call, 'memo', call.job_id)}</td>
+              <td>{renderCell(call, 'summary_title', call.id)}</td>
+              <td>{renderCell(call, 'summary_content', call.id)}</td>
               <td className="text-center">
-                {editMode[call.job_id] ? (
+                {editMode[call.id] ? (
                   <>
                     <Button 
                       variant="success" 
                       size="sm" 
-                      onClick={() => handleSave(call.job_id)}
+                      onClick={() => handleSave(call.id)}
                       className="me-1"
                     >
                       저장
@@ -135,7 +135,7 @@ const CallTable = ({ calls, onUpdate }) => {
                     <Button 
                       variant="secondary" 
                       size="sm" 
-                      onClick={() => handleCancel(call.job_id)}
+                      onClick={() => handleCancel(call.id)}
                     >
                       취소
                     </Button>
@@ -145,7 +145,7 @@ const CallTable = ({ calls, onUpdate }) => {
                     <Button 
                       variant="primary" 
                       size="sm" 
-                      onClick={() => handleEdit(call.job_id)}
+                      onClick={() => handleEdit(call.id)}
                       className="me-1"
                     >
                       수정
@@ -161,7 +161,7 @@ const CallTable = ({ calls, onUpdate }) => {
                     <Button 
                       variant="info" 
                       size="sm" 
-                      onClick={() => handleDetail(call.job_id)}
+                      onClick={() => handleDetail(call.id)}
                     >
                       상세
                     </Button>

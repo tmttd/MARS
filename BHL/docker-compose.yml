@@ -293,7 +293,6 @@ services:
 
   database:
     build: ./services/database
-    command: uvicorn database.main:app --host 0.0.0.0 --port 8000 --reload --log-level warning
     ports:
       - "8005:8000"
     volumes:

@@ -14,10 +14,10 @@ const CallList = () => {
 
   const fetchCalls = async () => {
     try {
-      const data = await callService.getAllCalls();
+      const data = await callService.getCalls();
       // 통화일시 기준으로 내림차순 정렬
       const sortedData = data.sort((a, b) => 
-        new Date(b.call_datetime) - new Date(a.call_datetime)
+        new Date(b.recording_date) - new Date(a.recording_date)
       );
       // 번호 재할당
       const numberedData = sortedData.map((call, index) => ({
@@ -107,7 +107,7 @@ const CallList = () => {
 
           <div className="table-container shadow-sm rounded">
             <CallTable 
-              calls={filteredCalls} 
+              calls={filteredCalls}
               onUpdate={fetchCalls}
             />
           </div>
