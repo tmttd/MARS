@@ -50,9 +50,8 @@ async def list_calls(
         calls = []
         cursor = db.calls.find(query).limit(limit)
         async for call in cursor:
-            call["id"] = str(call["_id"])
-            del call["_id"]
             calls.append(call)
+        logger.info(f"Calls: {calls}")
         return calls
     except Exception as e:
         logger.error(f"List calls error: {e}")
@@ -63,8 +62,7 @@ async def create_call(call: CallCreate):
     try:
         result = await db.calls.insert_one(call.model_dump())
         created_call = await db.calls.find_one({"_id": result.inserted_id})
-        created_call["id"] = str(created_call["_id"])
-        del created_call["_id"]
+        logger.info(f"Created Call: {created_call}")
         return created_call
     except Exception as e:
         logger.error(f"Create call error: {e}")
@@ -76,8 +74,7 @@ async def read_call(call_id: str):
         call = await db.calls.find_one({"_id": ObjectId(call_id)})
         if call is None:
             raise HTTPException(status_code=404, detail="Call not found")
-        call["id"] = str(call["_id"])
-        del call["_id"]
+        logger.info(f"Read Call: {call}")
         return call
     except Exception as e:
         logger.error(f"Read call error: {e}")
@@ -93,8 +90,7 @@ async def update_call(call_id: str, call_update: CallUpdate):
         if result.modified_count == 0:
             raise HTTPException(status_code=404, detail="Call not found")
         updated_call = await db.calls.find_one({"_id": ObjectId(call_id)})
-        updated_call["id"] = str(updated_call["_id"])
-        del updated_call["_id"]
+        logger.info(f"Updated Call: {updated_call}")
         return updated_call
     except Exception as e:
         logger.error(f"Update call error: {e}")
@@ -106,6 +102,7 @@ async def delete_call(call_id: str):
         result = await db.calls.delete_one({"_id": ObjectId(call_id)})
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Call not found")
+        logger.info(f"Deleted Call: {call_id}")
         return {"detail": "Call deleted"}
     except Exception as e:
         logger.error(f"Delete call error: {e}")
@@ -146,6 +143,7 @@ async def list_properties(
             property["id"] = str(property["_id"])
             del property["_id"]
             properties.append(property)
+        logger.info(f"Properties: {properties}")
         return properties
     except Exception as e:
         logger.error(f"List properties error: {e}")
@@ -156,8 +154,7 @@ async def create_property(property: PropertyCreate):
     try:
         result = await db.properties.insert_one(property.model_dump())
         created_property = await db.properties.find_one({"_id": result.inserted_id})
-        created_property["id"] = str(created_property["_id"])
-        del created_property["_id"]
+        logger.info(f"Created Property: {created_property}")
         return created_property
     except Exception as e:
         logger.error(f"Create property error: {e}")
@@ -169,8 +166,7 @@ async def read_property(property_id: str):
         property = await db.properties.find_one({"_id": ObjectId(property_id)})
         if property is None:
             raise HTTPException(status_code=404, detail="Property not found")
-        property["id"] = str(property["_id"])
-        del property["_id"]
+        logger.info(f"Read Property: {property}")
         return property
     except Exception as e:
         logger.error(f"Read property error: {e}")
@@ -186,8 +182,7 @@ async def update_property(property_id: str, property_update: PropertyUpdate):
         if result.modified_count == 0:
             raise HTTPException(status_code=404, detail="Property not found")
         updated_property = await db.properties.find_one({"_id": ObjectId(property_id)})
-        updated_property["id"] = str(updated_property["_id"])
-        del updated_property["_id"]
+        logger.info(f"Updated Property: {updated_property}")
         return updated_property
     except Exception as e:
         logger.error(f"Update property error: {e}")
@@ -199,6 +194,7 @@ async def delete_property(property_id: str):
         result = await db.properties.delete_one({"_id": ObjectId(property_id)})
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Property not found")
+        logger.info(f"Deleted Property: {property_id}")
         return {"detail": "Property deleted"}
     except Exception as e:
         logger.error(f"Delete property error: {e}")

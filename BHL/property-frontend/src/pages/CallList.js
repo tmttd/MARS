@@ -19,6 +19,7 @@ const CallList = () => {
       const sortedData = data.sort((a, b) => 
         new Date(b.recording_date) - new Date(a.recording_date)
       );
+      console.error("Sorted Data:", sortedData);
       // 번호 재할당
       const numberedData = sortedData.map((call, index) => ({
         ...call,
@@ -33,8 +34,8 @@ const CallList = () => {
   };
 
   useEffect(() => {
-    fetchCalls();
-  }, []);
+    fetchCalls(); // 컴포넌트가 마운트될 때마다 데이터를 가져옴
+  }, []); // 빈 배열을 사용하여 컴포넌트가 처음 마운트될 때만 호출
 
   const filteredCalls = calls.filter(call => {
     if (!searchTerm) return true;

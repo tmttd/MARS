@@ -15,7 +15,7 @@ function App() {
         <Container>
           <Navbar.Brand className="fw-bold fs-3 text-primary d-flex align-items-center">
             <FaHome className="me-2" />
-            부동산 관리 시스템
+            주여사의 라움부동산 관리 시스템
           </Navbar.Brand>
           <Nav className="ms-auto">
             <Nav.Link as={Link} to="/properties" className="btn btn-outline-primary me-2">매물 목록</Nav.Link>

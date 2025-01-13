@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import { Container, Row, Col, Form, Button, Card } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Card, Modal } from 'react-bootstrap';
 import { FaPlay, FaPause, FaArrowLeft, FaClock, FaUser, FaPhone, FaFileAlt, FaBuilding, FaEdit, FaFileAudio, FaComments, FaFileWord } from 'react-icons/fa';
 import { callService, audioService, propertyService } from '../services/api';
 import '../styles/common.css';
@@ -19,6 +19,8 @@ const CallDetail = () => {
   const [editData, setEditData] = useState(null);
   const [isEditingProperty, setIsEditingProperty] = useState(false);
   const [propertyData, setPropertyData] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [modalContent, setModalContent] = useState('');
 
   const navigate = useNavigate();
 
@@ -30,26 +32,24 @@ const CallDetail = () => {
           setCall(callData);
           setEditData(callData);
           setPropertyData({
-            property_type: callData.property_type || '',
-            transaction_type: callData.transaction_type || '',
-            city: callData.city || '',
-            district: callData.district || '',
-            neighborhood: callData.neighborhood || '',
-            complex_name: callData.complex_name || '',
-            detailed_address: callData.detailed_address || ''
+            property_type: callData.extracted_property_info.property_type || '',
+            transaction_type: callData.extracted_property_info.transaction_type || '',
+            city: callData.extracted_property_info.city || '',
+            district: callData.extracted_property_info.district || '',
+            complex_name: callData.extracted_property_info.property_name || '',
+            detailed_address: callData.extracted_property_info.detail_address || ''
           });
         } else {
           const data = await callService.getCall(id);
           setCall(data);
           setEditData(data);
           setPropertyData({
-            property_type: data.property_type || '',
-            transaction_type: data.transaction_type || '',
-            city: data.city || '',
-            district: data.district || '',
-            neighborhood: data.neighborhood || '',
-            complex_name: data.complex_name || '',
-            detailed_address: data.detailed_address || ''
+            property_type: data.extracted_property_info.property_type || '',
+            transaction_type: data.extracted_property_info.transaction_type || '',
+            city: data.extracted_property_info.city || '',
+            district: data.extracted_property_info.district || '',
+            complex_name: data.extracted_property_info.property_name || '',
+            detailed_address: data.extracted_property_info.detail_address || ''
           });
         }
         setLoading(false);
@@ -128,7 +128,7 @@ const CallDetail = () => {
 
   const handleSaveCall = async () => {
     try {
-      const hasChanges = ['call_datetime', 'name', 'contact', 'transcript', 'call_summary'].some(
+      const hasChanges = ['recording_date', 'customer_name', 'customer_contact', 'text', 'summary_content'].some(
         key => editData[key] !== call[key]
       );
 
@@ -229,6 +229,15 @@ const CallDetail = () => {
     }));
   };
 
+  const handleShowModal = (content) => {
+    setModalContent(content);
+    setShowModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+  };
+
   if (loading) return <div>Loading...</div>;
 
   return (
@@ -243,7 +252,7 @@ const CallDetail = () => {
       </Button>
 
       <Row className="g-4">
-        <Col md={6}>
+        <Col md={12}>
           <Card className="mb-4">
             <Card.Body>
               <div className="d-flex justify-content-between align-items-center mb-4">
@@ -268,41 +277,41 @@ const CallDetail = () => {
               </div>
               <Form>
                 <Row className="g-3">
-                  <Col md={12}>
+                  <Col md={4}>
                     <Form.Group>
                       <Form.Label className="d-flex align-items-center">
                         <FaClock className="me-2 text-muted" />
                         통화일시
                       </Form.Label>
                       <Form.Control 
-                        value={editData?.call_datetime || ''}
-                        onChange={(e) => handleChange('call_datetime', e.target.value)}
+                        value={isEditingCall ? editData?.recording_date : formatDateTime(editData?.recording_date) || ''}
+                        onChange={(e) => handleChange('recording_date', e.target.value)}
                         disabled={!isEditingCall}
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={6}>
+                  <Col md={4}>
                     <Form.Group>
                       <Form.Label className="d-flex align-items-center">
                         <FaUser className="me-2 text-muted" />
                         성명
                       </Form.Label>
                       <Form.Control 
-                        value={editData?.name || ''}
-                        onChange={(e) => handleChange('name', e.target.value)}
+                        value={editData?.customer_name || ''}
+                        onChange={(e) => handleChange('customer_name', e.target.value)}
                         disabled={!isEditingCall}
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={6}>
+                  <Col md={4}>
                     <Form.Group>
                       <Form.Label className="d-flex align-items-center">
                         <FaPhone className="me-2 text-muted" />
                         연락처
                       </Form.Label>
                       <Form.Control 
-                        value={editData?.contact || ''}
-                        onChange={(e) => handleChange('contact', e.target.value)}
+                        value={editData?.customer_contact || ''}
+                        onChange={(e) => handleChange('customer_contact', e.target.value)}
                         disabled={!isEditingCall}
                       />
                     </Form.Group>
@@ -315,9 +324,9 @@ const CallDetail = () => {
                       </Form.Label>
                       <Form.Control 
                         as="textarea" 
-                        rows={3} 
-                        value={editData?.call_summary || ''}
-                        onChange={(e) => handleChange('call_summary', e.target.value)}
+                        style={{ minHeight: '100px' }}
+                        value={editData?.summary_content || ''}
+                        onChange={(e) => handleChange('summary_content', e.target.value)}
                         disabled={!isEditingCall}
                       />
                     </Form.Group>
@@ -326,23 +335,30 @@ const CallDetail = () => {
                     <Form.Group>
                       <Form.Label className="d-flex align-items-center">
                         <FaFileWord className="me-2 text-muted" />
-                        통화 전사
+                        통화 내용
                       </Form.Label>
                       <Form.Control 
                         as="textarea" 
-                        rows={6} 
-                        value={editData?.transcript || ''}
-                        onChange={(e) => handleChange('transcript', e.target.value)}
+                        style={{ minHeight: '200px' }}
+                        value={editData?.text || ''}
+                        onChange={(e) => handleChange('text', e.target.value)}
                         disabled={!isEditingCall}
                       />
+                      <div className="text-end">
+                        <Button variant="link" onClick={() => handleShowModal(editData?.text || '')}>
+                          전체 내용 보기
+                        </Button>
+                      </div>
                     </Form.Group>
                   </Col>
                 </Row>
               </Form>
             </Card.Body>
           </Card>
+        </Col>
 
-          <Card>
+        <Col md={6}>
+          <Card className="mb-4">
             <Card.Body>
               <h4 className="mb-4 d-flex align-items-center">
                 <FaFileAudio className="me-2 text-primary" />
@@ -383,10 +399,8 @@ const CallDetail = () => {
               </div>
             </Card.Body>
           </Card>
-        </Col>
 
-        <Col md={6}>
-          <Card className="mb-4">
+          <Card>
             <Card.Body>
               <div className="d-flex justify-content-between align-items-center mb-4">
                 <h4 className="m-0 d-flex align-items-center">
@@ -418,8 +432,10 @@ const CallDetail = () => {
               />
             </Card.Body>
           </Card>
+        </Col>
 
-          <Card>
+        <Col md={6}>
+          <Card className="mb-4">
             <Card.Body>
               <div className="d-flex justify-content-between align-items-center mb-4">
                 <h4 className="m-0 d-flex align-items-center">
@@ -536,6 +552,21 @@ const CallDetail = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* Modal for displaying call content */}
+      <Modal show={showModal} onHide={handleCloseModal} size="xl">
+        <Modal.Header closeButton>
+          <Modal.Title>통화 내용</Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ fontSize: '2.0rem' }}>
+          <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{modalContent}</pre>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={handleCloseModal}>
+            닫기
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };

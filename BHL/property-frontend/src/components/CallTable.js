@@ -16,13 +16,13 @@ const CallTable = ({ calls, onUpdate }) => {
 
   const handleEdit = (id) => {
     setEditMode({ ...editMode, [id]: true });
-    setEditData({ ...editData, [id]: calls.find(c => c.id === id) });
+    setEditData({ ...editData, [id]: calls.find(c => c.job_id === id) });
   };
 
   const handleSave = async (id) => {
     try {
       const callData = { ...editData[id] };
-      const originalCall = calls.find(c => c.id === id);
+      const originalCall = calls.find(c => c.job_id === id);
       
       // 변경된 값이 있는지 확인
       const hasChanges = Object.keys(callData).some(key => 
@@ -34,7 +34,7 @@ const CallTable = ({ calls, onUpdate }) => {
         return;
       }
 
-      delete callData.id;
+      delete callData.job_id;
       
       await callService.updateCall(id, callData);
       setEditMode({ ...editMode, [id]: false });
@@ -60,8 +60,9 @@ const CallTable = ({ calls, onUpdate }) => {
   };
 
   const handleDetail = (id) => {
+    console.log("Selected Call ID:", id);
     navigate(`/calls/${id}`, {
-      state: { callData: calls.find(c => c.id === id) }
+      state: { callData: calls.find(c => c.job_id === id) }
     });
   };
 
@@ -99,35 +100,35 @@ const CallTable = ({ calls, onUpdate }) => {
         </thead>
         <tbody>
           {calls.map((call, index) => (
-            <tr key={call.id}>
+            <tr key={call.job_id}>
               <td>{index + 1}</td>
               <td>{formatDateTime(call.recording_date)}</td>
-              <td>{renderCell(call, 'customer_name', call.id)}</td>
-              <td>{renderCell(call, 'customer_contact', call.id)}</td>
-              <td>{renderCell(call.extracted_property_info, 'property_type', call.id)}</td>
-              <td>{renderCell(call.extracted_property_info, 'transaction_type', call.id)}</td>
-              <td>{renderCell(call.extracted_property_info, 'property_name', call.id)}</td>
+              <td>{renderCell(call, 'customer_name', call.job_id)}</td>
+              <td>{renderCell(call, 'customer_contact', call.job_id)}</td>
+              <td>{renderCell(call.extracted_property_info, 'property_type', call.job_id)}</td>
+              <td>{renderCell(call.extracted_property_info, 'transaction_type', call.job_id)}</td>
+              <td>{renderCell(call.extracted_property_info, 'property_name', call.job_id)}</td>
               <td>
-                {editMode[call.id] ? (
+                {editMode[call.job_id] ? (
                   <Form.Control
                     size="sm"
                     type="text"
-                    value={editData[call.id]?.detailed_address || ''}
-                    onChange={(e) => handleChange(call.id, 'detailed_address', e.target.value)}
+                    value={editData[call.job_id]?.detailed_address || ''}
+                    onChange={(e) => handleChange(call.job_id, 'detailed_address', e.target.value)}
                   />
                 ) : (
                   `${call.city || ''} ${call.district || ''} ${call.neighborhood || ''}`
                 )}
               </td>
-              <td>{renderCell(call, 'summary_title', call.id)}</td>
-              <td>{renderCell(call, 'summary_content', call.id)}</td>
+              <td>{renderCell(call, 'summary_title', call.job_id)}</td>
+              <td>{renderCell(call, 'summary_content', call.job_id)}</td>
               <td className="text-center">
-                {editMode[call.id] ? (
+                {editMode[call.job_id] ? (
                   <>
                     <Button 
                       variant="success" 
                       size="sm" 
-                      onClick={() => handleSave(call.id)}
+                      onClick={() => handleSave(call.job_id)}
                       className="me-1"
                     >
                       저장
@@ -135,7 +136,7 @@ const CallTable = ({ calls, onUpdate }) => {
                     <Button 
                       variant="secondary" 
                       size="sm" 
-                      onClick={() => handleCancel(call.id)}
+                      onClick={() => handleCancel(call.job_id)}
                     >
                       취소
                     </Button>
@@ -145,7 +146,7 @@ const CallTable = ({ calls, onUpdate }) => {
                     <Button 
                       variant="primary" 
                       size="sm" 
-                      onClick={() => handleEdit(call.id)}
+                      onClick={() => handleEdit(call.job_id)}
                       className="me-1"
                     >
                       수정
@@ -161,7 +162,7 @@ const CallTable = ({ calls, onUpdate }) => {
                     <Button 
                       variant="info" 
                       size="sm" 
-                      onClick={() => handleDetail(call.id)}
+                      onClick={() => handleDetail(call.job_id)}
                     >
                       상세
                     </Button>

@@ -73,7 +73,28 @@ export const callService = {
         ...filters
       };
       const response = await api.get('/calls/', { params });
-      return response.data;
+      const calls = response.data;
+
+      // 연락처 포맷팅 함수
+      const formatPhoneNumber = (phoneNumber) => {
+        const cleaned = phoneNumber.replace(/\D/g, '');
+        if (cleaned.startsWith('010')) {
+          return cleaned.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+        } else if (cleaned.startsWith('02')) {
+          return cleaned.replace(/(\d{2})(\d{3})(\d{4})/, '$1-$2-$3');
+        } else {
+          return cleaned.replace(/(\d{3})(\d{3,4})(\d{4})/, '$1-$2-$3');
+        }
+      };
+
+      // 각 통화 기록의 customer_contact 포맷팅
+      calls.forEach(call => {
+        if (call.customer_contact) {
+          call.customer_contact = formatPhoneNumber(call.customer_contact);
+        }
+      });
+
+      return calls;
     } catch (error) {
       console.error('API Error details:', error.response || error);
       throw new Error(error.response?.data?.detail || '통화 기록을 불러오는데 실패했습니다.');

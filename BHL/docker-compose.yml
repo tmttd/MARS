@@ -30,9 +30,10 @@ services:
     networks:
       - mars_network
     depends_on:
-      - converter-db
-      - work-db
-      - redis
+      work-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   converter-worker:
     build: ./services/converter
@@ -83,10 +84,12 @@ services:
     networks:
       - mars_network
     depends_on:
-      - transcription-db
-      - work-db
-      - redis
-      - converter
+      work-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      converter:
+        condition: service_started
 
   transcription-worker:
     build: ./services/transcription
@@ -141,9 +144,10 @@ services:
     networks:
       - mars_network
     depends_on:
-      - summarization-db
-      - work-db
-      - redis
+      work-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   summarization-worker:
     build: ./services/summarization
@@ -231,6 +235,12 @@ services:
       - ./work_db:/data/db
     networks:
       - mars_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     logging:
       driver: "json-file"
       options:
@@ -270,10 +280,12 @@ services:
     networks:
       - mars_network
     depends_on:
-      - work-db
-      - redis
-      - s3_service
-      - database
+      work-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      database:
+        condition: service_started
 
   property-frontend:
     build:
