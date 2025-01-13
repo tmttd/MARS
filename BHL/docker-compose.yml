@@ -81,6 +81,8 @@ services:
       - UPLOAD_DIR=/app/audio_outputs
       - OUTPUT_DIR=/app/text_outputs
       - PYTHONWARNINGS=ignore
+      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     networks:
       - mars_network
     depends_on:
@@ -114,6 +116,8 @@ services:
       - UPLOAD_DIR=/app/audio_outputs
       - OUTPUT_DIR=/app/text_outputs
       - PYTHONWARNINGS=ignore
+      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
     networks:
       - mars_network
     depends_on:

@@ -11,3 +11,5 @@ torch
 accelerate
 huggingface_hub
 requests
+pydub
+openai

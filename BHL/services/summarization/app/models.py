@@ -3,7 +3,6 @@ from typing import Optional, List
 from pydantic import BaseModel, Field
 from datetime import date
 
-
 class PropertyType(str, Enum):
     APARTMENT = "아파트"
     OFFICETEL = "오피스텔"
@@ -11,30 +10,28 @@ class PropertyType(str, Enum):
     COMMERCIAL = "상가"
     OTHER = "기타"
 
-
-class PropertyInfo(BaseModel):
-    property_type: Optional[PropertyType] = Field(None, description="매물 종류")
-    # registration_date: Optional[date] = Field(None, description="접수일")
+# 매물 정보
+class Properties(BaseModel):
+    property_name: Optional[str] = Field(None, description="건물명")
     price: Optional[int] = Field(None, description="매매가/임대가 (만원)")
-    address: Optional[str] = Field(None, description="주소")
-    business_type: Optional[str] = Field(None, description="업종 (상가인 경우)")
-    building_name: Optional[str] = Field(None, description="오피스텔/아파트명 (오피스텔/아파트일 경우)")
+    loan_available: Optional[bool] = Field(None, description="대출 가능 여부")
+    city: Optional[str] = Field(None, description="시")
+    district: Optional[str] = Field(None, description="구")
+    legal_dong: Optional[str] = Field(None, description="동")
+    detail_address: Optional[str] = Field(None, description="상세주소")
+    transaction_type: Optional[str] = Field(None, description="거래유형")
+    property_type: Optional[PropertyType] = Field(None, description="매물 종류")
     floor: Optional[int] = Field(None, description="층")
-    dong: Optional[str] = Field(None, description="동")
-    unit: Optional[str] = Field(None, description="호수")
-    deposit: Optional[int] = Field(None, description="보증금 (만원)")
-    monthly_rent: Optional[int] = Field(None, description="월세 (만원)")
+    area: Optional[int] = Field(None, description="면적")
     premium: Optional[int] = Field(None, description="권리금 (상가인 경우, 만원)")
-
-
-class PersonInfo(BaseModel):
-    name: Optional[str] = Field(None, description="성명")
-    contact: Optional[str] = Field(None, description="연락처")
-    property_address: Optional[str] = Field(None, description="매물주소")
+    owner_property_memo: Optional[str] = Field(None, description="현재 매물에 대한 소유주 관련 메모")
+    tenant_property_memo: Optional[str] = Field(None, description="현재 매물에 대한 세입자 관련 메모")
+    owner_info: Optional[str] = Field(None, description="집주인 정보")
+    tenant_info: Optional[str] = Field(None, description="세입자 정보")
+    moving_memo: Optional[str] = Field(None, description="이사 관련 메모")
 
 
 class PropertyExtraction(BaseModel):
-    property_info: Optional[PropertyInfo] = Field(default_factory=PropertyInfo, description="매물 정보")
-    owner_info: Optional[PersonInfo] = Field(default_factory=PersonInfo, description="집주인 정보")
-    tenant_info: Optional[PersonInfo] = Field(default_factory=PersonInfo, description="세입자 정보")
-    summary: str = Field(description="요약")
+    summary_title: str = Field(description="요약 제목")
+    summary_content: str = Field(description="요약 내용")
+    extracted_property_info: Optional[Properties] = Field(default_factory=Properties, description="추출된 매물 정보")

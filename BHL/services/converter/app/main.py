@@ -56,24 +56,20 @@ async def health_check():
 async def get_conversion_status(job_id: str):
     try:
         # 작업 데이터베이스에서 작업 상태 조회
-        job = work_db.jobs.find_one({"job_id": job_id})
+        job = work_db.calls.find_one({"job_id": job_id})
         
         if not job:
             raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다")
             
-        # converter 필드가 없거나 output_file이 없는 경우
-        if not job.get("converter") or not job["converter"].get("output_file"):
-            raise HTTPException(status_code=400, detail="변환이 아직 완료되지 않았습니다")
-            
-        # 파일 존재 확인
-        output_file = job["converter"]["output_file"]
-        if not os.path.exists(output_file):
-            raise HTTPException(status_code=404, detail="변환된 파일을 찾을 수 없습니다")
+        # 작업 상태 확인
+        log = db.logs.find_one({"job_id": job_id, "status": "completed"})
+        if not log:
+            raise HTTPException(status_code=404, detail="변환이 완료되지 않았습니다")
         
         return {
             "job_id": job_id,
             "status": "completed",  # 파일이 존재하면 완료된 것으로 간주
-            "output_file": output_file
+            "output_file": log["output_file"]
         }
         
     except Exception as e:
@@ -99,31 +95,37 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
         
         logger.info(f"파일 저장됨: {input_path}")
 
-        if len(recording_date:=file.filename[:-4].split("_"))>=2:
-            customer_name = recording_date[0]
-            customer_number = recording_date[1]
-            recording_date = recording_date[2]
+        try:
+            # 파일명에서 확장자를 제거하고 분리
+            filename_without_ext = file.filename[:-4]
+            parts = filename_without_ext.split("_")
+            
+            logger.info(f"파일명: {file.filename}")
+            
+            # 분리된 부분을 처리
+            if len(parts) >= 3:
+                customer_name = parts[0]
+                customer_contact = parts[1]
+                recording_date = parts[2]
+            else:
+                customer_name = ''
+                customer_contact = parts[0]
+                recording_date = parts[1]
 
-        else:
-            customer_name = recording_date[0]
-            customer_number = recording_date[0]
-            recording_date = recording_date[1]
+        except Exception as e:
+            logger.error(f"파일명 처리 중 오류 발생: {str(e)}")
+            raise HTTPException(status_code=400, detail="파일명 처리 중 오류 발생")
         
         # 작업 데이터 초기화/업데이트
-        work_db.jobs.update_one(
+        work_db.calls.update_one(
             {"job_id": job_id},
             {
                 "$set": {
                     "job_id": job_id,
                     "file_name": file.filename,
-                    "converter": {
-                        "input_file": input_path,
-                        "output_file": OUTPUT_DIR,
-                        'file_name': file.filename,
-                        "customer_name": customer_name,
-                        "customer_number": customer_number,
-                        "recording_date": parse_string_to_datetime(recording_date)
-                    }
+                    "customer_name": customer_name,
+                    "customer_contact": customer_contact,
+                    "recording_date": parse_string_to_datetime(recording_date)
                 }
             },
             upsert=True

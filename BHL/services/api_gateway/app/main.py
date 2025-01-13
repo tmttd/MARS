@@ -211,11 +211,11 @@ async def transcription_webhook(job_id: str):
 
             transcript_data = response.json()
 
-            # 텍스트 파일 경로 변환
-            if "output_file" in transcript_data:
-                transcript_data["output_file"] = transcript_data["output_file"].replace(
-                    "/app/text_outputs", settings.TEXT_OUTPUT_DIR
-                )
+            # # 텍스트 파일 경로 변환
+            # if "output_file" in transcript_data:
+            #     transcript_data["output_file"] = transcript_data["output_file"].replace(
+            #         "/app/text_outputs", settings.TEXT_OUTPUT_DIR
+            #     )
 
             # 요약 작업 시작
             summarize_response = await client.post(

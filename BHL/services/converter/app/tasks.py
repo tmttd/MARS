@@ -106,15 +106,15 @@ def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_s
         logger.info(f"원본 파일 삭제 완료: {input_path}")
         
         # 작업 데이터 업데이트
-        work_db.jobs.update_one(
-            {"job_id": job_id},
-            {
-                "$set": {
-                    "converter.input_file": input_path,
-                    "converter.output_file": output_path
-                }
-            }
-        )
+        # work_db.jobs.update_one(
+        #     {"job_id": job_id},
+        #     {
+        #         "$set": {
+        #             "converter.input_file": input_path,
+        #             "converter.output_file": output_path
+        #         }
+        #     }
+        # )
         
         # 작업 완료 로그
         now = datetime.now(UTC)
@@ -123,6 +123,7 @@ def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_s
             "service": "converter",
             "event": "conversion_completed",
             "status": "completed",
+            "output_file": output_path,
             "timestamp": now,
             "message": f"Audio conversion completed: {output_path}",
             "metadata": {

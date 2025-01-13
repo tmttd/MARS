@@ -59,17 +59,12 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
             }
         })
         
-        # 입업 조회
-        job = work_db.jobs.find_one({"job_id": job_id})
-        if not job or not job.get("summarization"):
+        # 작업 조회
+        job = work_db.calls.find_one({"job_id": job_id})
+        if not job:
             raise ValueError("작업을 찾을 수 없습니다")
             
-        # 입력 파일 경로 설정
-        input_file = job["summarization"]["input_file"]
-        
-        # 텍스트 파일 읽기
-        with open(input_file, 'r', encoding='utf-8') as f:
-            text_to_summarize = f.read()
+        text_to_summarize = job.get("text")
             
         # OpenAI 클라이언트 초기화
         openai_client = OpenAI(api_key=OPENAI_API_KEY)
@@ -78,72 +73,114 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         completion = openai_client.beta.chat.completions.parse(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": """You are an AI assistant tasked with extracting structured real estate listing information from a phone call transcript. Your goal is to analyze the given transcript and convert the relevant information into a structured JSON format."""},
-                {"role": "user", "content": f""" Here is the call transcript you need to analyze:
+                {"role": "system", "content": """You are an AI assistant specialized in real estate. Your goal is to provide quick yet comprehensive summaries of phone calls between a real estate agent and their client. This summary must help the agent identify key action items, property details, and next steps. 
+                Additionally, you must parse the given conversation transcript and convert the relevant information into a structured JSON format **exactly matching** the following Pydantic model:
 
-                <call_transcript>
+                ---
+                class Properties(BaseModel):
+                    property_name: Optional[str] = Field(None, description="건물명")
+                    price: Optional[int] = Field(None, description="매매가/임대가 (만원)")
+                    loan_available: Optional[bool] = Field(None, description="대출 가능 여부")
+                    city: Optional[str] = Field(None, description="시")
+                    district: Optional[str] = Field(None, description="구")
+                    legal_dong: Optional[str] = Field(None, description="동")
+                    detail_address: Optional[str] = Field(None, description="상세주소")
+                    transaction_type: Optional[str] = Field(None, description="거래유형")
+                    property_type: Optional[PropertyType] = Field(None, description="매물 종류")
+                    building_dong: Optional[str] = Field(None, description="동")
+                    unit_number: Optional[str] = Field(None, description="호수")
+                    floor: Optional[int] = Field(None, description="층")
+                    deposit: Optional[int] = Field(None, description="보증금 (만원)")
+                    premium: Optional[int] = Field(None, description="권리금 (상가인 경우, 만원)")
+                    owner_name: Optional[str] = Field(None, description="소유주 이름")
+                    owner_contact: Optional[str] = Field(None, description="소유주 연락처")
+                    property_memo: Optional[str] = Field(None, description="메모")
+
+                class PropertyExtraction(BaseModel):
+                    summary_title: str = Field(description="요약 제목")
+                    summary_content: str = Field(description="요약 내용")
+                    extracted_property_info: Optional[Properties] = Field(default_factory=Properties, description="추출된 매물 정보")
+                ---
+
+                Your final response **must**:
+                1. Be in Korean.
+                2. Strictly follow the above Pydantic model’s JSON structure (use the same keys and nesting).
+                3. If any value is missing or uncertain, set it to `null` (i.e., `None` in Python terms).
+                4. Constrain `summary_title` to 20 characters or fewer.
+                5. Include the key points listed in the user prompt under `summary_content`.
+                6. Convert any measurements (e.g., 평) to square meters (㎡) if applicable, and handle monetary units in 만원.
+                7. Resolve duplicate or conflicting information by using the most recent or most specific mention.
+                """},
+                {"role": "user", "content": f"""Below is a transcript of a phone call between a real estate agent and a client. Analyze this transcript and write it into a JSON structure that fits the given Pydantic model.
+
+                **JSON Structure Details**:
+                {{
+                "summary_title": "통화 내용을 요약하는 20자 이내의 짧은 문구",
+                "summary_content": "Briefly summarize the following five pieces of information from the agent's perspective.:\n - Property type/location\n - Customer requirements (price, terms, schedule, etc.)\n - Additional information to check/prepare\n - Next steps (additional contact, document preparation, etc.)\n - Special notes or issues"
+                "extracted_property_info": {{
+                    "property_name": "건물명",
+                    "price": "매매가/임대가 (만원)",
+                    "loan_available": "대출 가능 여부",
+                    "city": "시",
+                    "district": "구",
+                    "legal_dong": "동",
+                    "detail_address": "상세주소",
+                    "transaction_type": "거래유형", --> 상가/오피스텔/아파트
+                    "property_type": "매물 종류", --> 전세/월세/매매
+                    "floor": "층",
+                    "area": "면적",
+                    "premium": "권리금 (상가인 경우, 만원)",
+                    "owner_property_memo": "현재 매물에 대한 소유주 관련 메모",
+                    "tenant_property_memo": "현재 매물에 대한 세입자 관련 메모",
+                    "owner_info": {{
+                    "owner_name": "소유주 이름",
+                    "owner_contact": "소유주 연락처",
+                    }},
+                    "tenant_info": {{
+                    "tenant_name": "세입자 이름",
+                    "tenant_contact": "세입자 연락처",
+                    }},
+                    "moving_memo": "이사 관련 메모"
+                }}
+                }}
+
+                **Note**:
+                - Please write all responses in Korean.
+                - When mentioning 'pyeong', please convert 1 pyeong = approximately 3.306㎡.
+                - The unit of amount is based on 10,000 won. If necessary, you can omit or write '10,000 won' after the number, but please enter only integers for JSON values ​​(e.g. 25 million won → 250).
+                - If the same information is mentioned multiple times, use the most recent/specific information.
+                - Please null out any missing or unclear information.
+                - Please exclude unnecessary greetings, small talk, responses, etc. from the summary and include only the key content.
+
+                ---
+                **call transcript**:
                 {text_to_summarize}
-                </call_transcript>
-
-                Please extract the following information from the transcript:
-
-                1. property_type (매물 종류 [아파트, 오피스텔, 주텍, 상가, 기타])
-                2. price (매매가 (만원))
-                3. address (주소)
-                4. business_type (업종 (상가인 경우))
-                5. building_name (오피스텔/아파트명 (오피스텔/아파트일 경우))
-                6. floor (층)
-                7. dong (동)
-                8. deposit (보증금 (만원))
-                9. monthly_rent (월세 (만원))
-                10. premium (권리금 (상가인 경우, 만원))
-                11. name (세입자 및 주인 성명) 
-                12. contact (연락처)
-                13. property_address (매물주소)
-                14. memo (메모)
-                15. summary (통화 요약)
-
-                Guidelines for extracting information:
-                - If a piece of information is mentioned multiple times, use the most recent or most specific mention.
-                - Convert any measurements or numbers to their appropriate formats (e.g., convert pyeong to square meters).
-                - Your response must be in Korean.
-
-                If any information is missing or uncertain:
-                - Use None for missing numeric values.
-                - Use None for missing string values.
-                - If a value is uncertain but an estimate is provided, include the estimate and add a note about the uncertainty in the "memo" field.
-                - If you're unsure about any information, include a note in the "비고" (Notes) field explaining the uncertainty."""}
+                """}
             ],
             response_format=PropertyExtraction
         )
         
         extraction = completion.choices[0].message.parsed.model_dump()
         
-        # 출력 파일 경로 설정
-        output_file = os.path.join(settings.OUTPUT_DIR, f"{job_id}.json")
-        os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
+        # # 출력 파일 경로 설정
+        # output_file = os.path.join(settings.OUTPUT_DIR, f"{job_id}.json")
+        # os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
         
-        # 요약 결과를 파일로 저장
-        summary = {
-            "job_id": job_id,
-            "extraction": extraction,
-            "created_at": datetime.now(UTC).isoformat()
-        }
+        # # 요약 결과를 파일로 저장
+        # summary = {
+        #     "job_id": job_id,
+        #     "extracted_property_info": extraction,
+        #     "created_at": datetime.now(UTC).isoformat()
+        # }
         
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(summary, f, ensure_ascii=False, indent=2)
+        # with open(output_file, 'w', encoding='utf-8') as f:
+        #     json.dump(summary, f, ensure_ascii=False, indent=2)
             
         # 작업 데이터 업데이트
-        work_db.jobs.update_one(
+        work_db.calls.update_one(
             {"job_id": job_id},
             {
-                "$set": {
-                    "summarization": {
-                        "input_file": input_file,
-                        "output_file": output_file,
-                        "extraction": extraction
-                    }
-                }
+                "$set": extraction
             }
         )
         
@@ -174,7 +211,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         client.close()
         work_client.close()
         
-        return {"status": "completed", "extraction": extraction}
+        return {"status": "completed", "extracted_property_info": extraction}
         
     except Exception as e:
         logger.error(f"요약 중 오류 발생: {str(e)}")
