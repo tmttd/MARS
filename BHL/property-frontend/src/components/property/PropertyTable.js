@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Table, Button, Form } from 'react-bootstrap';
-import { propertyService } from '../services/api';
+import { propertyService } from '../../services/api';
 
 const PropertyTable = ({ extractions, onUpdate }) => {
   const [editMode, setEditMode] = useState({});

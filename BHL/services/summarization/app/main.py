@@ -47,26 +47,26 @@ async def health_check():
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
 
-@app.get("/extractions")
-async def get_extractions_endpoint():
-    """모든 추출 데이터 조회"""
-    try:
-        jobs = list(work_db.jobs.find(
-            {"summarization": {"$exists": True}},
-            {'_id': 0}
-        ))
-        extractions = [
-            {
-                "job_id": job["job_id"],
-                "extraction": job["summarization"]["extraction"]
-            }
-            for job in jobs
-            if "extraction" in job["summarization"]
-        ]
-        return {"extractions": extractions}
-    except Exception as e:
-        logger.error(f"추출 데이터 조회 중 오류 발생: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+# @app.get("/extractions")
+# async def get_extractions_endpoint():
+#     """모든 추출 데이터 조회"""
+#     try:
+#         jobs = list(work_db.jobs.find(
+#             {"summarization": {"$exists": True}},
+#             {'_id': 0}
+#         ))
+#         extractions = [
+#             {
+#                 "job_id": job["job_id"],
+#                 "extraction": job["summarization"]["extraction"]
+#             }
+#             for job in jobs
+#             if "extraction" in job["summarization"]
+#         ]
+#         return {"extractions": extractions}
+#     except Exception as e:
+#         logger.error(f"추출 데이터 조회 중 오류 발생: {str(e)}")
+#         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/summarize/{job_id}")
 async def summarize(job_id: str):

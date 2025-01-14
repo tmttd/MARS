@@ -1,24 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Spinner, Alert, Form, Row, Col, Card } from 'react-bootstrap';
-import { FaSearch, FaPhone, FaBuilding } from 'react-icons/fa';
-import CallTable from '../components/CallTable';
+import { FaSearch, FaPhone, FaBuilding, FaTimes, FaUser } from 'react-icons/fa';
+import CallTable from '../components/call/CallTable';
 import { callService } from '../services/api';
-import './PropertyList.css';
+import '../styles/PropertyList.css';
 
 const CallList = () => {
   const [calls, setCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchType, setSearchType] = useState('contact');
+  const [searchType, setSearchType] = useState('customer_contact');
 
   const fetchCalls = async () => {
     try {
-      const data = await callService.getAllCalls();
+      const data = await callService.getCalls();
       // 통화일시 기준으로 내림차순 정렬
       const sortedData = data.sort((a, b) => 
-        new Date(b.call_datetime) - new Date(a.call_datetime)
+        new Date(b.recording_date) - new Date(a.recording_date)
       );
+      console.error("Sorted Data:", sortedData);
       // 번호 재할당
       const numberedData = sortedData.map((call, index) => ({
         ...call,
@@ -33,17 +34,19 @@ const CallList = () => {
   };
 
   useEffect(() => {
-    fetchCalls();
-  }, []);
+    fetchCalls(); // 컴포넌트가 마운트될 때마다 데이터를 가져옴
+  }, []); // 빈 배열을 사용하여 컴포넌트가 처음 마운트될 때만 호출
 
   const filteredCalls = calls.filter(call => {
     if (!searchTerm) return true;
     
     switch (searchType) {
-      case 'contact':
-        return call.contact?.toLowerCase().includes(searchTerm.toLowerCase());
-      case 'complex_name':
-        return call.complex_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      case 'customer_contact':
+        return call.customer_contact?.toLowerCase().includes(searchTerm.toLowerCase());
+      case 'customer_name':
+        return call.customer_name?.toLowerCase().includes(searchTerm.toLowerCase());  
+      case 'property_name':
+        return call.extracted_property_info.property_name?.toLowerCase().includes(searchTerm.toLowerCase());
       default:
         return true;
     }
@@ -71,43 +74,66 @@ const CallList = () => {
     <Container fluid className="py-4 bg-light min-vh-100">
       <Card className="shadow-sm mb-4">
         <Card.Body>
-          <h1 className="text-primary mb-4">
+          <h1 className="text-primary mb-4" style={{ fontSize: '1.5rem' }}>
             <FaPhone className="me-2" />
             통화 기록 목록
           </h1>
           
           <Row className="g-3 mb-4">
-            <Col md={3}>
+            <Col md={1}>
               <Form.Select 
                 value={searchType}
                 onChange={(e) => setSearchType(e.target.value)}
                 className="shadow-sm border-0"
               >
-                <option value="contact">
+                <option value="customer_contact">
                   <FaPhone className="me-2" />연락처
                 </option>
-                <option value="complex_name">
-                  <FaBuilding className="me-2" />단지명
+                <option value="customer_name">
+                  <FaUser className="me-2" />성명
+                </option>
+                <option value="property_name">
+                  <FaBuilding className="me-2" />건물명
                 </option>
               </Form.Select>
             </Col>
-            <Col md={9}>
+            <Col md={3}>
               <div className="search-container">
                 <FaSearch className="search-icon" />
                 <Form.Control
                   type="text"
-                  placeholder={`${searchType === 'contact' ? '연락처' : '단지명'}으로 검색`}
+                  placeholder={`${
+                    searchType === 'customer_contact' ? '연락처' : 
+                    searchType === 'customer_name' ? '성명' : '건물명'
+                  }(으)로 검색`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="search-input shadow-sm border-0"
                 />
+                {searchTerm && (
+                  <button 
+                    className="clear-button" 
+                    onClick={() => setSearchTerm('')}
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      cursor: 'pointer', 
+                      position: 'absolute', 
+                      right: '10px', 
+                      top: '50%', 
+                      transform: 'translateY(-50%)' 
+                    }}
+                  >
+                    <FaTimes />
+                  </button>
+                )}
               </div>
             </Col>
           </Row>
 
           <div className="table-container shadow-sm rounded">
             <CallTable 
-              calls={filteredCalls} 
+              calls={filteredCalls}
               onUpdate={fetchCalls}
             />
           </div>

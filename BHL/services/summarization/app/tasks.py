@@ -77,6 +77,22 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                 Additionally, you must parse the given conversation transcript and convert the relevant information into a structured JSON format **exactly matching** the following Pydantic model:
 
                 ---
+                class PropertyType(str, Enum):
+                    APARTMENT = "아파트"
+                    OFFICETEL = "오피스텔"
+                    HOUSE = "주택"
+                    COMMERCIAL = "상가"
+                    OFFICE = "사무실"
+                    OTHER = "기타"
+
+                class OwnerInfo(BaseModel):
+                    owner_name: Optional[str] = None
+                    owner_contact: Optional[str] = None
+
+                class TenantInfo(BaseModel):
+                    tenant_name: Optional[str] = None
+                    tenant_contact: Optional[str] = None
+
                 class Properties(BaseModel):
                     property_name: Optional[str] = Field(None, description="건물명")
                     price: Optional[int] = Field(None, description="매매가/임대가 (만원)")
@@ -87,14 +103,15 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                     detail_address: Optional[str] = Field(None, description="상세주소")
                     transaction_type: Optional[str] = Field(None, description="거래유형")
                     property_type: Optional[PropertyType] = Field(None, description="매물 종류")
-                    building_dong: Optional[str] = Field(None, description="동")
-                    unit_number: Optional[str] = Field(None, description="호수")
                     floor: Optional[int] = Field(None, description="층")
-                    deposit: Optional[int] = Field(None, description="보증금 (만원)")
+                    area: Optional[int] = Field(None, description="면적")
                     premium: Optional[int] = Field(None, description="권리금 (상가인 경우, 만원)")
-                    owner_name: Optional[str] = Field(None, description="소유주 이름")
-                    owner_contact: Optional[str] = Field(None, description="소유주 연락처")
-                    property_memo: Optional[str] = Field(None, description="메모")
+                    owner_property_memo: Optional[str] = Field(None, description="현재 매물에 대한 소유주 관련 메모")
+                    tenant_property_memo: Optional[str] = Field(None, description="현재 매물에 대한 세입자 관련 메모")
+                    owner_info: Optional[OwnerInfo] = Field(None, description="집주인 정보")
+                    tenant_info: Optional[TenantInfo] = Field(None, description="세입자 정보")
+                    moving_memo: Optional[str] = Field(None, description="이사 관련 메모")
+                    moving_date: Optional[str] = Field(None, description="입주가능일")
 
                 class PropertyExtraction(BaseModel):
                     summary_title: str = Field(description="요약 제목")
@@ -110,6 +127,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                 5. Include the key points listed in the user prompt under `summary_content`.
                 6. Convert any measurements (e.g., 평) to square meters (㎡) if applicable, and handle monetary units in 만원.
                 7. Resolve duplicate or conflicting information by using the most recent or most specific mention.
+                8. Use ISO 8601 format (e.g., "2025-01-14") for all date fields.
                 """},
                 {"role": "user", "content": f"""Below is a transcript of a phone call between a real estate agent and a client. Analyze this transcript and write it into a JSON structure that fits the given Pydantic model.
 
@@ -140,7 +158,8 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                     "tenant_name": "세입자 이름",
                     "tenant_contact": "세입자 연락처",
                     }},
-                    "moving_memo": "이사 관련 메모"
+                    "moving_memo": "이사 관련 메모",
+                    "moving_date": "입주가능일"
                 }}
                 }}
 
@@ -151,7 +170,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                 - If the same information is mentioned multiple times, use the most recent/specific information.
                 - Please null out any missing or unclear information.
                 - Please exclude unnecessary greetings, small talk, responses, etc. from the summary and include only the key content.
-
+                - Please use ISO 8601 format (e.g., "2025-01-14") for all date fields.
                 ---
                 **call transcript**:
                 {text_to_summarize}

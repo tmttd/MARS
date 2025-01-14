@@ -1,5 +1,3 @@
-version: '3.8'
-
 networks:
   mars_network:
     driver: bridge
@@ -30,9 +28,10 @@ services:
     networks:
       - mars_network
     depends_on:
-      - converter-db
-      - work-db
-      - redis
+      work-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   converter-worker:
     build: ./services/converter
@@ -85,10 +84,12 @@ services:
     networks:
       - mars_network
     depends_on:
-      - transcription-db
-      - work-db
-      - redis
-      - converter
+      work-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      converter:
+        condition: service_started
 
   transcription-worker:
     build: ./services/transcription
@@ -145,9 +146,10 @@ services:
     networks:
       - mars_network
     depends_on:
-      - summarization-db
-      - work-db
-      - redis
+      work-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   summarization-worker:
     build: ./services/summarization
@@ -214,20 +216,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  call-db:
-    image: mongo:latest
-    container_name: call-db
-    command: mongod --quiet --logpath /dev/null
-    ports:
-      - "27018:27017"
-    volumes:
-      - call_db_data:/data/db
-      - ./services/scripts/init-call-db.js:/docker-entrypoint-initdb.d/init-call-db.js:ro
-    environment:
-      - MONGO_INITDB_DATABASE=call_data_db
-    networks:
-      - mars_network
-
   work-db:
     image: mongo:latest
     command: mongod --quiet --logpath /dev/null
@@ -235,6 +223,12 @@ services:
       - ./work_db:/data/db
     networks:
       - mars_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     logging:
       driver: "json-file"
       options:
@@ -266,16 +260,18 @@ services:
     environment:
       - WORK_MONGODB_URI=mongodb://work-db:27017/
       - WORK_MONGODB_DB=mars_work_db
+      - DATABASE_SERVICE_URL=http://database:8000
       - REDIS_URL=redis://redis:6379/0
       - PYTHONWARNINGS=ignore
-      - CALL_DB_URI=mongodb://call-db:27017
-      - CALL_DB_NAME=call_data_db
     networks:
       - mars_network
     depends_on:
-      - work-db
-      - redis
-      - s3_service
+      work-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      database:
+        condition: service_started
 
   property-frontend:
     build:
@@ -289,11 +285,23 @@ services:
     depends_on:
       - api_gateway
       - work-db
-      - call-db
     networks:
       - mars_network
 
-
+  database:
+    build: ./services/database
+    ports:
+      - "8005:8000"
+    volumes:
+      - ./services/database:/app
+    environment:
+      - MONGODB_URL=mongodb://work-db:27017
+      - WORK_MONGODB_DB=mars_work_db
+      - PYTHONWARNINGS=ignore
+    networks:
+      - mars_network
+    depends_on:
+      - work-db
 
   s3_service:
     build: ./services/s3_service
@@ -317,7 +325,6 @@ volumes:
   converter_db:
   transcription_db:
   summarization_db:
-  call_db_data:
   datas:
     driver: local
     driver_opts:
