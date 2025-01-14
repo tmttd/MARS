@@ -126,7 +126,7 @@ const CallInformation = ({
             </Col>
             <Col md={6}>
               <LabeledFormGroup
-                label="통화 요약"
+                label="AI 통화 요약"
                 icon={<FaComments />}
                 type="textarea"
                 value={editData?.summary_content}

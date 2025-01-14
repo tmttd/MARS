@@ -12,7 +12,8 @@ const LabeledFormGroup = ({
   rightElement,
   customContent = false,
   minHeight = 'auto',
-  isScrollable = false
+  isScrollable = false,
+  controlStyle = {}
 }) => {
   return (
     <Form.Group>
@@ -37,7 +38,6 @@ const LabeledFormGroup = ({
         </div>
       ) : (
         <Form.Control 
-          // type이 textarea일 경우 as="textarea"로 처리
           as={type === 'textarea' ? 'textarea' : 'input'}
           type={type !== 'textarea' ? type : undefined}
           value={value || ''}
@@ -46,10 +46,9 @@ const LabeledFormGroup = ({
           placeholder={placeholder}
           style={{ 
             minHeight,
-            // textarea인 경우엔 자동 줄바꿈 지원
-            whiteSpace: type === 'textarea' ? 'pre-wrap' : undefined
+            whiteSpace: type === 'textarea' ? 'pre-wrap' : undefined,
+            ...controlStyle  // 전달된 스타일 적용
           }}
-          // textarea에도 placeholder 지원
           onFocus={(e) => e.target.placeholder = ''} 
           onBlur={(e) => e.target.placeholder = placeholder} 
         />

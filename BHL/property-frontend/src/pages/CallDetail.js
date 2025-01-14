@@ -20,22 +20,48 @@ const CallDetail = () => {
   const [extractedPropertyData, setExtractedPropertyData] = useState({
     property_type: '',
     transaction_type: '',
+    price: '',
+    area: '',
     city: '',
     district: '',
     legal_dong: '',
     property_name: '',
     detail_address: '',
+    floor: '',
+    moving_date: '',
+    loan_available: '',
+    premium: '',
+    moving_memo: '',
+    owner_name: '',
+    owner_contact: '',
+    owner_property_memo: '',
+    tenant_name: '',
+    tenant_contact: '',
+    tenant_property_memo: '',
     call_memo: ''
   });
   const [isEditingProperty, setIsEditingProperty] = useState(false);
   const [propertyData, setPropertyData] = useState({
     property_type: '',
     transaction_type: '',
+    price: '',
+    area: '',
     city: '',
     district: '',
     legal_dong: '',
+    floor: '',
     property_name: '',
-    detail_address: ''
+    detail_address: '',
+    moving_date: '',
+    loan_available: '',
+    premium: '',
+    moving_memo: '',
+    owner_name: '',
+    owner_contact: '',
+    owner_property_memo: '',
+    tenant_name: '',
+    tenant_contact: '',
+    tenant_property_memo: ''
   });
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState('');
@@ -52,23 +78,49 @@ const CallDetail = () => {
           setExtractedPropertyData({
             property_type: callData.extracted_property_info.property_type || '',
             transaction_type: callData.extracted_property_info.transaction_type || '',
+            price: callData.extracted_property_info.price || '',
+            area: callData.extracted_property_info.area || '',
             city: callData.extracted_property_info.city || '',
             district: callData.extracted_property_info.district || '',
             legal_dong: callData.extracted_property_info.legal_dong || '',
-            property_name: callData.extracted_property_info.property_name || '',
             detail_address: callData.extracted_property_info.detail_address || '',
+            floor: callData.extracted_property_info.floor || '',
+            property_name: callData.extracted_property_info.property_name || '',
+            moving_date: callData.extracted_property_info.moving_date || '',
+            loan_available: callData.extracted_property_info.loan_available || '',
+            premium: callData.extracted_property_info.premium || '',
+            moving_memo: callData.extracted_property_info.moving_memo || '',
+            owner_name: callData.owner_info?.owner_name || '',
+            owner_contact: callData.owner_info?.owner_contact || '',
+            owner_property_memo: callData.owner_property_memo || '',
+            tenant_name: callData.tenant_info?.tenant_name || '',
+            tenant_contact: callData.tenant_info?.tenant_contact || '',
+            tenant_property_memo: callData.tenant_property_memo || '',
             call_memo: callData.call_memo || ''
           });
 
-          const propertyInfo = await propertyService.getProperty(callData.id);
+          const propertyData = await propertyService.getProperty(callData.id);
           setPropertyData({
-            property_type: propertyInfo.property_type || '',
-            transaction_type: propertyInfo.transaction_type || '',
-            city: propertyInfo.city || '',
-            district: propertyInfo.district || '',
-            legal_dong: propertyInfo.legal_dong || '',
-            property_name: propertyInfo.property_name || '',
-            detail_address: propertyInfo.detail_address || ''
+            property_type: propertyData.property_info.property_type || '',
+            transaction_type: propertyData.property_info.transaction_type || '',
+            price: propertyData.property_info.price || '',
+            area: propertyData.property_info.area || '',
+            city: propertyData.property_info.city || '',
+            district: propertyData.property_info.district || '',
+            legal_dong: propertyData.property_info.legal_dong || '',
+            detail_address: propertyData.property_info.detail_address || '',
+            floor: propertyData.property_info.floor || '',
+            property_name: propertyData.property_info.property_name || '',
+            moving_date: propertyData.property_info.moving_date || '',
+            loan_available: propertyData.property_info.loan_available || '',
+            premium: propertyData.property_info.premium || '',
+            moving_memo: propertyData.property_info.moving_memo || '',
+            owner_name: propertyData.owner_info?.owner_name || '',
+            owner_contact: propertyData.owner_info?.owner_contact || '',
+            owner_property_memo: propertyData.owner_property_memo || '',
+            tenant_name: propertyData.tenant_info?.tenant_name || '',
+            tenant_contact: propertyData.tenant_info?.tenant_contact || '',
+            tenant_property_memo: propertyData.tenant_property_memo || ''
           });
         } else {
           const data = await callService.getCall(id);
@@ -77,23 +129,49 @@ const CallDetail = () => {
           setExtractedPropertyData({
             property_type: data.extracted_property_info.property_type || '',
             transaction_type: data.extracted_property_info.transaction_type || '',
+            price: data.extracted_property_info.price || '',
+            area: data.extracted_property_info.area || '',
             city: data.extracted_property_info.city || '',
             district: data.extracted_property_info.district || '',
             legal_dong: data.extracted_property_info.legal_dong || '',
-            property_name: data.extracted_property_info.property_name || '',
             detail_address: data.extracted_property_info.detail_address || '',
+            floor: data.extracted_property_info.floor || '',
+            property_name: data.extracted_property_info.property_name || '',
+            moving_date: data.extracted_property_info.moving_date || '',
+            loan_available: data.extracted_property_info.loan_available || '',
+            premium: data.extracted_property_info.premium || '',
+            moving_memo: data.extracted_property_info.moving_memo || '',
+            owner_name: data.owner_info?.owner_name || '',
+            owner_contact: data.owner_info?.owner_contact || '',
+            owner_property_memo: data.owner_property_memo || '',
+            tenant_name: data.tenant_info?.tenant_name || '',
+            tenant_contact: data.tenant_info?.tenant_contact || '',
+            tenant_property_memo: data.tenant_property_memo || '',
             call_memo: data.call_memo || ''
           });
 
           const propertyInfo = await propertyService.getProperty(data.id);
           setPropertyData({
-            property_type: propertyInfo.property_type || '',
-            transaction_type: propertyInfo.transaction_type || '',
-            city: propertyInfo.city || '',
-            district: propertyInfo.district || '',
-            legal_dong: propertyInfo.legal_dong || '',
-            property_name: propertyInfo.property_name || '',
-            detail_address: propertyInfo.detail_address || ''
+            property_type: propertyInfo.property_info.property_type || '',
+            transaction_type: propertyInfo.property_info.transaction_type || '',
+            price: propertyInfo.property_info.price || '',
+            area: propertyInfo.property_info.area || '',
+            city: propertyInfo.property_info.city || '',
+            district: propertyInfo.property_info.district || '',
+            legal_dong: propertyInfo.property_info.legal_dong || '',
+            detail_address: propertyInfo.property_info.detail_address || '',
+            floor: propertyInfo.property_info.floor || '',
+            property_name: propertyInfo.property_info.property_name || '',
+            moving_date: propertyInfo.property_info.moving_date || '',
+            loan_available: propertyInfo.property_info.loan_available || '',
+            premium: propertyInfo.property_info.premium || '',
+            moving_memo: propertyInfo.property_info.moving_memo || '',
+            owner_name: propertyInfo.owner_info?.owner_name || '',
+            owner_contact: propertyInfo.owner_info?.owner_contact || '',
+            owner_property_memo: propertyInfo.owner_property_memo || '',
+            tenant_name: propertyInfo.tenant_info?.tenant_name || '',
+            tenant_contact: propertyInfo.tenant_info?.tenant_contact || '',
+            tenant_property_memo: propertyInfo.tenant_property_memo || ''
           });
         }
         setLoading(false);
