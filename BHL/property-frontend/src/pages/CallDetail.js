@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { Container, Row, Col, Form, Button, Card, Modal } from 'react-bootstrap';
-import { FaPlay, FaPause, FaArrowLeft, FaClock, FaUser, FaPhone, FaFileAlt, FaBuilding, FaEdit, FaFileAudio, FaComments, FaFileWord } from 'react-icons/fa';
+import { FaPlay, FaPause, FaArrowLeft, FaClock, FaUser, FaPhone, FaFileAlt, FaBuilding, FaEdit, FaFileAudio, FaComments, FaFileWord, FaStickyNote, FaRobot } from 'react-icons/fa';
 import { callService, audioService, propertyService } from '../services/api';
 import '../styles/common.css';
 
@@ -17,8 +17,25 @@ const CallDetail = () => {
   const [isEditingCall, setIsEditingCall] = useState(false);
   const [isEditingMemo, setIsEditingMemo] = useState(false);
   const [editData, setEditData] = useState(null);
+  const [extractedPropertyData, setExtractedPropertyData] = useState({
+    property_type: '',
+    transaction_type: '',
+    city: '',
+    district: '',
+    legal_dong: '',
+    property_name: '',
+    detail_address: ''
+  });
   const [isEditingProperty, setIsEditingProperty] = useState(false);
-  const [propertyData, setPropertyData] = useState(null);
+  const [propertyData, setPropertyData] = useState({
+    property_type: '',
+    transaction_type: '',
+    city: '',
+    district: '',
+    legal_dong: '',
+    property_name: '',
+    detail_address: ''
+  });
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState('');
 
@@ -31,25 +48,49 @@ const CallDetail = () => {
           const callData = location.state.callData;
           setCall(callData);
           setEditData(callData);
-          setPropertyData({
+          setExtractedPropertyData({
             property_type: callData.extracted_property_info.property_type || '',
             transaction_type: callData.extracted_property_info.transaction_type || '',
             city: callData.extracted_property_info.city || '',
             district: callData.extracted_property_info.district || '',
-            complex_name: callData.extracted_property_info.property_name || '',
-            detailed_address: callData.extracted_property_info.detail_address || ''
+            legal_dong: callData.extracted_property_info.legal_dong || '',
+            property_name: callData.extracted_property_info.property_name || '',
+            detail_address: callData.extracted_property_info.detail_address || ''
+          });
+
+          const propertyInfo = await propertyService.getProperty(callData.id);
+          setPropertyData({
+            property_type: propertyInfo.property_type || '',
+            transaction_type: propertyInfo.transaction_type || '',
+            city: propertyInfo.city || '',
+            district: propertyInfo.district || '',
+            legal_dong: propertyInfo.legal_dong || '',
+            property_name: propertyInfo.property_name || '',
+            detail_address: propertyInfo.detail_address || ''
           });
         } else {
           const data = await callService.getCall(id);
           setCall(data);
           setEditData(data);
-          setPropertyData({
+          setExtractedPropertyData({
             property_type: data.extracted_property_info.property_type || '',
             transaction_type: data.extracted_property_info.transaction_type || '',
             city: data.extracted_property_info.city || '',
             district: data.extracted_property_info.district || '',
-            complex_name: data.extracted_property_info.property_name || '',
-            detailed_address: data.extracted_property_info.detail_address || ''
+            legal_dong: data.extracted_property_info.legal_dong || '',
+            property_name: data.extracted_property_info.property_name || '',
+            detail_address: data.extracted_property_info.detail_address || ''
+          });
+
+          const propertyInfo = await propertyService.getProperty(data.id);
+          setPropertyData({
+            property_type: propertyInfo.property_type || '',
+            transaction_type: propertyInfo.transaction_type || '',
+            city: propertyInfo.city || '',
+            district: propertyInfo.district || '',
+            legal_dong: propertyInfo.legal_dong || '',
+            property_name: propertyInfo.property_name || '',
+            detail_address: propertyInfo.detail_address || ''
           });
         }
         setLoading(false);
@@ -186,7 +227,7 @@ const CallDetail = () => {
   const handleSaveProperty = async () => {
     try {
       const hasChanges = Object.keys(propertyData).some(key => 
-        propertyData[key] !== (call[key] || '')
+        propertyData[key] !== (call.property_info[key] || '')
       );
 
       if (!hasChanges) {
@@ -199,8 +240,8 @@ const CallDetail = () => {
       setIsEditingProperty(false);
       
       // TODO: 실제 API 구현 시 아래 코드 사용
-      // await propertyService.updateProperty(call.job_id, propertyData);
-      // setCall(prev => ({ ...prev, ...propertyData }));
+      // await propertyService.updateProperty(call.job_id, extractedPropertyData);
+      // setCall(prev => ({ ...prev, ...extractedPropertyData }));
       // setIsEditingProperty(false);
       // alert('매물 정보가 저장되었습니다.');
       
@@ -211,13 +252,13 @@ const CallDetail = () => {
 
   const handleCancelProperty = () => {
     setPropertyData({
-      property_type: call.property_type || '',
-      transaction_type: call.transaction_type || '',
-      city: call.city || '',
-      district: call.district || '',
-      neighborhood: call.neighborhood || '',
-      complex_name: call.complex_name || '',
-      detailed_address: call.detailed_address || ''
+      property_type: call.property_info.property_type || '',
+      transaction_type: call.property_info.transaction_type || '',
+      city: call.property_info.city || '',
+      district: call.property_info.district || '',
+      property_name: call.property_info.property_name || '',
+      detail_address: call.property_info.detail_address || '',
+      legal_dong: call.property_info.legal_dong || ''
     });
     setIsEditingProperty(false);
   };
@@ -316,35 +357,34 @@ const CallDetail = () => {
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={12}>
-                    <Form.Group>
-                      <Form.Label className="d-flex align-items-center">
-                        <FaComments className="me-2 text-muted" />
-                        통화 요약
-                      </Form.Label>
-                      <Form.Control 
-                        as="textarea" 
-                        style={{ minHeight: '100px' }}
-                        value={editData?.summary_content || ''}
-                        onChange={(e) => handleChange('summary_content', e.target.value)}
-                        disabled={!isEditingCall}
-                      />
-                    </Form.Group>
-                  </Col>
-
-                  <Col md={12} className="mb-2">
-                    <Card className="mb-2">
-                      <Card.Body>
-                        <h4 className="mb-4 d-flex align-items-center">
-                          <FaFileAudio className="me-2 text-primary" />
-                          음성 재생
-                        </h4>
-                        <div className="d-flex align-items-center gap-3">
+                  <Row className="g-3">
+                    <Col md={6}>
+                      <Form.Group>
+                        <Form.Label className="d-flex align-items-center">
+                          <FaComments className="me-2 text-muted" />
+                          통화 요약
+                        </Form.Label>
+                        <Form.Control 
+                          as="textarea" 
+                          style={{ minHeight: '100px' }}
+                          value={editData?.summary_content || ''}
+                          onChange={(e) => handleChange('summary_content', e.target.value)}
+                          disabled={!isEditingCall}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="w-100 h-100">
+                        <Form.Label className="d-flex align-items-center mb-2">
+                          <FaFileAudio className="me-2 text-muted" />
+                          통화 재생
+                        </Form.Label>
+                        <div className="d-flex align-items-center gap-3" style={{ height: '100px' }}>
                           <Button 
                             variant="primary" 
                             onClick={handlePlayAudio}
                             className="d-flex align-items-center"
-                            style={{ minWidth: '100px' }}
+                            style={{ minWidth: '100px', height: '38px' }}
                           >
                             {isPlaying ? <FaPause className="me-2" /> : <FaPlay className="me-2" />}
                             재생
@@ -355,7 +395,7 @@ const CallDetail = () => {
                               onClick={handleProgressClick}
                               style={{ cursor: 'pointer' }}
                             >
-                              <div className="progress">
+                              <div className="progress" style={{ height: '8px' }}>
                                 <div 
                                   className="progress-bar" 
                                   style={{ width: `${progress}%` }}
@@ -372,170 +412,169 @@ const CallDetail = () => {
                             </div>
                           </div>
                         </div>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-
-                  <Col md={12}>
-                    <Form.Group>
-                      <Form.Label className="d-flex align-items-center">
-                        <FaFileWord className="me-2 text-muted" />
-                        통화 내용
-                      </Form.Label>
-                      <Form.Control 
-                        as="textarea" 
-                        style={{ minHeight: '200px' }}
-                        value={editData?.text || ''}
-                        onChange={(e) => handleChange('text', e.target.value)}
-                        disabled={!isEditingCall}
-                      />
-                      <div className="text-end">
-                        <Button variant="link" onClick={() => handleShowModal(editData?.text || '')}>
-                          전체 내용 보기
-                        </Button>
-                      </div>
-                    </Form.Group>
-                  </Col>
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="h-100 d-flex flex-column">
+                        <Form.Label className="d-flex align-items-center mb-2">
+                          <FaFileWord className="me-2 text-muted" />
+                          통화 내용
+                        </Form.Label>
+                        <Form.Control 
+                          as="textarea" 
+                          className="flex-grow-1"
+                          style={{ minHeight: '200px' }}
+                          value={editData?.text || ''}
+                          onChange={(e) => handleChange('text', e.target.value)}
+                          disabled={!isEditingCall}
+                        />
+                        <div className="text-end mt-2">
+                          <Button variant="link" onClick={() => handleShowModal(editData?.text || '')}>
+                            전체 내용 보기
+                          </Button>
+                        </div>
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="h-100 d-flex flex-column">
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <Form.Label className="d-flex align-items-center m-0">
+                            <FaStickyNote className="me-2 text-muted" />
+                            메모
+                          </Form.Label>
+                          {!isEditingMemo ? (
+                            <Button variant="outline-primary" size="sm" onClick={handleEditMemo}>
+                              수정
+                            </Button>
+                          ) : (
+                            <div>
+                              <Button variant="success" size="sm" className="me-2" onClick={handleSaveMemo}>
+                                저장
+                              </Button>
+                              <Button variant="secondary" size="sm" onClick={handleCancelMemo}>
+                                취소
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                        <Form.Control 
+                          as="textarea" 
+                          className="flex-grow-1"
+                          style={{ minHeight: '200px' }}
+                          value={editData?.memo || ''}
+                          onChange={(e) => setEditData(prev => ({ ...prev, memo: e.target.value }))}
+                          disabled={!isEditingMemo}
+                          placeholder="메모를 입력하세요..."
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
                 </Row>
               </Form>
             </Card.Body>
           </Card>
         </Col>
-
+      </Row>
+      <Row className="h-100">
         <Col md={6}>
-          <Card className="mb-4">
+          <Card style={{ height: '100%' }}>
             <Card.Body>
               <div className="d-flex justify-content-between align-items-center mb-4">
                 <h4 className="m-0 d-flex align-items-center">
-                  <FaEdit className="me-2 text-primary" />
-                  메모
+                  <FaRobot className="me-2 text-primary" />
+                  AI 추출 매물 정보
                 </h4>
-                {!isEditingMemo ? (
-                  <Button variant="outline-primary" size="sm" onClick={handleEditMemo}>
-                    수정
-                  </Button>
-                ) : (
-                  <div>
-                    <Button variant="success" size="sm" className="me-2" onClick={handleSaveMemo}>
-                      저장
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={handleCancelMemo}>
-                      취소
-                    </Button>
-                  </div>
-                )}
-              </div>
-              <Form.Control 
-                as="textarea" 
-                rows={5} 
-                value={editData?.memo || ''}
-                onChange={(e) => setEditData(prev => ({ ...prev, memo: e.target.value }))}
-                disabled={!isEditingMemo}
-                placeholder="메모를 입력하세요..."
-              />
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col md={6}>
-          <Card className="mb-4">
-            <Card.Body>
-              <div className="d-flex justify-content-between align-items-center mb-4">
-                <h4 className="m-0 d-flex align-items-center">
-                  <FaBuilding className="me-2 text-primary" />
-                  매물 정보
-                </h4>
-                {!isEditingProperty ? (
-                  <Button variant="outline-primary" size="sm" onClick={handleEditProperty}>
-                    수정
-                  </Button>
-                ) : (
-                  <div>
-                    <Button variant="success" size="sm" className="me-2" onClick={handleSaveProperty}>
-                      저장
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={handleCancelProperty}>
-                      취소
-                    </Button>
-                  </div>
-                )}
               </div>
               <Form>
                 <Row className="g-3">
                   <Col md={6}>
                     <Form.Group>
-                      <Form.Label>매물 종류</Form.Label>
+                      <div className="d-flex align-items-center justify-content-between">
+                        <Form.Label className="text-start" style={{marginRight: '8px', marginBottom: '0'}}>매물 종류</Form.Label>
+                        <Button variant="primary" size="sm" style={{fontSize: '0.8rem', padding: '0.2rem 0.5rem'}}>반영</Button>
+                      </div>
                       <Form.Control 
                         type="text" 
-                        value={propertyData?.property_type || ''}
-                        onChange={(e) => handlePropertyChange('property_type', e.target.value)}
-                        disabled={!isEditingProperty}
+                        value={extractedPropertyData?.property_type || ''}
+                        disabled={true}
                       />
                     </Form.Group>
                   </Col>
                   <Col md={6}>
                     <Form.Group>
-                      <Form.Label>거래유형</Form.Label>
+                      <div className="d-flex align-items-center justify-content-between">
+                        <Form.Label className="text-start" style={{marginRight: '8px', marginBottom: '0'}}>거래유형</Form.Label>
+                        <Button variant="primary" size="sm" style={{fontSize: '0.8rem', padding: '0.2rem 0.5rem'}}>반영</Button>
+                      </div>
                       <Form.Control 
                         type="text" 
-                        value={propertyData?.transaction_type || ''}
-                        onChange={(e) => handlePropertyChange('transaction_type', e.target.value)}
-                        disabled={!isEditingProperty}
+                        value={extractedPropertyData?.transaction_type || ''}
+                        disabled={true}
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={4}>
+                  <Col md={2}>
                     <Form.Group>
-                      <Form.Label>시</Form.Label>
+                      <div className="d-flex align-items-center justify-content-between">
+                        <Form.Label className="text-start" style={{marginRight: '8px', marginBottom: '0'}}>시</Form.Label>
+                        <Button variant="primary" size="sm" style={{fontSize: '0.8rem', padding: '0.2rem 0.5rem'}}>반영</Button>
+                      </div>
                       <Form.Control 
                         type="text" 
-                        value={propertyData?.city || ''}
-                        onChange={(e) => handlePropertyChange('city', e.target.value)}
-                        disabled={!isEditingProperty}
+                        value={extractedPropertyData?.city || ''}
+                        disabled={true}
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={4}>
+                  <Col md={2}>
                     <Form.Group>
-                      <Form.Label>구</Form.Label>
+                      <div className="d-flex align-items-center justify-content-between">
+                        <Form.Label className="text-start" style={{marginRight: '8px', marginBottom: '0'}}>구</Form.Label>
+                        <Button variant="primary" size="sm" style={{fontSize: '0.8rem', padding: '0.2rem 0.5rem'}}>반영</Button>
+                      </div>
                       <Form.Control 
                         type="text" 
-                        value={propertyData?.district || ''}
-                        onChange={(e) => handlePropertyChange('district', e.target.value)}
-                        disabled={!isEditingProperty}
+                        value={extractedPropertyData?.district || ''}
+                        disabled={true}
                       />
                     </Form.Group>
                   </Col>
-                  <Col md={4}>
+                  <Col md={2}>
                     <Form.Group>
-                      <Form.Label>동</Form.Label>
+                      <div className="d-flex align-items-center justify-content-between">
+                        <Form.Label className="text-start" style={{marginRight: '8px', marginBottom: '0'}}>동</Form.Label>
+                        <Button variant="primary" size="sm" style={{fontSize: '0.8rem', padding: '0.2rem 0.5rem'}}>반영</Button>
+                      </div>
                       <Form.Control 
                         type="text" 
-                        value={propertyData?.neighborhood || ''}
-                        onChange={(e) => handlePropertyChange('neighborhood', e.target.value)}
-                        disabled={!isEditingProperty}
+                        value={extractedPropertyData?.legal_dong || ''}
+                        disabled={true}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group>
+                      <div className="d-flex align-items-center justify-content-between">
+                        <Form.Label className="text-start" style={{marginRight: '8px', marginBottom: '0'}}>상세주소</Form.Label>
+                        <Button variant="primary" size="sm" style={{fontSize: '0.8rem', padding: '0.2rem 0.5rem'}}>반영</Button>
+                      </div>
+                      <Form.Control 
+                        type="text" 
+                        value={extractedPropertyData?.detail_address || ''}
+                        disabled={true}
                       />
                     </Form.Group>
                   </Col>
                   <Col md={12}>
                     <Form.Group>
-                      <Form.Label>단지명</Form.Label>
+                      <div className="d-flex align-items-center justify-content-between">
+                        <Form.Label className="text-start" style={{marginRight: '8px', marginBottom: '0'}}>단지명</Form.Label>
+                        <Button variant="primary" size="sm" style={{fontSize: '0.8rem', padding: '0.2rem 0.5rem'}}>반영</Button>
+                      </div>
                       <Form.Control 
                         type="text" 
-                        value={propertyData?.complex_name || ''}
-                        onChange={(e) => handlePropertyChange('complex_name', e.target.value)}
-                        disabled={!isEditingProperty}
-                      />
-                    </Form.Group>
-                  </Col>
-                  <Col md={12}>
-                    <Form.Group>
-                      <Form.Label>상세주소</Form.Label>
-                      <Form.Control 
-                        type="text" 
-                        value={propertyData?.detailed_address || ''}
-                        onChange={(e) => handlePropertyChange('detailed_address', e.target.value)}
-                        disabled={!isEditingProperty}
+                        value={extractedPropertyData?.property_name || ''}
+                        disabled={true}
                       />
                     </Form.Group>
                   </Col>
@@ -547,7 +586,180 @@ const CallDetail = () => {
                     onClick={() => alert('구현 중입니다.')}
                     className="w-100"
                   >
-                    생성
+                    전체 반영
+                  </Button>
+                </div>
+              </Form>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={6}>
+          <Card style={{ height: '100%' }}>
+            <Card.Body>
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h4 className="m-0 d-flex align-items-center">
+                  <FaBuilding className="me-2 text-primary" />
+                  매물 입력창
+                </h4>
+              </div>
+              <Form>
+                <Row className="g-3">
+                  <Col md={6}>
+                    <Form.Group>
+                      <div className="d-flex align-items-center justify-content-between" style={{height: '28px'}}>
+                        <Form.Label className="text-start" style={{marginRight: '8px', marginBottom: '0'}}>매물 종류</Form.Label>
+                        <div style={{width: '42px'}}></div>
+                      </div>
+                      <Form.Control 
+                        type="text" 
+                        value={propertyData?.property_type || ''}
+                        onChange={(e) => handlePropertyChange('property_type', e.target.value)}
+                        placeholder="예: 아파트"
+                        style={{ 
+                          '&::placeholder': {
+                            color: 'lightgray'
+                          }
+                        }}
+                        onFocus={(e) => e.target.placeholder = ''} 
+                        onBlur={(e) => e.target.placeholder = '예: 아파트'} 
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group>
+                      <div className="d-flex align-items-center justify-content-between" style={{height: '28px'}}>
+                        <Form.Label className="text-start" style={{marginRight: '8px', marginBottom: '0'}}>거래유형</Form.Label>
+                        <div style={{width: '42px'}}></div>
+                      </div>
+                      <Form.Control 
+                        type="text" 
+                        value={propertyData?.transaction_type || ''}
+                        onChange={(e) => handlePropertyChange('transaction_type', e.target.value)}
+                        placeholder="예: 매매"
+                        style={{ 
+                          '&::placeholder': {
+                            color: 'lightgray'
+                          }
+                        }}
+                        onFocus={(e) => e.target.placeholder = ''} 
+                        onBlur={(e) => e.target.placeholder = '예: 매매'} 
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={2}>
+                    <Form.Group>
+                      <div className="d-flex align-items-center justify-content-between" style={{height: '28px'}}>
+                        <Form.Label className="text-start" style={{marginRight: '8px', marginBottom: '0'}}>시</Form.Label>
+                        <div style={{width: '42px'}}></div>
+                      </div>
+                      <Form.Control 
+                        type="text" 
+                        value={propertyData?.city || ''}
+                        onChange={(e) => handlePropertyChange('city', e.target.value)}
+                        placeholder="예: 서울"
+                        style={{ 
+                          '&::placeholder': {
+                            color: 'lightgray'
+                          }
+                        }}
+                        onFocus={(e) => e.target.placeholder = ''} 
+                        onBlur={(e) => e.target.placeholder = '예: 서울'} 
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={2}>
+                    <Form.Group>
+                      <div className="d-flex align-items-center justify-content-between" style={{height: '28px'}}>
+                        <Form.Label className="text-start" style={{marginRight: '8px', marginBottom: '0'}}>구</Form.Label>
+                        <div style={{width: '42px'}}></div>
+                      </div>
+                      <Form.Control 
+                        type="text" 
+                        value={propertyData?.district || ''}
+                        onChange={(e) => handlePropertyChange('district', e.target.value)}
+                        placeholder="예: 강남구"
+                        style={{ 
+                          '&::placeholder': {
+                            color: 'lightgray'
+                          }
+                        }}
+                        onFocus={(e) => e.target.placeholder = ''} 
+                        onBlur={(e) => e.target.placeholder = '예: 강남구'} 
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={2}>
+                    <Form.Group>
+                      <div className="d-flex align-items-center justify-content-between" style={{height: '28px'}}>
+                        <Form.Label className="text-start" style={{marginRight: '8px', marginBottom: '0'}}>동</Form.Label>
+                        <div style={{width: '42px'}}></div>
+                      </div>
+                      <Form.Control 
+                        type="text" 
+                        value={propertyData?.legal_dong || ''}
+                        onChange={(e) => handlePropertyChange('legal_dong', e.target.value)}
+                        placeholder="예: 역삼동"
+                        style={{ 
+                          '&::placeholder': {
+                            color: 'lightgray'
+                          }
+                        }}
+                        onFocus={(e) => e.target.placeholder = ''} 
+                        onBlur={(e) => e.target.placeholder = '예: 역삼동'} 
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group>
+                      <div className="d-flex align-items-center justify-content-between" style={{height: '28px'}}>
+                        <Form.Label className="text-start" style={{marginRight: '8px', marginBottom: '0'}}>상세주소</Form.Label>
+                        <div style={{width: '42px'}}></div>
+                      </div>
+                      <Form.Control 
+                        type="text" 
+                        value={propertyData?.detail_address || ''}
+                        onChange={(e) => handlePropertyChange('detail_address', e.target.value)}
+                        placeholder="예: 123-45"
+                        style={{ 
+                          '&::placeholder': {
+                            color: 'lightgray'
+                          }
+                        }}
+                        onFocus={(e) => e.target.placeholder = ''} 
+                        onBlur={(e) => e.target.placeholder = '예: 123-45'} 
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={12}>
+                    <Form.Group>
+                      <div className="d-flex align-items-center justify-content-between" style={{height: '28px'}}>
+                        <Form.Label className="text-start" style={{marginRight: '8px', marginBottom: '0'}}>단지명</Form.Label>
+                        <div style={{width: '42px'}}></div>
+                      </div>
+                      <Form.Control 
+                        type="text" 
+                        value={propertyData?.property_name || ''}
+                        onChange={(e) => handlePropertyChange('property_name', e.target.value)}
+                        placeholder="예: 삼성래미안"
+                        style={{ 
+                          '&::placeholder': {
+                            color: 'lightgray'
+                          }
+                        }}
+                        onFocus={(e) => e.target.placeholder = ''} 
+                        onBlur={(e) => e.target.placeholder = '예: 삼성래미안'} 
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+                <div className="mt-4">
+                  <Button 
+                    variant="primary" 
+                    size="lg" 
+                    onClick={() => alert('구현 중입니다.')}
+                    className="w-100"
+                  >
+                    저장
                   </Button>
                 </div>
               </Form>

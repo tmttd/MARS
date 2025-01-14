@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Spinner, Alert, Form, Row, Col, Card } from 'react-bootstrap';
-import { FaSearch, FaPhone, FaBuilding, FaTimes } from 'react-icons/fa';
+import { FaSearch, FaPhone, FaBuilding, FaTimes, FaUser } from 'react-icons/fa';
 import CallTable from '../components/CallTable';
 import { callService } from '../services/api';
 import '../styles/PropertyList.css';
@@ -43,6 +43,8 @@ const CallList = () => {
     switch (searchType) {
       case 'customer_contact':
         return call.customer_contact?.toLowerCase().includes(searchTerm.toLowerCase());
+      case 'customer_name':
+        return call.customer_name?.toLowerCase().includes(searchTerm.toLowerCase());  
       case 'property_name':
         return call.extracted_property_info.property_name?.toLowerCase().includes(searchTerm.toLowerCase());
       default:
@@ -87,6 +89,9 @@ const CallList = () => {
                 <option value="customer_contact">
                   <FaPhone className="me-2" />연락처
                 </option>
+                <option value="customer_name">
+                  <FaUser className="me-2" />성명
+                </option>
                 <option value="property_name">
                   <FaBuilding className="me-2" />건물명
                 </option>
@@ -97,7 +102,10 @@ const CallList = () => {
                 <FaSearch className="search-icon" />
                 <Form.Control
                   type="text"
-                  placeholder={`${searchType === 'customer_contact' ? '연락처' : '건물명'}(으)로 검색`}
+                  placeholder={`${
+                    searchType === 'customer_contact' ? '연락처' : 
+                    searchType === 'customer_name' ? '성명' : '건물명'
+                  }(으)로 검색`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="search-input shadow-sm border-0"

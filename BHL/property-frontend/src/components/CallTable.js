@@ -108,7 +108,7 @@ const CallTable = ({ calls, onUpdate }) => {
             <th>연락처</th>
             <th style={{ minWidth: '50px' }}>종류</th>
             <th>거래 유형</th>
-            <th style={{ minWidth: '80px' }}>건물명</th>
+            <th style={{ minWidth: '80px' }}>단지명</th>
             <th style={{ minWidth: '80px' }}>상세주소</th>
             <th style={{ minWidth: '180px' }}>통화주제</th>
             <th>통화요약</th>
