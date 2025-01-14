@@ -78,8 +78,6 @@ async def Total_Processing(file: UploadFile = File(...)):
                     status_code=response.status_code, detail="오디오 변환 요청 실패"
                 )
 
-            conversion_job = response.json()
-
             # 상태 업데이트
             job_status.stages["conversion"].status = "processing"
             job_status.updated_at = datetime.now(UTC)

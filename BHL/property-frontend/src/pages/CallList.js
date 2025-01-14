@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Spinner, Alert, Form, Row, Col, Card } from 'react-bootstrap';
-import { FaSearch, FaPhone, FaBuilding } from 'react-icons/fa';
+import { FaSearch, FaPhone, FaBuilding, FaTimes } from 'react-icons/fa';
 import CallTable from '../components/CallTable';
 import { callService } from '../services/api';
 import '../styles/PropertyList.css';
@@ -10,7 +10,7 @@ const CallList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchType, setSearchType] = useState('contact');
+  const [searchType, setSearchType] = useState('customer_contact');
 
   const fetchCalls = async () => {
     try {
@@ -41,10 +41,10 @@ const CallList = () => {
     if (!searchTerm) return true;
     
     switch (searchType) {
-      case 'contact':
-        return call.contact?.toLowerCase().includes(searchTerm.toLowerCase());
-      case 'complex_name':
-        return call.complex_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      case 'customer_contact':
+        return call.customer_contact?.toLowerCase().includes(searchTerm.toLowerCase());
+      case 'property_name':
+        return call.extracted_property_info.property_name?.toLowerCase().includes(searchTerm.toLowerCase());
       default:
         return true;
     }
@@ -78,30 +78,47 @@ const CallList = () => {
           </h1>
           
           <Row className="g-3 mb-4">
-            <Col md={3}>
+            <Col md={1}>
               <Form.Select 
                 value={searchType}
                 onChange={(e) => setSearchType(e.target.value)}
                 className="shadow-sm border-0"
               >
-                <option value="contact">
+                <option value="customer_contact">
                   <FaPhone className="me-2" />연락처
                 </option>
-                <option value="complex_name">
-                  <FaBuilding className="me-2" />단지명
+                <option value="property_name">
+                  <FaBuilding className="me-2" />건물명
                 </option>
               </Form.Select>
             </Col>
-            <Col md={9}>
+            <Col md={3}>
               <div className="search-container">
                 <FaSearch className="search-icon" />
                 <Form.Control
                   type="text"
-                  placeholder={`${searchType === 'contact' ? '연락처' : '단지명'}으로 검색`}
+                  placeholder={`${searchType === 'customer_contact' ? '연락처' : '건물명'}(으)로 검색`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="search-input shadow-sm border-0"
                 />
+                {searchTerm && (
+                  <button 
+                    className="clear-button" 
+                    onClick={() => setSearchTerm('')}
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      cursor: 'pointer', 
+                      position: 'absolute', 
+                      right: '10px', 
+                      top: '50%', 
+                      transform: 'translateY(-50%)' 
+                    }}
+                  >
+                    <FaTimes />
+                  </button>
+                )}
               </div>
             </Col>
           </Row>

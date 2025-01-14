@@ -80,20 +80,37 @@ const CallTable = ({ calls, onUpdate }) => {
     return call[field] || '-';
   };
 
+  const propertyTypeColors = {
+    아파트: 'primary',
+    상가: 'success',
+    기타: 'warning',
+    오피스텔: 'info',
+    사무실: 'dark',
+  };
+
+  const renderPropertyTypeBadge = (propertyType) => {
+    const badgeColor = propertyTypeColors[propertyType] || 'secondary'; // 기본 색상
+    return (
+      <Badge bg={badgeColor}>
+        {propertyType}
+      </Badge>
+    );
+  };
+
   return (
     <div className="table-responsive">
       <Table striped bordered hover>
         <thead>
           <tr>
             <th>번호</th>
-            <th>통화일시</th>
-            <th>성명</th>
+            <th style={{ minWidth: '80px' }}>통화일시</th>
+            <th style={{ minWidth: '80px' }}>성명</th>
             <th>연락처</th>
-            <th>매물 종류</th>
+            <th style={{ minWidth: '50px' }}>종류</th>
             <th>거래 유형</th>
-            <th>건물명</th>
-            <th>상세주소</th>
-            <th>통화주제</th>
+            <th style={{ minWidth: '80px' }}>건물명</th>
+            <th style={{ minWidth: '80px' }}>상세주소</th>
+            <th style={{ minWidth: '180px' }}>통화주제</th>
             <th>통화요약</th>
             <th style={{ minWidth: '130px' }}></th>
           </tr>
@@ -105,7 +122,9 @@ const CallTable = ({ calls, onUpdate }) => {
               <td>{formatDateTime(call.recording_date)}</td>
               <td>{renderCell(call, 'customer_name', call.job_id)}</td>
               <td>{renderCell(call, 'customer_contact', call.job_id)}</td>
-              <td>{renderCell(call.extracted_property_info, 'property_type', call.job_id)}</td>
+              <td>
+                {renderPropertyTypeBadge(call.extracted_property_info?.property_type)}
+              </td>
               <td>{renderCell(call.extracted_property_info, 'transaction_type', call.job_id)}</td>
               <td>{renderCell(call.extracted_property_info, 'property_name', call.job_id)}</td>
               <td>
@@ -113,11 +132,11 @@ const CallTable = ({ calls, onUpdate }) => {
                   <Form.Control
                     size="sm"
                     type="text"
-                    value={editData[call.job_id]?.detailed_address || ''}
-                    onChange={(e) => handleChange(call.job_id, 'detailed_address', e.target.value)}
+                    value={editData[call.job_id].extracted_property_info?.detail_address || ''}
+                    onChange={(e) => handleChange(call.job_id, 'detail_address', e.target.value)}
                   />
                 ) : (
-                  `${call.city || ''} ${call.district || ''} ${call.neighborhood || ''}`
+                  `${call.extracted_property_info?.city || ''} ${call.extracted_property_info?.district || ''}`
                 )}
               </td>
               <td>{renderCell(call, 'summary_title', call.job_id)}</td>

@@ -20,16 +20,16 @@ class PyObjectId(ObjectId):
         return schema
 
 class OwnerInfo(BaseModel):
-    owner_name: str
-    owner_contact: str
+    owner_name: Optional[str] = None
+    owner_contact: Optional[str] = None
 
 class TenantInfo(BaseModel):
-    tenant_name: str
-    tenant_contact: str
+    tenant_name: Optional[str] = None
+    tenant_contact: Optional[str] = None
 
 class ExtractedPropertyInfo(BaseModel):
     property_name: Optional[str] = None
-    price: Optional[float] = None
+    price: Optional[int] = None
     loan_available: Optional[bool] = None
     city: Optional[str] = None
     district: Optional[str] = None
@@ -37,9 +37,9 @@ class ExtractedPropertyInfo(BaseModel):
     detail_address: Optional[str] = None
     transaction_type: Optional[str] = None
     property_type: Optional[str] = None
-    floor: Optional[str] = None
-    area: Optional[float] = None
-    premium: Optional[float] = None
+    floor: Optional[int] = None
+    area: Optional[int] = None
+    premium: Optional[int] = None
     owner_property_memo: Optional[str] = None
     tenant_property_memo: Optional[str] = None
     owner_info: Optional[OwnerInfo] = None

@@ -35,8 +35,6 @@ class Settings(BaseSettings):
     WORK_MONGODB_URI: str = "mongodb://work-db:27017/"  # 추가
     WORK_MONGODB_DB: str = "mars_work_db"  # 추가
     S3_SERVICE_URL: str = "http://s3_service:8000"
-    CALL_DB_URI: str = os.getenv("CALL_DB_URI", "mongodb://call-db:27017")
-    CALL_DB_NAME: str = os.getenv("CALL_DB_NAME", "call_data_db")
 
     class Config:
         case_sensitive = True

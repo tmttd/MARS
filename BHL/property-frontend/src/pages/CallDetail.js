@@ -331,6 +331,51 @@ const CallDetail = () => {
                       />
                     </Form.Group>
                   </Col>
+
+                  <Col md={12} className="mb-2">
+                    <Card className="mb-2">
+                      <Card.Body>
+                        <h4 className="mb-4 d-flex align-items-center">
+                          <FaFileAudio className="me-2 text-primary" />
+                          음성 재생
+                        </h4>
+                        <div className="d-flex align-items-center gap-3">
+                          <Button 
+                            variant="primary" 
+                            onClick={handlePlayAudio}
+                            className="d-flex align-items-center"
+                            style={{ minWidth: '100px' }}
+                          >
+                            {isPlaying ? <FaPause className="me-2" /> : <FaPlay className="me-2" />}
+                            재생
+                          </Button>
+                          <div className="audio-progress flex-grow-1">
+                            <div 
+                              className="progress-bar-container" 
+                              onClick={handleProgressClick}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              <div className="progress">
+                                <div 
+                                  className="progress-bar" 
+                                  style={{ width: `${progress}%` }}
+                                />
+                              </div>
+                            </div>
+                            <div className="d-flex justify-content-between mt-2">
+                              <small className="text-muted">
+                                {formatTime(duration * (progress / 100))}
+                              </small>
+                              <small className="text-muted">
+                                {formatTime(duration)}
+                              </small>
+                            </div>
+                          </div>
+                        </div>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+
                   <Col md={12}>
                     <Form.Group>
                       <Form.Label className="d-flex align-items-center">
@@ -359,48 +404,6 @@ const CallDetail = () => {
 
         <Col md={6}>
           <Card className="mb-4">
-            <Card.Body>
-              <h4 className="mb-4 d-flex align-items-center">
-                <FaFileAudio className="me-2 text-primary" />
-                음성 재생
-              </h4>
-              <div className="d-flex align-items-center gap-3">
-                <Button 
-                  variant="primary" 
-                  onClick={handlePlayAudio}
-                  className="d-flex align-items-center"
-                  style={{ minWidth: '100px' }}
-                >
-                  {isPlaying ? <FaPause className="me-2" /> : <FaPlay className="me-2" />}
-                  재생
-                </Button>
-                <div className="audio-progress flex-grow-1">
-                  <div 
-                    className="progress-bar-container" 
-                    onClick={handleProgressClick}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div className="progress">
-                      <div 
-                        className="progress-bar" 
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="d-flex justify-content-between mt-2">
-                    <small className="text-muted">
-                      {formatTime(duration * (progress / 100))}
-                    </small>
-                    <small className="text-muted">
-                      {formatTime(duration)}
-                    </small>
-                  </div>
-                </div>
-              </div>
-            </Card.Body>
-          </Card>
-
-          <Card>
             <Card.Body>
               <div className="d-flex justify-content-between align-items-center mb-4">
                 <h4 className="m-0 d-flex align-items-center">

@@ -218,20 +218,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  call-db:
-    image: mongo:latest
-    container_name: call-db
-    command: mongod --quiet --logpath /dev/null
-    ports:
-      - "27018:27017"
-    volumes:
-      - call_db_data:/data/db
-      - ./services/scripts/init-call-db.js:/docker-entrypoint-initdb.d/init-call-db.js:ro
-    environment:
-      - MONGO_INITDB_DATABASE=call_data_db
-    networks:
-      - mars_network
-
   work-db:
     image: mongo:latest
     command: mongod --quiet --logpath /dev/null
@@ -279,8 +265,6 @@ services:
       - DATABASE_SERVICE_URL=http://database:8000
       - REDIS_URL=redis://redis:6379/0
       - PYTHONWARNINGS=ignore
-      - CALL_DB_URI=mongodb://call-db:27017
-      - CALL_DB_NAME=call_data_db
     networks:
       - mars_network
     depends_on:
@@ -303,7 +287,6 @@ services:
     depends_on:
       - api_gateway
       - work-db
-      - call-db
     networks:
       - mars_network
 
@@ -344,7 +327,6 @@ volumes:
   converter_db:
   transcription_db:
   summarization_db:
-  call_db_data:
   datas:
     driver: local
     driver_opts:
