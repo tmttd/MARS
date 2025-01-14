@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Spinner, Alert, Form, Row, Col, Card } from 'react-bootstrap';
 import { FaSearch, FaPhone, FaBuilding, FaTimes, FaUser } from 'react-icons/fa';
-import CallTable from '../components/CallTable';
+import CallTable from '../components/call/CallTable';
 import { callService } from '../services/api';
 import '../styles/PropertyList.css';
 

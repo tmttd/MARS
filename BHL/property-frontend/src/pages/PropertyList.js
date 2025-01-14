@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Spinner, Alert, Form, Row, Col, Card } from 'react-bootstrap';
 import { FaSearch, FaBuilding, FaPhone } from 'react-icons/fa';
-import PropertyTable from '../components/PropertyTable';
+import PropertyTable from '../components/property/PropertyTable';
 import { propertyService } from '../services/api';
 import '../styles/PropertyList.css';
 

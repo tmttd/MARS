@@ -96,9 +96,9 @@ class PropertyInfo(BaseModel):
     detail_address: str
     transaction_type: str  # 상가/오피스텔/아파트
     property_type: str     # 전세/월세/매매
-    floor: Optional[str] = None
-    area: Optional[float] = None
-    premium: Optional[float] = None
+    floor: Optional[int] = None
+    area: Optional[int] = None
+    premium: Optional[int] = None
     owner_property_memo: Optional[str] = None
     tenant_property_memo: Optional[str] = None
     owner_info: Optional[OwnerInfo] = None

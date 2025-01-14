@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import Optional, List
 from pydantic import BaseModel, Field
-from datetime import date
 
 class PropertyType(str, Enum):
     APARTMENT = "아파트"
@@ -38,7 +37,7 @@ class Properties(BaseModel):
     owner_info: Optional[OwnerInfo] = Field(None, description="집주인 정보")
     tenant_info: Optional[TenantInfo] = Field(None, description="세입자 정보")
     moving_memo: Optional[str] = Field(None, description="이사 관련 메모")
-    moving_date: Optional[date] = Field(None, description="입주가능일")
+    moving_date: Optional[str] = Field(None, description="입주가능일")
 
 class PropertyExtraction(BaseModel):
     summary_title: str = Field(description="요약 제목")
