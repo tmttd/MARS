@@ -8,6 +8,7 @@ class PropertyType(str, Enum):
     OFFICETEL = "오피스텔"
     HOUSE = "주택"
     COMMERCIAL = "상가"
+    OFFICE = "사무실"
     OTHER = "기타"
 
 class OwnerInfo(BaseModel):
@@ -37,7 +38,7 @@ class Properties(BaseModel):
     owner_info: Optional[OwnerInfo] = Field(None, description="집주인 정보")
     tenant_info: Optional[TenantInfo] = Field(None, description="세입자 정보")
     moving_memo: Optional[str] = Field(None, description="이사 관련 메모")
-
+    moving_date: Optional[date] = Field(None, description="입주가능일")
 
 class PropertyExtraction(BaseModel):
     summary_title: str = Field(description="요약 제목")

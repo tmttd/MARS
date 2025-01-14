@@ -140,7 +140,8 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                     "tenant_name": "세입자 이름",
                     "tenant_contact": "세입자 연락처",
                     }},
-                    "moving_memo": "이사 관련 메모"
+                    "moving_memo": "이사 관련 메모",
+                    "moving_date": "입주가능일"
                 }}
                 }}
 
