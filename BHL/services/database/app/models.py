@@ -58,6 +58,7 @@ class Call(BaseModel):
     extracted_property_info: Optional[ExtractedPropertyInfo] = None
     summary_content: Optional[str] = None
     summary_title: Optional[str] = None
+    call_memo: Optional[str] = None
 
     class Config:
         allow_population_by_reference = True
@@ -67,16 +68,16 @@ class Call(BaseModel):
             datetime: lambda v: v.isoformat()
         }
 
-class CallCreate(BaseModel):
-    job_id: str
-    customer_contact: str
-    customer_name: str = ""
-    file_name: str
-    recording_date: datetime
-    text: str
-    extracted_property_info: Optional[ExtractedPropertyInfo] = None
-    summary_content: Optional[str] = None
-    summary_title: Optional[str] = None
+# class CallCreate(BaseModel):
+#     job_id: str
+#     customer_contact: str
+#     customer_name: str = ""
+#     file_name: str
+#     recording_date: datetime
+#     text: str
+#     extracted_property_info: Optional[ExtractedPropertyInfo] = None
+#     summary_content: Optional[str] = None
+#     summary_title: Optional[str] = None
 
 class CallUpdate(BaseModel):
     customer_contact: Optional[str] = None
@@ -85,6 +86,7 @@ class CallUpdate(BaseModel):
     extracted_property_info: Optional[ExtractedPropertyInfo] = None
     summary_content: Optional[str] = None
     summary_title: Optional[str] = None
+    call_memo: Optional[str] = None
 
 class PropertyInfo(BaseModel):
     property_name: str
@@ -117,10 +119,6 @@ class Property(BaseModel):
         json_encoders = {
             ObjectId: str
         }
-
-class PropertyCreate(BaseModel):
-    property_id: str
-    property_info: PropertyInfo
 
 class PropertyUpdate(BaseModel):
     property_info: Optional[PropertyInfo] = None

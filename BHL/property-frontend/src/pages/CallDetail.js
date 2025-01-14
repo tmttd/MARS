@@ -6,7 +6,6 @@ import { callService, audioService, propertyService } from '../services/api';
 // 컴포넌트 import
 import BackButton from '../components/common/BackButton';
 import CallInformation from '../components/call/detail/CallInformation';
-import AudioPlayer from '../components/call/detail/AudioPlayer';
 import ExtractedProperty from '../components/call/detail/ExtractedProperty';
 import PropertyInput from '../components/call/detail/PropertyInput';
 import CallContentModal from '../components/call/detail/CallContentModal';
@@ -16,12 +15,7 @@ const CallDetail = () => {
   const location = useLocation();
   const [call, setCall] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const audioRef = useRef(new Audio());
   const [isEditingCall, setIsEditingCall] = useState(false);
-  const [isEditingMemo, setIsEditingMemo] = useState(false);
   const [editData, setEditData] = useState(null);
   const [extractedPropertyData, setExtractedPropertyData] = useState({
     property_type: '',
@@ -30,7 +24,8 @@ const CallDetail = () => {
     district: '',
     legal_dong: '',
     property_name: '',
-    detail_address: ''
+    detail_address: '',
+    call_memo: ''
   });
   const [isEditingProperty, setIsEditingProperty] = useState(false);
   const [propertyData, setPropertyData] = useState({
@@ -61,7 +56,8 @@ const CallDetail = () => {
             district: callData.extracted_property_info.district || '',
             legal_dong: callData.extracted_property_info.legal_dong || '',
             property_name: callData.extracted_property_info.property_name || '',
-            detail_address: callData.extracted_property_info.detail_address || ''
+            detail_address: callData.extracted_property_info.detail_address || '',
+            call_memo: callData.call_memo || ''
           });
 
           const propertyInfo = await propertyService.getProperty(callData.id);
@@ -85,7 +81,8 @@ const CallDetail = () => {
             district: data.extracted_property_info.district || '',
             legal_dong: data.extracted_property_info.legal_dong || '',
             property_name: data.extracted_property_info.property_name || '',
-            detail_address: data.extracted_property_info.detail_address || ''
+            detail_address: data.extracted_property_info.detail_address || '',
+            call_memo: data.call_memo || ''
           });
 
           const propertyInfo = await propertyService.getProperty(data.id);
@@ -107,11 +104,6 @@ const CallDetail = () => {
     };
 
     fetchCall();
-
-    return () => {
-      audioRef.current.pause();
-      audioRef.current.src = '';
-    };
   }, [id, location.state]);
 
   const formatDateTime = (dateTimeStr) => {
@@ -126,51 +118,8 @@ const CallDetail = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handlePlayAudio = async () => {
-    try {
-      if (!audioRef.current.src) {
-        const audioUrl = await audioService.playAudio(call.file_name);
-        audioRef.current.src = audioUrl;
-        
-        audioRef.current.addEventListener('loadedmetadata', () => {
-          setDuration(audioRef.current.duration);
-        });
-
-        audioRef.current.addEventListener('timeupdate', () => {
-          setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
-        });
-
-        audioRef.current.addEventListener('ended', () => {
-          setIsPlaying(false);
-          setProgress(0);
-        });
-      }
-
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        await audioRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    } catch (error) {
-      console.error('Error playing audio:', error);
-    }
-  };
-
-  const handleProgressClick = (e) => {
-    const progressBar = e.currentTarget;
-    const rect = progressBar.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const clickedValue = (x / rect.width) * audioRef.current.duration;
-    audioRef.current.currentTime = clickedValue;
-  };
-
   const handleEditCall = () => {
     setIsEditingCall(true);
-  };
-
-  const handleEditMemo = () => {
-    setIsEditingMemo(true);
   };
 
   const handleSaveCall = async () => {
@@ -195,14 +144,13 @@ const CallDetail = () => {
 
   const handleSaveMemo = async () => {
     try {
-      if (editData.memo === call.memo) {
-        alert('변경된 값이 없습니다.');
+      if (editData.call_memo === call.call_memo) {
+        alert('수정 사항이 없습니다.');
         return;
       }
 
-      await callService.updateCall(call.job_id, { memo: editData.memo });
-      setCall(prev => ({ ...prev, memo: editData.memo }));
-      setIsEditingMemo(false);
+      await callService.updateCall(call.job_id, { call_memo: editData.call_memo });
+      setCall(prev => ({ ...prev, call_memo: editData.call_memo }));
       alert('메모가 저장되었습니다.');
     } catch (error) {
       alert('메모 저장 중 오류가 발생했습니다.');
@@ -215,8 +163,7 @@ const CallDetail = () => {
   };
 
   const handleCancelMemo = () => {
-    setEditData(prev => ({ ...prev, memo: call.memo }));
-    setIsEditingMemo(false);
+    setEditData(prev => ({ ...prev, call_memo: call.call_memo }));
   };
 
   const handleChange = (field, value) => {
@@ -308,18 +255,8 @@ const CallDetail = () => {
             handleCancelCall={handleCancelCall}
             handleChange={handleChange}
             formatDateTime={formatDateTime}
-          />
-        </Col>
-
-        {/* 오디오 플레이어 섹션 */}
-        <Col md={12}>
-          <AudioPlayer 
-            isPlaying={isPlaying}
-            progress={progress}
-            duration={duration}
-            handlePlayAudio={handlePlayAudio}
-            handleProgressClick={handleProgressClick}
-            formatTime={formatTime}
+            handleDeleteMemo={handleCancelMemo}
+            handleSaveMemo={handleSaveMemo}
           />
         </Col>
 

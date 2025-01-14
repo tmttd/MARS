@@ -1,41 +1,34 @@
 import React from 'react';
-import { Card, Button } from 'react-bootstrap';
-import { FaPlay, FaPause, FaFileAudio } from 'react-icons/fa';
+import { Button } from 'react-bootstrap';
+import { FaPlay, FaPause } from 'react-icons/fa';
 
-const AudioPlayer = ({ 
-  isPlaying, 
-  progress, 
-  duration, 
-  handlePlayAudio, 
-  handleProgressClick,
-  formatTime 
-}) => {
+const formatTime = (seconds) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+const AudioPlayer = ({ isPlaying, progress, duration, currentTime, onPlayClick, onProgressClick }) => {
   return (
-    <Card className="mb-4">
-      <Card.Body>
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h4 className="m-0 d-flex align-items-center">
-            <FaFileAudio className="me-2 text-primary" />
-            통화 재생
-          </h4>
-          <div className="text-muted">
-            {formatTime(duration * (progress / 100))} / {formatTime(duration)}
-          </div>
-        </div>
-        
-        <div className="d-flex align-items-center">
-          <Button 
-            variant="outline-primary" 
-            className="me-3" 
-            onClick={handlePlayAudio}
-          >
+    <div>
+      <div className="d-flex align-items-center">
+        <Button 
+          variant="primary"
+          className="me-3 d-flex align-items-center" 
+          onClick={onPlayClick}
+          style={{ minWidth: '100px' }}
+        >
+          <span className="me-2" style={{ fontSize: '1.2em' }}>
             {isPlaying ? <FaPause /> : <FaPlay />}
-          </Button>
-          
+          </span>
+          <span>재생</span>
+        </Button>
+        
+        <div className="w-100">
           <div 
-            className="progress w-100" 
+            className="progress" 
             style={{ height: '20px', cursor: 'pointer' }}
-            onClick={handleProgressClick}
+            onClick={onProgressClick}
           >
             <div 
               className="progress-bar" 
@@ -46,9 +39,17 @@ const AudioPlayer = ({
               aria-valuemax="100"
             />
           </div>
+          <div className="d-flex justify-content-between mt-1">
+            <div className="text-muted small">
+              {formatTime(currentTime)}
+            </div>
+            <div className="text-muted small">
+              {formatTime(duration)}
+            </div>
+          </div>
         </div>
-      </Card.Body>
-    </Card>
+      </div>
+    </div>
   );
 };
 

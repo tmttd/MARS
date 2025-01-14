@@ -1,9 +1,10 @@
 from fastapi import FastAPI, HTTPException, Query
 from motor.motor_asyncio import AsyncIOMotorClient
 from typing import List, Optional
-from .models import Call, CallCreate, CallUpdate, Property, PropertyCreate, PropertyUpdate
+from .models import Call, CallUpdate, Property, PropertyInfo, PropertyUpdate
 from bson import ObjectId
 import os
+import uuid
 from datetime import datetime
 import logging
 
@@ -57,21 +58,22 @@ async def list_calls(
         logger.error(f"List calls error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/calls/", response_model=Call)
-async def create_call(call: CallCreate):
-    try:
-        result = await db.calls.insert_one(call.model_dump())
-        created_call = await db.calls.find_one({"_id": result.inserted_id})
-        logger.info(f"Created Call: {created_call}")
-        return created_call
-    except Exception as e:
-        logger.error(f"Create call error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+## 쓸 일 없음.
+# @app.post("/calls/", response_model=Call)
+# async def create_call(call: CallCreate):
+#     try:
+#         result = await db.calls.insert_one(call.model_dump())
+#         created_call = await db.calls.find_one({"_id": result.inserted_id})
+#         logger.info(f"Created Call: {created_call}")
+#         return created_call
+#     except Exception as e:
+#         logger.error(f"Create call error: {e}")
+#         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/calls/{call_id}", response_model=Call)
 async def read_call(call_id: str):
     try:
-        call = await db.calls.find_one({"_id": ObjectId(call_id)})
+        call = await db.calls.find_one({"job_id": call_id})
         if call is None:
             raise HTTPException(status_code=404, detail="Call not found")
         logger.info(f"Read Call: {call}")
@@ -84,12 +86,12 @@ async def read_call(call_id: str):
 async def update_call(call_id: str, call_update: CallUpdate):
     try:
         result = await db.calls.update_one(
-            {"_id": ObjectId(call_id)}, 
+            {"job_id": call_id}, 
             {"$set": call_update.model_dump(exclude_unset=True)}
         )
         if result.modified_count == 0:
             raise HTTPException(status_code=404, detail="Call not found")
-        updated_call = await db.calls.find_one({"_id": ObjectId(call_id)})
+        updated_call = await db.calls.find_one({"job_id": call_id})
         logger.info(f"Updated Call: {updated_call}")
         return updated_call
     except Exception as e:
@@ -99,7 +101,7 @@ async def update_call(call_id: str, call_update: CallUpdate):
 @app.delete("/calls/{call_id}")
 async def delete_call(call_id: str):
     try:
-        result = await db.calls.delete_one({"_id": ObjectId(call_id)})
+        result = await db.calls.delete_one({"job_id": call_id})
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Call not found")
         logger.info(f"Deleted Call: {call_id}")
@@ -150,10 +152,12 @@ async def list_properties(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/properties/", response_model=Property)
-async def create_property(property: PropertyCreate):
+async def create_property(property: PropertyInfo):
     try:
-        result = await db.properties.insert_one(property.model_dump())
-        created_property = await db.properties.find_one({"_id": result.inserted_id})
+        property_data = property.model_dump()
+        property_data["property_id"] = str(uuid.uuid4())[:16]  # uuid16 생성
+        result = await db.properties.insert_one(property_data)
+        created_property = await db.properties.find_one({"property_id": property_data["property_id"]})
         logger.info(f"Created Property: {created_property}")
         return created_property
     except Exception as e:
@@ -163,7 +167,7 @@ async def create_property(property: PropertyCreate):
 @app.get("/properties/{property_id}", response_model=Property)
 async def read_property(property_id: str):
     try:
-        property = await db.properties.find_one({"_id": ObjectId(property_id)})
+        property = await db.properties.find_one({"property_id": property_id})
         if property is None:
             raise HTTPException(status_code=404, detail="Property not found")
         logger.info(f"Read Property: {property}")
@@ -181,7 +185,7 @@ async def update_property(property_id: str, property_update: PropertyUpdate):
         )
         if result.modified_count == 0:
             raise HTTPException(status_code=404, detail="Property not found")
-        updated_property = await db.properties.find_one({"_id": ObjectId(property_id)})
+        updated_property = await db.properties.find_one({"property_id": property_id})
         logger.info(f"Updated Property: {updated_property}")
         return updated_property
     except Exception as e:
@@ -191,7 +195,7 @@ async def update_property(property_id: str, property_update: PropertyUpdate):
 @app.delete("/properties/{property_id}")
 async def delete_property(property_id: str):
     try:
-        result = await db.properties.delete_one({"_id": ObjectId(property_id)})
+        result = await db.properties.delete_one({"property_id": property_id})
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Property not found")
         logger.info(f"Deleted Property: {property_id}")

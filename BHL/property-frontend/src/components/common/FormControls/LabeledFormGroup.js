@@ -9,7 +9,10 @@ const LabeledFormGroup = ({
   placeholder = '', 
   type = 'text',
   icon,
-  rightElement
+  rightElement,
+  customContent = false,
+  minHeight = 'auto',
+  isScrollable = false
 }) => {
   return (
     <Form.Group>
@@ -20,20 +23,37 @@ const LabeledFormGroup = ({
         </Form.Label>
         {rightElement && rightElement}
       </div>
-      <Form.Control 
-        type={type}
-        value={value || ''}
-        onChange={onChange}
-        disabled={disabled}
-        placeholder={placeholder}
-        style={{ 
-          '&::placeholder': {
-            color: '#e0e0e0'
-          }
-        }}
-        onFocus={(e) => e.target.placeholder = ''} 
-        onBlur={(e) => e.target.placeholder = placeholder} 
-      />
+      
+      {customContent ? (
+        <div 
+          style={{ 
+            minHeight, 
+            overflowY: isScrollable ? 'auto' : 'hidden', 
+            whiteSpace: 'normal',
+            wordWrap: 'break-word'
+          }}
+        >
+          {value}
+        </div>
+      ) : (
+        <Form.Control 
+          // type이 textarea일 경우 as="textarea"로 처리
+          as={type === 'textarea' ? 'textarea' : 'input'}
+          type={type !== 'textarea' ? type : undefined}
+          value={value || ''}
+          onChange={onChange}
+          disabled={disabled}
+          placeholder={placeholder}
+          style={{ 
+            minHeight,
+            // textarea인 경우엔 자동 줄바꿈 지원
+            whiteSpace: type === 'textarea' ? 'pre-wrap' : undefined
+          }}
+          // textarea에도 placeholder 지원
+          onFocus={(e) => e.target.placeholder = ''} 
+          onBlur={(e) => e.target.placeholder = placeholder} 
+        />
+      )}
     </Form.Group>
   );
 };
