@@ -201,12 +201,20 @@ const PropertyTable = ({ properties, onUpdate }) => {
               <td>{renderCell(property, 'memo', property.property_id)}</td>
               <td className="text-center">
                 <Button 
-                  variant="info" 
+                  variant="primary" 
                   size="sm" 
                   onClick={() => handleShowDetail(property)}
                 >
                   상세
                 </Button>
+                <div 
+                      className="vr mx-2" 
+                      style={{ 
+                        display: 'inline-block',
+                        height: '30px',
+                        margin: '0 4px'
+                      }} 
+                    />
                 <Button 
                   variant="danger" 
                   size="sm" 

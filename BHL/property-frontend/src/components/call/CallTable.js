@@ -200,7 +200,7 @@ const CallTable = ({ calls, onUpdate }) => {
                       className="vr mx-2" 
                       style={{ 
                         display: 'inline-block',
-                        height: '20px',
+                        height: '30px',
                         margin: '0 4px'
                       }} 
                     />
