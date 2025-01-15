@@ -148,9 +148,7 @@ async def get_audio_files():
                                 s3_key=obj['Key'],
                                 s3_bucket=settings.S3_BUCKET_NAME,
                                 duration=float(metadata.get('duration', 0)),
-                                format="wav",
-                                sample_rate=16000,
-                                channels=1,
+                                format="m4a",
                                 created_at=obj['LastModified'],
                                 updated_at=obj['LastModified']
                             ))
@@ -174,10 +172,6 @@ async def get_audio_stream(name: str):
         logger.info(f"오디오 스트림 요청: {name}")
         
         try:
-            # 파일 확장자가 없는 경우 .wav 추가
-            # if not name.endswith('.wav') and not name.endswith('.m4a'):
-            #     name += '.m4a'
-            
             # 파일 존재 여부 확인
             try:
                 s3_client.head_object(
@@ -191,12 +185,16 @@ async def get_audio_stream(name: str):
                     detail="음성 파일을 찾을 수 없습니다"
                 )
             
+            # 파일 확장자에 따른 content-type 설정
+            content_type = 'audio/x-m4a' if name.endswith('.m4a') else 'audio/wav'
+            
             url = s3_client.generate_presigned_url(
                 'get_object',
                 Params={
                     'Bucket': settings.S3_BUCKET_NAME,
                     'Key': name,
-                    'ResponseContentType': 'audio/wav'
+                    'ResponseContentType': content_type,
+                    'ResponseContentDisposition': 'inline'
                 },
                 ExpiresIn=settings.PRESIGNED_URL_EXPIRATION
             )
@@ -204,7 +202,7 @@ async def get_audio_stream(name: str):
             return AudioStreamResponse(
                 url=url,
                 expires_in=settings.PRESIGNED_URL_EXPIRATION,
-                content_type="audio/wav"
+                content_type=content_type
             )
             
         except HTTPException:
