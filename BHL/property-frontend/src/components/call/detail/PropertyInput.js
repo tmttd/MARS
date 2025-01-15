@@ -3,7 +3,11 @@ import { Card, Form, Row, Col, Button } from 'react-bootstrap';
 import { FaBuilding } from 'react-icons/fa';
 import LabeledFormGroup from '../../common/FormControls/LabeledFormGroup';
 
-const PropertyInput = ({ propertyData, handlePropertyChange }) => {
+const loadProperty = () => {
+  console.log('loadProperty');
+};
+
+const PropertyInput = ({ propertyData, handlePropertyChange, PropertyReflectCancel }) => {
   const formFields = [
     { id: 'property_type', label: '매물 종류', placeholder: '예: 아파트', colSize: 3 },
     { id: 'transaction_type', label: '거래 종류', placeholder: '예: 매매', colSize: 3 },
@@ -29,6 +33,13 @@ const PropertyInput = ({ propertyData, handlePropertyChange }) => {
             <FaBuilding className="me-2 text-primary" />
             매물 입력창
           </h4>
+          <Button 
+              variant="dark" 
+              size="md"
+              onClick={loadProperty}
+            >
+              기존 매물 불러오기
+            </Button>
         </div>
         <Form>
           <Row className="g-3">

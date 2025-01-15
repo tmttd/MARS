@@ -202,7 +202,7 @@ const CallDetail = () => {
 
   const handleSaveCall = async () => {
     try {
-      const hasChanges = ['recording_date', 'customer_name', 'customer_contact', 'text', 'summary_content'].some(
+      const hasChanges = ['recording_date', 'customer_name', 'customer_contact', 'transaction_type', 'property_name', 'detail_address', 'summary_title', 'summary_content'].some(
         key => editData[key] !== call[key]
       );
 
@@ -235,14 +235,15 @@ const CallDetail = () => {
     }
   };
 
+  const handleCancelMemo = () => {
+    setEditData(prev => ({ ...prev, call_memo: call.call_memo }));
+  };
+
   const handleCancelCall = () => {
     setEditData(call);
     setIsEditingCall(false);
   };
 
-  const handleCancelMemo = () => {
-    setEditData(prev => ({ ...prev, call_memo: call.call_memo }));
-  };
 
   const handleChange = (field, value) => {
     setEditData(prev => ({
@@ -301,19 +302,30 @@ const CallDetail = () => {
     }));
   };
 
-  const handleShowModal = (content) => {
-    setModalContent(content);
-    setShowModal(true);
-  };
-
   const handleCloseModal = () => {
     setShowModal(false);
   };
 
   const handlePropertyReflect = (field) => {
-    // 해당 필드에 반영 로직을 구현합니다.
-    console.log(`Reflecting property: ${field}`);
-    // 필요한 로직 추가
+    if (field === 'all') {
+      // 모든 필드를 extractedPropertyData에서 propertyData로 덮어쓰기
+      setPropertyData({
+        ...extractedPropertyData, // 모든 필드를 덮어쓰기
+      });
+    } else {
+      // 특정 필드에 대한 반영
+      setPropertyData(prevData => ({
+        ...prevData,
+        [field]: extractedPropertyData[field],
+      }));
+    }
+  };
+
+  const propertyReflectCancel = (field) => {
+    setPropertyData(prevData => ({
+      ...prevData,
+      [field]: propertyData[field],
+    }));
   };
 
   if (loading) return <div>Loading...</div>;
@@ -345,6 +357,7 @@ const CallDetail = () => {
               <ExtractedProperty 
                 extractedPropertyData={extractedPropertyData}
                 handlePropertyReflect={handlePropertyReflect}
+                propertyReflectCancel={propertyReflectCancel}
               />
             </Col>
             <Col md={6}>

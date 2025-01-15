@@ -1,5 +1,6 @@
 import React from 'react';
 import { Form } from 'react-bootstrap';
+import '../../../styles/common.css';
 
 const LabeledFormGroup = ({ 
   label, 

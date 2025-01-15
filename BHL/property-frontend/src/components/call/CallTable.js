@@ -50,14 +50,29 @@ const CallTable = ({ calls, onUpdate }) => {
   };
 
   const handleChange = (id, field, value) => {
-    setEditData({
-      ...editData,
+  // field가 "extracted_property_info.transaction_type" 와 같이 점(.)을 포함하는지 확인
+  if (field.includes('.')) {
+    const [parentKey, childKey] = field.split('.');
+    setEditData(prev => ({
+      ...prev,
       [id]: {
-        ...editData[id],
+        ...prev[id],
+        [parentKey]: {
+          ...prev[id][parentKey],
+          [childKey]: value
+        }
+      }
+    }));
+  } else {
+    setEditData(prev => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
         [field]: value
       }
-    });
-  };
+    }));
+  }
+};
 
   const handleDetail = (id) => {
     console.log("Selected Call ID:", id);
@@ -68,6 +83,18 @@ const CallTable = ({ calls, onUpdate }) => {
 
   const renderCell = (call, field, id) => {
     if (editMode[id]) {
+      const extractedFields = ['detail_address', 'transaction_type', 'property_name'];
+
+      if (extractedFields.includes(field)) {
+        return (
+          <Form.Control
+            size="sm"
+            type="text"
+            value={editData[id]?.extracted_property_info?.[field] || ''}
+            onChange={(e) => handleChange(id, `extracted_property_info.${field}`, e.target.value)} // 동적 접근
+          />
+        );
+      }
       return (
         <Form.Control
           size="sm"
@@ -109,7 +136,7 @@ const CallTable = ({ calls, onUpdate }) => {
             <th style={{ minWidth: '50px' }}>종류</th>
             <th>거래 종류</th>
             <th style={{ minWidth: '80px' }}>단지명</th>
-            <th style={{ minWidth: '80px' }}>상세주소</th>
+            <th style={{ minWidth: '50px' }}>위치</th>
             <th style={{ minWidth: '180px' }}>통화주제</th>
             <th>통화요약</th>
             <th style={{ minWidth: '130px' }}></th>
@@ -128,15 +155,14 @@ const CallTable = ({ calls, onUpdate }) => {
               <td>{renderCell(call.extracted_property_info, 'transaction_type', call.job_id)}</td>
               <td>{renderCell(call.extracted_property_info, 'property_name', call.job_id)}</td>
               <td>
-                {editMode[call.job_id] ? (
-                  <Form.Control
-                    size="sm"
-                    type="text"
-                    value={editData[call.job_id].extracted_property_info?.detail_address || ''}
-                    onChange={(e) => handleChange(call.job_id, 'detail_address', e.target.value)}
-                  />
+              {editMode[call.job_id] ? (
+                  <span>
+                    {call.extracted_property_info?.district || ''} {call.extracted_property_info?.legal_dong || ''}
+                  </span>
                 ) : (
-                  `${call.extracted_property_info?.city || ''} ${call.extracted_property_info?.district || ''}`
+                  <span>
+                    {call.extracted_property_info?.district || ''} {call.extracted_property_info?.legal_dong || ''}
+                  </span>
                 )}
               </td>
               <td>{renderCell(call, 'summary_title', call.job_id)}</td>
