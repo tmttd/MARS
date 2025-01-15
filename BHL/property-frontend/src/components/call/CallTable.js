@@ -152,8 +152,8 @@ const CallTable = ({ calls, onUpdate }) => {
               <td>
                 {renderPropertyTypeBadge(call.extracted_property_info?.property_type)}
               </td>
-              <td>{renderCell(call.extracted_property_info, 'transaction_type', call.job_id)}</td>
-              <td>{renderCell(call.extracted_property_info, 'property_name', call.job_id)}</td>
+              <td>{renderCell(call.extracted_property_info || {}, 'transaction_type', call.job_id)}</td>
+              <td>{renderCell(call.extracted_property_info || {}, 'property_name', call.job_id)}</td>
               <td>
               {editMode[call.job_id] ? (
                   <span>

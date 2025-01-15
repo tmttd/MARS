@@ -320,6 +320,39 @@ services:
     networks:
       - mars_network
 
+  sqs_consumer:
+    build: ./services/sqs_consumer
+    command: python -m app.main
+    restart: unless-stopped
+    environment:
+      - AWS_REGION=ap-northeast-2
+      - SQS_QUEUE_URL=${SQS_QUEUE_URL}
+      - API_ENDPOINT=http://api_gateway:8000/Total_Processing
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      # - PYTHONWARNINGS=ignore
+      - PYTHONUNBUFFERED=1
+    networks:
+      - mars_network
+    depends_on:
+      - api_gateway
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; from app.main import ConsumerService; sys.exit(0 if ConsumerService().check_health() else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+        reservations:
+          memory: 100M
+
 volumes:
   whisper_cache:
   converter_db:

@@ -149,4 +149,41 @@ export const audioService = {
   }
 };
 
+export const uploadService = {
+  async uploadFile(file) {
+    try {
+      // 1. API Gateway를 통해 Presigned URL 요청
+      const urlResponse = await api.post('/audio/upload/', {
+        filename: file.name,
+        content_type: file.type
+      });
+      
+      if (!urlResponse.data || !urlResponse.data.upload_url) {
+        throw new Error('Failed to get upload URL');
+      }
+      
+      const { upload_url } = urlResponse.data;
+      
+      // 2. Presigned URL로 파일 직접 업로드
+      const uploadResponse = await fetch(upload_url, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type
+        }
+      });
+      
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload file');
+      }
+      
+      return { success: true };
+      
+    } catch (error) {
+      console.error('Upload error:', error);
+      throw error;
+    }
+  }
+};
+
 export default api; 

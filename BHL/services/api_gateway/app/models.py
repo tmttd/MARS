@@ -13,3 +13,7 @@ class ProcessingJob(BaseModel):
     stages: Dict[str, StageStatus]
     created_at: datetime
     updated_at: datetime
+
+class UploadRequest(BaseModel):
+    filename: str
+    content_type: str

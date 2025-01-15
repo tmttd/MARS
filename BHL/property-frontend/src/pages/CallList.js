@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Spinner, Alert, Form, Row, Col, Card } from 'react-bootstrap';
-import { FaSearch, FaPhone, FaBuilding, FaTimes, FaUser } from 'react-icons/fa';
+import { Container, Spinner, Alert, Form, Row, Col, Card, Button } from 'react-bootstrap';
+import { FaSearch, FaPhone, FaBuilding, FaTimes, FaUser, FaCloudUploadAlt } from 'react-icons/fa';
 import CallTable from '../components/call/CallTable';
 import { callService } from '../services/api';
+import { uploadService } from '../services/api';
 import '../styles/PropertyList.css';
 
 const CallList = () => {
@@ -52,6 +53,20 @@ const CallList = () => {
     }
   });
 
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      const response = await uploadService.uploadFile(file);
+      console.log('Upload response:', response);
+      await fetchCalls();
+    } catch (error) {
+      console.error('Upload failed:', error);
+      setError('파일 업로드에 실패했습니다.');
+    }
+  };
+
   if (loading) return (
     <Container className="d-flex justify-content-center align-items-center min-vh-100">
       <div className="text-center">
@@ -74,10 +89,32 @@ const CallList = () => {
     <Container fluid className="py-4 bg-light min-vh-100">
       <Card className="shadow-sm mb-4">
         <Card.Body>
-          <h1 className="text-primary mb-4" style={{ fontSize: '1.5rem' }}>
-            <FaPhone className="me-2" />
-            통화 기록 목록
-          </h1>
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h1 className="text-primary mb-0" style={{ fontSize: '1.5rem' }}>
+              <FaPhone className="me-2" />
+              통화 기록 목록
+            </h1>
+            
+            <div>
+              <input
+                type="file"
+                accept="audio/*"
+                style={{ display: 'none' }}
+                id="upload-audio-file"
+                onChange={handleFileUpload}
+              />
+              <label htmlFor="upload-audio-file">
+                <Button
+                  variant="primary"
+                  as="span"
+                  className="d-flex align-items-center"
+                >
+                  <FaCloudUploadAlt className="me-2" />
+                  음성파일 업로드
+                </Button>
+              </label>
+            </div>
+          </div>
           
           <Row className="g-3 mb-4">
             <Col md={1}>
