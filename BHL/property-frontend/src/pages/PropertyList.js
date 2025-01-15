@@ -35,7 +35,7 @@ const PropertyList = () => {
       case 'property_name':
         return property.property_name?.toLowerCase().includes(searchTerm.toLowerCase());
       case 'owner_contact':
-        return property.owner_contact?.toLowerCase().includes(searchTerm.toLowerCase());
+        return property.owner_info?.owner_contact?.toLowerCase().includes(searchTerm.toLowerCase());
       default:
         return true;
     }
@@ -69,7 +69,7 @@ const PropertyList = () => {
           </h1>
           
           <Row className="g-3 mb-4">
-            <Col md={3}>
+            <Col md={1}>
               <Form.Select 
                 value={searchType}
                 onChange={(e) => setSearchType(e.target.value)}
@@ -83,7 +83,7 @@ const PropertyList = () => {
                 </option>
               </Form.Select>
             </Col>
-            <Col md={9}>
+            <Col md={3}>
               <div className="search-container">
                 <FaSearch className="search-icon" />
                 <Form.Control

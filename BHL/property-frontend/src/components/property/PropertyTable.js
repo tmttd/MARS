@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Table, Button, Form, Badge } from 'react-bootstrap';
 import { propertyService } from '../../services/api';
+import PropertyInfoModal from './detail/PropertyInfoModal';
 
 const PropertyTable = ({ properties, onUpdate }) => {
-  const [editMode, setEditMode] = useState({});
-  const [editData, setEditData] = useState({});
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState(null);
 
   const formatDateTime = (dateTimeStr) => {
     if (!dateTimeStr) return '-';
@@ -13,37 +14,8 @@ const PropertyTable = ({ properties, onUpdate }) => {
   };
 
   const handleShowDetail = (property) => {
-    console.log(property);
-  };
-
-  const handleEdit = (propertyId) => {
-    setEditMode({ ...editMode, [propertyId]: true });
-    setEditData({ ...editData, [propertyId]: properties.find(p => p.property_id === propertyId) });
-  };
-
-  const handleSave = async (propertyId) => {
-    try {
-      const propertyData = { ...editData[propertyId] };
-      const originalProperty = properties.find(p => p.property_id === propertyId);
-      
-      // 변경된 값이 있는지 확인
-      const hasChanges = Object.keys(propertyData).some(key => 
-        propertyData[key] !== originalProperty[key]
-      );
-
-      if (!hasChanges) {
-        alert('변경된 값이 없습니다.');
-        return;
-      }
-
-      delete propertyData.property_id;
-      
-      await propertyService.updateProperty(propertyId, propertyData);
-      setEditMode({ ...editMode, [propertyId]: false });
-      if (onUpdate) onUpdate();
-    } catch (error) {
-      alert('저장 중 오류가 발생했습니다.');
-    }
+    setSelectedProperty(property);
+    setShowDetailModal(true);
   };
 
   const handleDelete = async (propertyId) => {
@@ -57,72 +29,7 @@ const PropertyTable = ({ properties, onUpdate }) => {
     }
   };
 
-  const handleCancel = (propertyId) => {
-    setEditMode({ ...editMode, [propertyId]: false });
-    setEditData({ ...editData, [propertyId]: null });
-  };
-
-  const handleChange = (propertyId, field, value) => {
-    if (field.includes('.')) {
-      const [parentKey, childKey] = field.split('.');
-      setEditData(prev => ({
-        ...prev,
-        [propertyId]: {
-          ...prev[propertyId],
-          [parentKey]: {
-            ...prev[propertyId][parentKey],
-            [childKey]: value
-          }
-        }
-      }));
-    } else {
-      setEditData(prev => ({
-        ...prev,
-        [propertyId]: {
-          ...prev[propertyId],
-          [field]: value
-        }
-      }));
-    }
-  };
-
-  const renderCell = (property, field, id) => {
-    if (editMode[id]) {
-      const propertyInfoFields = ['property_type', 'transaction_type', 'property_name', 'price', 'memo'];
-      const ownerInfoFields = ['owner_name'];
-
-      if (propertyInfoFields.includes(field)) {
-        return (
-          <Form.Control
-            size="sm"
-            type="text"
-            
-            value={editData[id]?.property_info?.[field] || ''}
-            onChange={(e) => handleChange(id, `property_info.${field}`, e.target.value)}
-          />
-        );
-      }
-
-      if (ownerInfoFields.includes(field)) {
-        return (
-          <Form.Control
-            size="sm"
-            type="text"
-            value={editData[id]?.owner_info?.[field] || ''}
-            onChange={(e) => handleChange(id, `owner_info.${field}`, e.target.value)}
-          />
-        );
-      }
-
-      return (
-        <Form.Control
-          size="sm"
-          type="text"
-          value={editData[id]?.[field] || ''}
-          onChange={(e) => handleChange(id, field, e.target.value)}
-        />
-      );
-    }
+  const renderCell = (property, field) => {
 
     if (field === 'price') {
       return property.property_info?.[field] ? `${property.property_info[field]}만원` : '-';
@@ -140,8 +47,8 @@ const PropertyTable = ({ properties, onUpdate }) => {
       return property.property_info[field] || '-';
     }
 
-    if (field in (property.owner_info || {})) {
-      return property.owner_info[field] || '-';
+    if (field in (property.property_info.owner_info || {})) {
+      return property.property_info.owner_info[field] || '-';
     }
 
     return '-';
@@ -170,16 +77,16 @@ const PropertyTable = ({ properties, onUpdate }) => {
         <thead>
           <tr>
             <th>번호</th>
-            <th>등록일자</th>
-            <th>종류</th>
-            <th>거래 종류</th>
-            <th>주소</th>
-            <th>단지명</th>
-            <th>가격</th>
-            <th>소유주</th>
-            <th>연락처</th>
-            <th>상태</th>
-            <th>메모</th>
+            <th style={{ minWidth: '50px' }}>등록일자</th>
+            <th style={{ minWidth: '50px' }}>종류</th>
+            <th style={{ minWidth: '40px' }}>거래 종류</th>
+            <th style={{ minWidth: '200px' }}>주소</th>
+            <th style={{ minWidth: '80px' }}>단지명</th>
+            <th style={{ minWidth: '90px' }}>가격</th>
+            <th style={{ minWidth: '80px' }}>소유주</th>
+            <th style={{ minWidth: '150px' }}>연락처</th>
+            <th style={{ minWidth: '80px' }}>상태</th>
+            <th style={{ minWidth: '500px' }}>메모</th>
             <th style={{ minWidth: '130px' }}></th>
           </tr>
         </thead>
@@ -189,16 +96,16 @@ const PropertyTable = ({ properties, onUpdate }) => {
               <td>{index + 1}</td>
               <td>{formatDateTime(property.created_at)}</td>
               <td>
-                {renderPropertyTypeBadge(property.property_type)}
+                {renderPropertyTypeBadge(property.property_info.property_type)}
               </td>
-              <td>{renderCell(property, 'transaction_type', property.property_id)}</td>
-              <td>{renderCell(property, 'address', property.property_id)}</td>
-              <td>{renderCell(property, 'property_name', property.property_id)}</td>
-              <td>{renderCell(property, 'price', property.property_id)}</td>
-              <td>{renderCell(property, 'owner_name', property.property_id)}</td>
-              <td>{renderCell(property, 'owner_contact', property.property_id)}</td>
-              <td>{renderCell(property, 'status', property.property_id)}</td>
-              <td>{renderCell(property, 'memo', property.property_id)}</td>
+              <td>{renderCell(property, 'transaction_type')}</td>
+              <td>{renderCell(property, 'address')}</td>
+              <td>{renderCell(property, 'property_name')}</td>
+              <td>{renderCell(property, 'price')}</td>
+              <td>{renderCell(property, 'owner_name')}</td>
+              <td>{renderCell(property, 'owner_contact')}</td>
+              <td>{renderCell(property, 'status')}</td>
+              <td>{renderCell(property, 'memo')}</td>
               <td className="text-center">
                 <Button 
                   variant="primary" 
@@ -229,31 +136,13 @@ const PropertyTable = ({ properties, onUpdate }) => {
         </tbody>
       </Table>
 
-      {/* 상세보기 모달
-      <Modal show={showDetailModal} onHide={handleCloseDetail}>
-        <Modal.Header closeButton>
-          <Modal.Title>상세 정보</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedProperty && (
-            <div>
-              <p>종류: {selectedProperty.property_type}</p>
-              <p>거래 종류: {selectedProperty.transaction_type}</p>
-              <p>주소: {selectedProperty.address}</p>
-              <p>단지명: {selectedProperty.property_name}</p>
-              <p>가격: {selectedProperty.price}만원</p>
-              <p>소유주: {selectedProperty.owner_name}</p>
-              <p>연락처: {selectedProperty.owner_contact}</p>
-              <p>메모: {selectedProperty.memo}</p>
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseDetail}>
-            닫기
-          </Button>
-        </Modal.Footer>
-      </Modal> */}
+      <PropertyInfoModal
+        show={showDetailModal}
+        onHide={() => setShowDetailModal(false)}
+        propertyData={selectedProperty}
+        onUpdate={onUpdate}
+      />  
+      {console.log(selectedProperty)}
     </div>
   );
 };
