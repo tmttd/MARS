@@ -2,6 +2,7 @@ import boto3
 import json
 from typing import Optional, Dict, Any, List
 from ..config import Config
+from urllib.parse import unquote
 
 class SQSService:
     def __init__(self):
@@ -82,7 +83,7 @@ class SQSService:
                     record.get('eventName', '').startswith('ObjectCreated:')):
                     return {
                         'bucket': record['s3']['bucket']['name'],
-                        'key': record['s3']['object']['key']
+                        'key': unquote(record['s3']['object']['key'])
                     }
             return None
         except Exception as e:
