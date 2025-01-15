@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Response, Query, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException, Response, Query, Request, Body
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from redis import Redis
@@ -9,7 +9,7 @@ import json
 import logging
 import os
 from .config import Settings
-from .models import ProcessingJob, StageStatus
+from .models import ProcessingJob, StageStatus, UploadRequest
 from typing import List, Dict, Any, Optional
 from pymongo import MongoClient
 from pydantic import BaseModel
@@ -484,3 +484,21 @@ async def get_audio_stream(name: str):
             status_code=500,
             detail="오디오 스트림 URL을 가져오는 중 오류가 발생했습니다"
         )
+    
+@app.post("/audio/upload/")
+async def upload_file(request: UploadRequest):
+    try:
+        url = f"{settings.S3_SERVICE_URL}/audio/upload/"
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                json={
+                    "filename": request.filename,
+                    "content_type": request.content_type
+                }
+            )
+            response.raise_for_status()
+            return response.json()
+    except Exception as e:
+        logger.error(f"파일 업로드 URL 생성 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

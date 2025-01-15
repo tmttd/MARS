@@ -1,11 +1,11 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import boto3
 from botocore.config import Config
 import logging
 from typing import List, Dict, Optional
 from .config import Settings
-from .models import AudioFile, AudioFileList, AudioStreamResponse
+from .models import AudioFile, AudioFileList, AudioStreamResponse, UploadUrlRequest, UploadUrlResponse
 from datetime import datetime, UTC
 from pydantic import BaseModel, Field
 from fastapi.responses import JSONResponse
@@ -224,3 +224,39 @@ async def get_audio_stream(name: str):
             status_code=500,
             detail="예기치 않은 오류가 발생했습니다"
         ) 
+
+@app.post("/audio/upload/", response_model=UploadUrlResponse)
+async def upload_audio(request: UploadUrlRequest):
+    try:
+        logger.info(f"Upload URL 요청: filename={request.filename}")
+        
+        try:
+            # presigned URL 생성
+            presigned_url = s3_client.generate_presigned_url(
+                'put_object',
+                Params={
+                    'Bucket': settings.S3_BUCKET_NAME,
+                    'Key': request.filename,
+                    'ContentType': request.content_type
+                },
+                ExpiresIn=settings.PRESIGNED_URL_EXPIRATION
+            )
+            
+            return UploadUrlResponse(
+                upload_url=presigned_url,
+                expires_in=settings.PRESIGNED_URL_EXPIRATION
+            )
+            
+        except Exception as e:
+            logger.error(f"Presigned URL 생성 중 오류 발생: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="업로드 URL 생성에 실패했습니다"
+            )
+            
+    except Exception as e:
+        logger.error(f"Upload URL 요청 처리 중 오류 발생: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="예기치 않은 오류가 발생했습니다"
+        )
