@@ -31,7 +31,7 @@ const CallDetail = () => {
     moving_date: '',
     loan_available: '',
     premium: '',
-    moving_memo: '',
+    memo: '',
     owner_name: '',
     owner_contact: '',
     owner_property_memo: '',
@@ -55,7 +55,7 @@ const CallDetail = () => {
     moving_date: '',
     loan_available: '',
     premium: '',
-    moving_memo: '',
+    memo: '',
     owner_name: '',
     owner_contact: '',
     owner_property_memo: '',
@@ -89,7 +89,7 @@ const CallDetail = () => {
             moving_date: callData.extracted_property_info.moving_date || '',
             loan_available: callData.extracted_property_info.loan_available || '',
             premium: callData.extracted_property_info.premium || '',
-            moving_memo: callData.extracted_property_info.moving_memo || '',
+            memo: callData.extracted_property_info.memo || '',
             owner_name: callData.owner_info?.owner_name || '',
             owner_contact: callData.owner_info?.owner_contact || '',
             owner_property_memo: callData.owner_property_memo || '',
@@ -114,7 +114,7 @@ const CallDetail = () => {
             moving_date: propertyData.property_info.moving_date || '',
             loan_available: propertyData.property_info.loan_available || '',
             premium: propertyData.property_info.premium || '',
-            moving_memo: propertyData.property_info.moving_memo || '',
+            memo: propertyData.property_info.memo || '',
             owner_name: propertyData.owner_info?.owner_name || '',
             owner_contact: propertyData.owner_info?.owner_contact || '',
             owner_property_memo: propertyData.owner_property_memo || '',
@@ -140,7 +140,7 @@ const CallDetail = () => {
             moving_date: data.extracted_property_info.moving_date || '',
             loan_available: data.extracted_property_info.loan_available || '',
             premium: data.extracted_property_info.premium || '',
-            moving_memo: data.extracted_property_info.moving_memo || '',
+            memo: data.extracted_property_info.memo || '',
             owner_name: data.owner_info?.owner_name || '',
             owner_contact: data.owner_info?.owner_contact || '',
             owner_property_memo: data.owner_property_memo || '',
@@ -165,7 +165,7 @@ const CallDetail = () => {
             moving_date: propertyInfo.property_info.moving_date || '',
             loan_available: propertyInfo.property_info.loan_available || '',
             premium: propertyInfo.property_info.premium || '',
-            moving_memo: propertyInfo.property_info.moving_memo || '',
+            memo: propertyInfo.property_info.memo || '',
             owner_name: propertyInfo.owner_info?.owner_name || '',
             owner_contact: propertyInfo.owner_info?.owner_contact || '',
             owner_property_memo: propertyInfo.owner_property_memo || '',
@@ -202,7 +202,7 @@ const CallDetail = () => {
 
   const handleSaveCall = async () => {
     try {
-      const hasChanges = ['recording_date', 'customer_name', 'customer_contact', 'transaction_type', 'property_name', 'detail_address', 'summary_title', 'summary_content'].some(
+      const hasChanges = ['recording_date', 'customer_name', 'customer_contact', 'transaction_type', 'property_name', 'detail_address', 'memo', 'summary_content'].some(
         key => editData[key] !== call[key]
       );
 

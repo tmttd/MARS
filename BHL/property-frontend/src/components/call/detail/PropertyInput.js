@@ -1,134 +1,93 @@
-import React from 'react';
-import { Card, Form, Row, Col, Button } from 'react-bootstrap';
-import { FaBuilding } from 'react-icons/fa';
-import LabeledFormGroup from '../../common/FormControls/LabeledFormGroup';
+// PropertyInput.js
+import React, { useState } from 'react';
+import PropertyForm from '../../property/PropertyForm';
 
-const loadProperty = () => {
-  console.log('loadProperty');
-};
+function PropertyInput() {
+  // 매물 정보를 담는 state
+  // - 필요 시 초기값을 더 풍부하게 구성할 수 있음
+  const [propertyData, setPropertyData] = useState({
+    owner_info: {},
+    tenant_info: {},
+  });
 
-const PropertyInput = ({ propertyData, handlePropertyChange, PropertyReflectCancel }) => {
-  const formFields = [
-    { id: 'property_type', label: '매물 종류', placeholder: '예: 아파트', colSize: 3 },
-    { id: 'transaction_type', label: '거래 종류', placeholder: '예: 매매', colSize: 3 },
-    { id: 'price', label: '가격', placeholder: '예: 5억', colSize: 3 },
-    { id: 'area', label: '면적', placeholder: '예: 84㎡', colSize: 3 },
-    { id: 'city', label: '시', placeholder: '예: 서울', colSize: 2 },
-    { id: 'district', label: '구', placeholder: '예: 강남구', colSize: 2 },
-    { id: 'legal_dong', label: '동', placeholder: '예: 역삼동', colSize: 2 },
-    { id: 'detail_address', label: '상세주소', placeholder: '예: 123-45', colSize: 6 },
-    { id: 'floor', label: '층', placeholder: '예: 10층', colSize: 2 },
-    { id: 'property_name', label: '단지명', placeholder: '예: 삼성래미안', colSize: 5 },
-    { id: 'moving_date', label: '입주 가능일', placeholder: '예: 2024-05-01', colSize: 5 },
-    { id: 'loan_available', label: '대출여부', placeholder: '예: 가능', colSize: 6 },
-    { id: 'premium', label: '권리금', placeholder: '예: 500만원', colSize: 6 },
-    { id: 'moving_memo', label: '이사 메모', placeholder: '메모를 입력하세요.', colSize: 12, minHeight: '100px', isScrollable: true }
-  ];
+  // 폼 필드 변경 시 호출
+  const handleFieldChange = (fieldId, value) => {
+    // 여기서 fieldId는 'property_type'처럼 단순 문자열일 수도 있고
+    // 'owner_info.owner_name'처럼 중첩 필드를 나타낼 수도 있습니다.
+    // 실제 구현 시 lodash.set, immer 등을 사용하면 간편합니다.
+    setPropertyData((prev) => {
+      // 간단한 방법(중첩 필드 파싱은 직접):
+      const [rootKey, subKey] = fieldId.split('.');
+      if (subKey) {
+        // 예: owner_info.owner_name
+        return {
+          ...prev,
+          [rootKey]: {
+            ...prev[rootKey],
+            [subKey]: value,
+          },
+        };
+      } else {
+        // 예: property_type
+        return {
+          ...prev,
+          [fieldId]: value,
+        };
+      }
+    });
+  };
+
+  // 폼 “저장” 버튼 클릭 시 호출
+  const handleFormSubmit = () => {
+    // 실제로는 여기에 POST/PUT API 호출 등의 로직을 구현
+    console.log('저장할 매물 데이터:', propertyData);
+    alert('매물 정보가 저장되었습니다 (개발중).');
+  };
+
+  // “기존 매물 불러오기” 버튼 클릭 시 호출
+  const handleLoadProperty = () => {
+    // 예: 서버에서 기존 매물 불러오기 → setPropertyData
+    alert('기존 매물을 불러옵니다 (개발중).');
+    // 예시로 더미값을 셋업해볼 수도 있음
+    setPropertyData({
+      property_type: '아파트',
+      transaction_type: '매매',
+      price: '5억',
+      area: '84㎡',
+      city: '서울',
+      district: '강남구',
+      legal_dong: '역삼동',
+      detail_address: '123-45',
+      floor: '10층',
+      property_name: '삼성래미안',
+      moving_date: '2024-05-01',
+      loan_available: '가능',
+      premium: '500만원',
+      memo: '이사는 최소 한 달 전 협의 필요',
+      owner_info: {
+        owner_name: '김소유',
+        owner_contact: '010-1234-5678',
+      },
+      tenant_info: {
+        tenant_name: '박세입',
+        tenant_contact: '010-9876-5432',
+      },
+      owner_property_memo: '협의 후 등기까지 2주 소요 예상',
+      tenant_property_memo: '현재 거주 중, 3월말 이사 예정',
+    });
+  };
 
   return (
-    <Card style={{ height: '100%' }}>
-      <Card.Body>
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <h4 className="m-0 d-flex align-items-center">
-            <FaBuilding className="me-2 text-primary" />
-            매물 입력창
-          </h4>
-          <Button 
-              variant="dark" 
-              size="md"
-              onClick={loadProperty}
-            >
-              기존 매물 불러오기
-            </Button>
-        </div>
-        <Form>
-          <Row className="g-3">
-            {formFields.map(field => (
-              <Col md={field.colSize} key={field.id}>
-                <LabeledFormGroup
-                  label={field.label}
-                  value={propertyData?.[field.id] || ''}
-                  onChange={(e) => handlePropertyChange(field.id, e.target.value)}
-                  placeholder={field.placeholder}
-                  minHeight={field.minHeight}
-                  isScrollable={field.isScrollable}
-                />
-              </Col>
-            ))}
-          <Row className="mt-4">
-              <Col md={6}>
-                <h5><strong>소유주 정보</strong></h5>
-                <Row>
-                  <Col md={11} className="mb-3">
-                    <LabeledFormGroup
-                      label="성함"
-                      value={propertyData?.owner_info?.owner_name || ''}
-                      disabled={false}
-                    />
-                  </Col>
-                  <Col md={11} className="mb-3">
-                    <LabeledFormGroup
-                      label="연락처"
-                      value={propertyData?.owner_info?.owner_contact || ''}
-                      disabled={false}
-                    />
-                  </Col>
-                  <Col md={11} className="mb-3">
-                    <LabeledFormGroup
-                      label="소유주 메모"
-                      value={propertyData?.owner_property_memo || ''}
-                      disabled={false}
-                      minHeight="100px"
-                      isScrollable={true}
-                    />
-                  </Col>
-                </Row>
-              </Col>
-
-              <Col md={6}>
-                <h5><strong>세입자 정보</strong></h5>
-                <Row>
-                  <Col md={11} className="mb-3">
-                    <LabeledFormGroup
-                      label="성함"
-                      value={propertyData?.tenant_info?.tenant_name || ''}
-                      disabled={false}
-                    />
-                  </Col>
-                  <Col md={11} className="mb-3">
-                    <LabeledFormGroup
-                      label="연락처"
-                      value={propertyData?.tenant_info?.tenant_contact || ''}
-                      disabled={false}
-                    />
-                  </Col>
-                  <Col md={11} className="mb-3">
-                    <LabeledFormGroup
-                      label="세입자 메모"
-                      value={propertyData?.tenant_property_memo || ''}
-                      disabled={false}
-                      minHeight="100px"
-                      isScrollable={true}
-                    />
-                  </Col>
-                </Row>
-              </Col>
-            </Row>
-          </Row>
-          <div className="mt-4">
-            <Button 
-              variant="primary" 
-              size="lg" 
-              onClick={() => alert('구현 중입니다.')}
-              className="w-100"
-            >
-              저장
-            </Button>
-          </div>
-        </Form>
-      </Card.Body>
-    </Card>
+    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      <PropertyForm
+        propertyData={propertyData}
+        onChange={handleFieldChange}
+        onSubmit={handleFormSubmit}
+        onLoadProperty={handleLoadProperty}
+        submitLabel="저장"
+      />
+    </div>
   );
-};
+}
 
 export default PropertyInput;

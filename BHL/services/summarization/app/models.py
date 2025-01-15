@@ -36,7 +36,7 @@ class Properties(BaseModel):
     tenant_property_memo: Optional[str] = Field(None, description="현재 매물에 대한 세입자 관련 메모")
     owner_info: Optional[OwnerInfo] = Field(None, description="집주인 정보")
     tenant_info: Optional[TenantInfo] = Field(None, description="세입자 정보")
-    moving_memo: Optional[str] = Field(None, description="이사 관련 메모")
+    memo: Optional[str] = Field(None, description="메모")
     moving_date: Optional[str] = Field(None, description="입주가능일")
 
 class PropertyExtraction(BaseModel):

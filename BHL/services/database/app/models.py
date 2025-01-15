@@ -44,7 +44,7 @@ class ExtractedPropertyInfo(BaseModel):
     tenant_property_memo: Optional[str] = None
     owner_info: Optional[OwnerInfo] = None
     tenant_info: Optional[TenantInfo] = None
-    moving_memo: Optional[str] = None
+    memo: Optional[str] = None
     moving_date: Optional[date] = None
 
 class Call(BaseModel):
@@ -89,15 +89,15 @@ class CallUpdate(BaseModel):
     call_memo: Optional[str] = None
 
 class PropertyInfo(BaseModel):
-    property_name: str
-    price: str
+    property_name: Optional[str] = None
+    price: Optional[str] = None
     loan_available: Optional[bool] = None
-    city: str
-    district: str
-    legal_dong: str
-    detail_address: str
-    transaction_type: str  # 상가/오피스텔/아파트
-    property_type: str     # 전세/월세/매매
+    city: Optional[str] = None
+    district: Optional[str] = None
+    legal_dong: Optional[str] = None
+    detail_address: Optional[str] = None
+    transaction_type: Optional[str] = None
+    property_type: Optional[str] = None
     floor: Optional[int] = None
     area: Optional[int] = None
     premium: Optional[int] = None
@@ -105,13 +105,15 @@ class PropertyInfo(BaseModel):
     tenant_property_memo: Optional[str] = None
     owner_info: Optional[OwnerInfo] = None
     tenant_info: Optional[TenantInfo] = None
-    moving_memo: Optional[str] = None
+    memo: Optional[str] = None
     moving_date: Optional[date] = None
 
 class Property(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     property_id: str
+    created_at: datetime
     property_info: PropertyInfo
+    status: Optional[str] = None
 
     class Config:
         allow_population_by_reference = True
@@ -122,3 +124,5 @@ class Property(BaseModel):
 
 class PropertyUpdate(BaseModel):
     property_info: Optional[PropertyInfo] = None
+    created_at: Optional[datetime] = None
+    status: Optional[str] = None

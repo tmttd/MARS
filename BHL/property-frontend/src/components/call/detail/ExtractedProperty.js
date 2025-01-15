@@ -353,18 +353,18 @@ const ExtractedProperty = ({ extractedPropertyData, handlePropertyReflect, prope
             </Col>
             <Col md={12}>
               <LabeledFormGroup
-                label="이사 메모"
-                value={extractedPropertyData?.moving_memo}
+                label="메모"
+                value={extractedPropertyData?.memo}
                 disabled={true}
                 rightElement={
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
                   <RenderReflectButton 
-                    fieldId="moving_memo" 
+                    fieldId="memo" 
                     handlePropertyReflect={handlePropertyReflect} 
                     showActionButtons={showActionButtons} 
                   />
                   <RenderReflectButton 
-                    fieldId="moving_memo" 
+                    fieldId="memo" 
                     variant="danger"
                     handlePropertyReflect={propertyReflectCancel} 
                     showActionButtons={showActionButtons} 

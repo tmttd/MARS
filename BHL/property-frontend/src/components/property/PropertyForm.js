@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, Form, Row, Col, Button } from 'react-bootstrap';
 import { FaBuilding } from 'react-icons/fa';
-import LabeledFormGroup from '../../common/FormControls/LabeledFormGroup';
+import LabeledFormGroup from '../common/FormControls/LabeledFormGroup';
 
 /**
  * PropertyForm
@@ -40,8 +40,8 @@ function PropertyForm({
     { id: 'loan_available', label: '대출여부', placeholder: '예: 가능', colSize: 6 },
     { id: 'premium', label: '권리금', placeholder: '예: 500만원', colSize: 6 },
     {
-      id: 'moving_memo',
-      label: '이사 메모',
+      id: 'memo',
+      label: '메모',
       placeholder: '메모를 입력하세요.',
       colSize: 12,
       minHeight: '100px',

@@ -152,7 +152,7 @@ async def list_properties(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/properties/", response_model=Property)
-async def create_property(property: PropertyInfo):
+async def create_property(property: PropertyUpdate):
     try:
         property_data = property.model_dump()
         property_data["property_id"] = str(uuid.uuid4())[:16]  # uuid16 생성
