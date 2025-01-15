@@ -7,6 +7,12 @@
   --hover-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
+input::placeholder,
+textarea::placeholder {
+  font-style: italic; /* 이탤릭체 적용 */
+  color: #b8b8b8; /* 색상 조정 (선택 사항) */
+}
+
 body {
   background-color: var(--background-color);
   color: var(--primary-color);

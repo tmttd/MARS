@@ -21,3 +21,11 @@ class AudioStreamResponse(BaseModel):
     url: str
     expires_in: int
     content_type: str = "audio/wav" 
+
+class UploadUrlRequest(BaseModel):
+    filename: str
+    content_type: str
+
+class UploadUrlResponse(BaseModel):
+    upload_url: str
+    expires_in: int

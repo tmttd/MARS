@@ -6,7 +6,6 @@ import { callService, audioService, propertyService } from '../services/api';
 // 컴포넌트 import
 import BackButton from '../components/common/BackButton';
 import CallInformation from '../components/call/detail/CallInformation';
-import AudioPlayer from '../components/call/detail/AudioPlayer';
 import ExtractedProperty from '../components/call/detail/ExtractedProperty';
 import PropertyInput from '../components/call/detail/PropertyInput';
 import CallContentModal from '../components/call/detail/CallContentModal';
@@ -16,31 +15,53 @@ const CallDetail = () => {
   const location = useLocation();
   const [call, setCall] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const audioRef = useRef(new Audio());
   const [isEditingCall, setIsEditingCall] = useState(false);
-  const [isEditingMemo, setIsEditingMemo] = useState(false);
   const [editData, setEditData] = useState(null);
   const [extractedPropertyData, setExtractedPropertyData] = useState({
     property_type: '',
     transaction_type: '',
+    price: '',
+    area: '',
     city: '',
     district: '',
     legal_dong: '',
     property_name: '',
-    detail_address: ''
+    detail_address: '',
+    floor: '',
+    moving_date: '',
+    loan_available: '',
+    premium: '',
+    memo: '',
+    owner_name: '',
+    owner_contact: '',
+    owner_property_memo: '',
+    tenant_name: '',
+    tenant_contact: '',
+    tenant_property_memo: '',
+    call_memo: ''
   });
   const [isEditingProperty, setIsEditingProperty] = useState(false);
   const [propertyData, setPropertyData] = useState({
     property_type: '',
     transaction_type: '',
+    price: '',
+    area: '',
     city: '',
     district: '',
     legal_dong: '',
+    floor: '',
     property_name: '',
-    detail_address: ''
+    detail_address: '',
+    moving_date: '',
+    loan_available: '',
+    premium: '',
+    memo: '',
+    owner_name: '',
+    owner_contact: '',
+    owner_property_memo: '',
+    tenant_name: '',
+    tenant_contact: '',
+    tenant_property_memo: ''
   });
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState('');
@@ -57,22 +78,49 @@ const CallDetail = () => {
           setExtractedPropertyData({
             property_type: callData.extracted_property_info.property_type || '',
             transaction_type: callData.extracted_property_info.transaction_type || '',
+            price: callData.extracted_property_info.price || '',
+            area: callData.extracted_property_info.area || '',
             city: callData.extracted_property_info.city || '',
             district: callData.extracted_property_info.district || '',
             legal_dong: callData.extracted_property_info.legal_dong || '',
+            detail_address: callData.extracted_property_info.detail_address || '',
+            floor: callData.extracted_property_info.floor || '',
             property_name: callData.extracted_property_info.property_name || '',
-            detail_address: callData.extracted_property_info.detail_address || ''
+            moving_date: callData.extracted_property_info.moving_date || '',
+            loan_available: callData.extracted_property_info.loan_available || '',
+            premium: callData.extracted_property_info.premium || '',
+            memo: callData.extracted_property_info.memo || '',
+            owner_name: callData.owner_info?.owner_name || '',
+            owner_contact: callData.owner_info?.owner_contact || '',
+            owner_property_memo: callData.owner_property_memo || '',
+            tenant_name: callData.tenant_info?.tenant_name || '',
+            tenant_contact: callData.tenant_info?.tenant_contact || '',
+            tenant_property_memo: callData.tenant_property_memo || '',
+            call_memo: callData.call_memo || ''
           });
 
-          const propertyInfo = await propertyService.getProperty(callData.id);
+          const propertyData = await propertyService.getProperty(callData.id);
           setPropertyData({
-            property_type: propertyInfo.property_type || '',
-            transaction_type: propertyInfo.transaction_type || '',
-            city: propertyInfo.city || '',
-            district: propertyInfo.district || '',
-            legal_dong: propertyInfo.legal_dong || '',
-            property_name: propertyInfo.property_name || '',
-            detail_address: propertyInfo.detail_address || ''
+            property_type: propertyData.property_info.property_type || '',
+            transaction_type: propertyData.property_info.transaction_type || '',
+            price: propertyData.property_info.price || '',
+            area: propertyData.property_info.area || '',
+            city: propertyData.property_info.city || '',
+            district: propertyData.property_info.district || '',
+            legal_dong: propertyData.property_info.legal_dong || '',
+            detail_address: propertyData.property_info.detail_address || '',
+            floor: propertyData.property_info.floor || '',
+            property_name: propertyData.property_info.property_name || '',
+            moving_date: propertyData.property_info.moving_date || '',
+            loan_available: propertyData.property_info.loan_available || '',
+            premium: propertyData.property_info.premium || '',
+            memo: propertyData.property_info.memo || '',
+            owner_name: propertyData.owner_info?.owner_name || '',
+            owner_contact: propertyData.owner_info?.owner_contact || '',
+            owner_property_memo: propertyData.owner_property_memo || '',
+            tenant_name: propertyData.tenant_info?.tenant_name || '',
+            tenant_contact: propertyData.tenant_info?.tenant_contact || '',
+            tenant_property_memo: propertyData.tenant_property_memo || ''
           });
         } else {
           const data = await callService.getCall(id);
@@ -81,22 +129,49 @@ const CallDetail = () => {
           setExtractedPropertyData({
             property_type: data.extracted_property_info.property_type || '',
             transaction_type: data.extracted_property_info.transaction_type || '',
+            price: data.extracted_property_info.price || '',
+            area: data.extracted_property_info.area || '',
             city: data.extracted_property_info.city || '',
             district: data.extracted_property_info.district || '',
             legal_dong: data.extracted_property_info.legal_dong || '',
+            detail_address: data.extracted_property_info.detail_address || '',
+            floor: data.extracted_property_info.floor || '',
             property_name: data.extracted_property_info.property_name || '',
-            detail_address: data.extracted_property_info.detail_address || ''
+            moving_date: data.extracted_property_info.moving_date || '',
+            loan_available: data.extracted_property_info.loan_available || '',
+            premium: data.extracted_property_info.premium || '',
+            memo: data.extracted_property_info.memo || '',
+            owner_name: data.owner_info?.owner_name || '',
+            owner_contact: data.owner_info?.owner_contact || '',
+            owner_property_memo: data.owner_property_memo || '',
+            tenant_name: data.tenant_info?.tenant_name || '',
+            tenant_contact: data.tenant_info?.tenant_contact || '',
+            tenant_property_memo: data.tenant_property_memo || '',
+            call_memo: data.call_memo || ''
           });
 
           const propertyInfo = await propertyService.getProperty(data.id);
           setPropertyData({
-            property_type: propertyInfo.property_type || '',
-            transaction_type: propertyInfo.transaction_type || '',
-            city: propertyInfo.city || '',
-            district: propertyInfo.district || '',
-            legal_dong: propertyInfo.legal_dong || '',
-            property_name: propertyInfo.property_name || '',
-            detail_address: propertyInfo.detail_address || ''
+            property_type: propertyInfo.property_info.property_type || '',
+            transaction_type: propertyInfo.property_info.transaction_type || '',
+            price: propertyInfo.property_info.price || '',
+            area: propertyInfo.property_info.area || '',
+            city: propertyInfo.property_info.city || '',
+            district: propertyInfo.property_info.district || '',
+            legal_dong: propertyInfo.property_info.legal_dong || '',
+            detail_address: propertyInfo.property_info.detail_address || '',
+            floor: propertyInfo.property_info.floor || '',
+            property_name: propertyInfo.property_info.property_name || '',
+            moving_date: propertyInfo.property_info.moving_date || '',
+            loan_available: propertyInfo.property_info.loan_available || '',
+            premium: propertyInfo.property_info.premium || '',
+            memo: propertyInfo.property_info.memo || '',
+            owner_name: propertyInfo.owner_info?.owner_name || '',
+            owner_contact: propertyInfo.owner_info?.owner_contact || '',
+            owner_property_memo: propertyInfo.owner_property_memo || '',
+            tenant_name: propertyInfo.tenant_info?.tenant_name || '',
+            tenant_contact: propertyInfo.tenant_info?.tenant_contact || '',
+            tenant_property_memo: propertyInfo.tenant_property_memo || ''
           });
         }
         setLoading(false);
@@ -107,11 +182,6 @@ const CallDetail = () => {
     };
 
     fetchCall();
-
-    return () => {
-      audioRef.current.pause();
-      audioRef.current.src = '';
-    };
   }, [id, location.state]);
 
   const formatDateTime = (dateTimeStr) => {
@@ -126,56 +196,13 @@ const CallDetail = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handlePlayAudio = async () => {
-    try {
-      if (!audioRef.current.src) {
-        const audioUrl = await audioService.playAudio(call.file_name);
-        audioRef.current.src = audioUrl;
-        
-        audioRef.current.addEventListener('loadedmetadata', () => {
-          setDuration(audioRef.current.duration);
-        });
-
-        audioRef.current.addEventListener('timeupdate', () => {
-          setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
-        });
-
-        audioRef.current.addEventListener('ended', () => {
-          setIsPlaying(false);
-          setProgress(0);
-        });
-      }
-
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        await audioRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
-    } catch (error) {
-      console.error('Error playing audio:', error);
-    }
-  };
-
-  const handleProgressClick = (e) => {
-    const progressBar = e.currentTarget;
-    const rect = progressBar.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const clickedValue = (x / rect.width) * audioRef.current.duration;
-    audioRef.current.currentTime = clickedValue;
-  };
-
   const handleEditCall = () => {
     setIsEditingCall(true);
   };
 
-  const handleEditMemo = () => {
-    setIsEditingMemo(true);
-  };
-
   const handleSaveCall = async () => {
     try {
-      const hasChanges = ['recording_date', 'customer_name', 'customer_contact', 'text', 'summary_content'].some(
+      const hasChanges = ['recording_date', 'customer_name', 'customer_contact', 'transaction_type', 'property_name', 'detail_address', 'memo', 'summary_content'].some(
         key => editData[key] !== call[key]
       );
 
@@ -195,18 +222,21 @@ const CallDetail = () => {
 
   const handleSaveMemo = async () => {
     try {
-      if (editData.memo === call.memo) {
-        alert('변경된 값이 없습니다.');
+      if (editData.call_memo === call.call_memo) {
+        alert('수정 사항이 없습니다.');
         return;
       }
 
-      await callService.updateCall(call.job_id, { memo: editData.memo });
-      setCall(prev => ({ ...prev, memo: editData.memo }));
-      setIsEditingMemo(false);
+      await callService.updateCall(call.job_id, { call_memo: editData.call_memo });
+      setCall(prev => ({ ...prev, call_memo: editData.call_memo }));
       alert('메모가 저장되었습니다.');
     } catch (error) {
       alert('메모 저장 중 오류가 발생했습니다.');
     }
+  };
+
+  const handleCancelMemo = () => {
+    setEditData(prev => ({ ...prev, call_memo: call.call_memo }));
   };
 
   const handleCancelCall = () => {
@@ -214,10 +244,6 @@ const CallDetail = () => {
     setIsEditingCall(false);
   };
 
-  const handleCancelMemo = () => {
-    setEditData(prev => ({ ...prev, memo: call.memo }));
-    setIsEditingMemo(false);
-  };
 
   const handleChange = (field, value) => {
     setEditData(prev => ({
@@ -276,19 +302,30 @@ const CallDetail = () => {
     }));
   };
 
-  const handleShowModal = (content) => {
-    setModalContent(content);
-    setShowModal(true);
-  };
-
   const handleCloseModal = () => {
     setShowModal(false);
   };
 
   const handlePropertyReflect = (field) => {
-    // 해당 필드에 반영 로직을 구현합니다.
-    console.log(`Reflecting property: ${field}`);
-    // 필요한 로직 추가
+    if (field === 'all') {
+      // 모든 필드를 extractedPropertyData에서 propertyData로 덮어쓰기
+      setPropertyData({
+        ...extractedPropertyData, // 모든 필드를 덮어쓰기
+      });
+    } else {
+      // 특정 필드에 대한 반영
+      setPropertyData(prevData => ({
+        ...prevData,
+        [field]: extractedPropertyData[field],
+      }));
+    }
+  };
+
+  const propertyReflectCancel = (field) => {
+    setPropertyData(prevData => ({
+      ...prevData,
+      [field]: '',
+    }));
   };
 
   if (loading) return <div>Loading...</div>;
@@ -308,18 +345,8 @@ const CallDetail = () => {
             handleCancelCall={handleCancelCall}
             handleChange={handleChange}
             formatDateTime={formatDateTime}
-          />
-        </Col>
-
-        {/* 오디오 플레이어 섹션 */}
-        <Col md={12}>
-          <AudioPlayer 
-            isPlaying={isPlaying}
-            progress={progress}
-            duration={duration}
-            handlePlayAudio={handlePlayAudio}
-            handleProgressClick={handleProgressClick}
-            formatTime={formatTime}
+            handleDeleteMemo={handleCancelMemo}
+            handleSaveMemo={handleSaveMemo}
           />
         </Col>
 
@@ -330,6 +357,7 @@ const CallDetail = () => {
               <ExtractedProperty 
                 extractedPropertyData={extractedPropertyData}
                 handlePropertyReflect={handlePropertyReflect}
+                propertyReflectCancel={propertyReflectCancel}
               />
             </Col>
             <Col md={6}>

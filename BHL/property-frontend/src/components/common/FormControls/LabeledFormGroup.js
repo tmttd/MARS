@@ -1,5 +1,6 @@
 import React from 'react';
 import { Form } from 'react-bootstrap';
+import '../../../styles/common.css';
 
 const LabeledFormGroup = ({ 
   label, 
@@ -9,7 +10,11 @@ const LabeledFormGroup = ({
   placeholder = '', 
   type = 'text',
   icon,
-  rightElement
+  rightElement,
+  customContent = false,
+  minHeight = 'auto',
+  isScrollable = false,
+  controlStyle = {}
 }) => {
   return (
     <Form.Group>
@@ -20,20 +25,35 @@ const LabeledFormGroup = ({
         </Form.Label>
         {rightElement && rightElement}
       </div>
-      <Form.Control 
-        type={type}
-        value={value || ''}
-        onChange={onChange}
-        disabled={disabled}
-        placeholder={placeholder}
-        style={{ 
-          '&::placeholder': {
-            color: '#e0e0e0'
-          }
-        }}
-        onFocus={(e) => e.target.placeholder = ''} 
-        onBlur={(e) => e.target.placeholder = placeholder} 
-      />
+      
+      {customContent ? (
+        <div 
+          style={{ 
+            minHeight, 
+            overflowY: isScrollable ? 'auto' : 'hidden', 
+            whiteSpace: 'normal',
+            wordWrap: 'break-word'
+          }}
+        >
+          {value}
+        </div>
+      ) : (
+        <Form.Control 
+          as={type === 'textarea' ? 'textarea' : 'input'}
+          type={type !== 'textarea' ? type : undefined}
+          value={value || ''}
+          onChange={onChange}
+          disabled={disabled}
+          placeholder={placeholder}
+          style={{ 
+            minHeight,
+            whiteSpace: type === 'textarea' ? 'pre-wrap' : undefined,
+            ...controlStyle  // 전달된 스타일 적용
+          }}
+          onFocus={(e) => e.target.placeholder = ''} 
+          onBlur={(e) => e.target.placeholder = placeholder} 
+        />
+      )}
     </Form.Group>
   );
 };

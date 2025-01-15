@@ -71,7 +71,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         
         # GPT를 사용한 텍스트 요약
         completion = openai_client.beta.chat.completions.parse(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": """You are an AI assistant specialized in real estate. Your goal is to provide quick yet comprehensive summaries of phone calls between a real estate agent and their client. This summary must help the agent identify key action items, property details, and next steps. 
                 Additionally, you must parse the given conversation transcript and convert the relevant information into a structured JSON format **exactly matching** the following Pydantic model:
@@ -110,7 +110,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                     tenant_property_memo: Optional[str] = Field(None, description="현재 매물에 대한 세입자 관련 메모")
                     owner_info: Optional[OwnerInfo] = Field(None, description="집주인 정보")
                     tenant_info: Optional[TenantInfo] = Field(None, description="세입자 정보")
-                    moving_memo: Optional[str] = Field(None, description="이사 관련 메모")
+                    memo: Optional[str] = Field(None, description="메모")
                     moving_date: Optional[str] = Field(None, description="입주가능일")
 
                 class PropertyExtraction(BaseModel):
@@ -158,7 +158,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                     "tenant_name": "세입자 이름",
                     "tenant_contact": "세입자 연락처",
                     }},
-                    "moving_memo": "이사 관련 메모",
+                    "memo": "메모",
                     "moving_date": "입주가능일"
                 }}
                 }}

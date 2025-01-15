@@ -1,17 +1,16 @@
 import React from 'react';
-import { Button } from 'react-bootstrap';
 import { FaArrowLeft } from 'react-icons/fa';
 
 const BackButton = ({ onClick }) => {
   return (
-    <Button 
-      variant="link" 
-      className="mb-4 p-0 text-dark" 
+    <span 
+      className="mb-4 p-0 text-primary"
       onClick={onClick}
+      style={{ cursor: 'pointer' }}
     >
       <FaArrowLeft className="me-2" />
-      뒤로가기
-    </Button>
+      목록으로 돌아가기
+    </span>
   );
 };
 
