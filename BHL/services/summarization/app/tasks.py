@@ -71,7 +71,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         
         # GPT를 사용한 텍스트 요약
         completion = openai_client.beta.chat.completions.parse(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": """You are an AI assistant specialized in real estate. Your goal is to provide quick yet comprehensive summaries of phone calls between a real estate agent and their client. This summary must help the agent identify key action items, property details, and next steps. 
                 Additionally, you must parse the given conversation transcript and convert the relevant information into a structured JSON format **exactly matching** the following Pydantic model:

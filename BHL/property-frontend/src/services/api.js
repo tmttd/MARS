@@ -66,7 +66,7 @@ export const propertyService = {
 };
 
 export const callService = {
-  getCalls: async (limit = 10, filters = {}) => {
+  getCalls: async (limit = 20, filters = {}) => {
     try {
       const params = {
         limit,

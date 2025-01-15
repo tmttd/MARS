@@ -324,7 +324,7 @@ const CallDetail = () => {
   const propertyReflectCancel = (field) => {
     setPropertyData(prevData => ({
       ...prevData,
-      [field]: propertyData[field],
+      [field]: '',
     }));
   };
 
