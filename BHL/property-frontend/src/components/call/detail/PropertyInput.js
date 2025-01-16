@@ -89,7 +89,7 @@ function PropertyInput({
         </Button>
         }
         title="매물 입력창"
-        propertyInfoKey="extracted_property_info"
+        propertyInfoKey=""
         bottomButton={
           <Button 
                 variant="primary" 

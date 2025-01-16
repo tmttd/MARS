@@ -30,11 +30,13 @@ class TenantInfo(BaseModel):
 class ExtractedPropertyInfo(BaseModel):
     property_name: Optional[str] = None
     price: Optional[int] = None
+    deposit: Optional[int] = None
     loan_available: Optional[bool] = None
     city: Optional[str] = None
     district: Optional[str] = None
     legal_dong: Optional[str] = None
     detail_address: Optional[str] = None
+    full_address: Optional[str] = None
     transaction_type: Optional[str] = None
     property_type: Optional[str] = None
     floor: Optional[int] = None
@@ -58,7 +60,7 @@ class Call(BaseModel):
     extracted_property_info: Optional[ExtractedPropertyInfo] = None
     summary_content: Optional[str] = None
     summary_title: Optional[str] = None
-    call_memo: Optional[str] = None
+    property_id: Optional[str] = None
 
     class Config:
         allow_population_by_reference = True
@@ -86,16 +88,18 @@ class CallUpdate(BaseModel):
     extracted_property_info: Optional[ExtractedPropertyInfo] = None
     summary_content: Optional[str] = None
     summary_title: Optional[str] = None
-    call_memo: Optional[str] = None
+    property_id: Optional[str] = None
 
 class PropertyInfo(BaseModel):
     property_name: Optional[str] = None
     price: Optional[str] = None
+    deposit: Optional[str] = None
     loan_available: Optional[bool] = None
     city: Optional[str] = None
     district: Optional[str] = None
     legal_dong: Optional[str] = None
     detail_address: Optional[str] = None
+    full_address: Optional[str] = None
     transaction_type: Optional[str] = None
     property_type: Optional[str] = None
     floor: Optional[int] = None

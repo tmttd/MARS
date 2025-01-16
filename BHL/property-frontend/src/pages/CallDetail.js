@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Row, Col } from 'react-bootstrap';
-import { callService, audioService, propertyService } from '../services/api';
+import { callService, propertyService } from '../services/api';
 
 // 컴포넌트 import
 import BackButton from '../components/common/BackButton';
@@ -12,56 +12,55 @@ import CallContentModal from '../components/call/detail/CallContentModal';
 
 const CallDetail = () => {
   const { id } = useParams();
-  const location = useLocation();
   const [call, setCall] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditingCall, setIsEditingCall] = useState(false);
   const [editData, setEditData] = useState(null);
   const [extractedPropertyData, setExtractedPropertyData] = useState({
-    property_type: '',
-    transaction_type: '',
+    property_name: '',
     price: '',
-    area: '',
     city: '',
     district: '',
     legal_dong: '',
-    property_name: '',
     detail_address: '',
-    floor: '',
-    moving_date: '',
     loan_available: '',
+    transaction_type: '',
+    property_type: '',
+    floor: '',
+    area: '',
     premium: '',
-    memo: '',
+    owner_property_memo: '',
     owner_name: '',
     owner_contact: '',
-    owner_property_memo: '',
+    tenant_property_memo: '',
     tenant_name: '',
     tenant_contact: '',
-    tenant_property_memo: '',
-    call_memo: ''
+    memo: '',
+    moving_date: ''
   });
   const [isEditingProperty, setIsEditingProperty] = useState(false);
   const [propertyData, setPropertyData] = useState({
-    property_type: '',
-    transaction_type: '',
+    property_name: '',
     price: '',
-    area: '',
     city: '',
     district: '',
     legal_dong: '',
-    floor: '',
-    property_name: '',
     detail_address: '',
-    moving_date: '',
     loan_available: '',
+    transaction_type: '',
+    property_type: '',
+    floor: '',
+    area: '',
     premium: '',
-    memo: '',
+    owner_property_memo: '',
     owner_name: '',
     owner_contact: '',
-    owner_property_memo: '',
+    tenant_property_memo: '',
     tenant_name: '',
     tenant_contact: '',
-    tenant_property_memo: ''
+    memo: '',
+    moving_date: '',
+    property_id: ''
   });
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState('');
@@ -70,119 +69,72 @@ const CallDetail = () => {
 
   useEffect(() => {
     const fetchCall = async () => {
+      setLoading(true);
       try {
-        if (location.state?.callData) {
-          const callData = location.state.callData;
-          setCall(callData);
-          setEditData(callData);
-          setExtractedPropertyData({
-            property_type: callData.extracted_property_info.property_type || '',
-            transaction_type: callData.extracted_property_info.transaction_type || '',
-            price: callData.extracted_property_info.price || '',
-            area: callData.extracted_property_info.area || '',
-            city: callData.extracted_property_info.city || '',
-            district: callData.extracted_property_info.district || '',
-            legal_dong: callData.extracted_property_info.legal_dong || '',
-            detail_address: callData.extracted_property_info.detail_address || '',
-            floor: callData.extracted_property_info.floor || '',
-            property_name: callData.extracted_property_info.property_name || '',
-            moving_date: callData.extracted_property_info.moving_date || '',
-            loan_available: callData.extracted_property_info.loan_available || '',
-            premium: callData.extracted_property_info.premium || '',
-            memo: callData.extracted_property_info.memo || '',
-            owner_name: callData.owner_info?.owner_name || '',
-            owner_contact: callData.owner_info?.owner_contact || '',
-            owner_property_memo: callData.owner_property_memo || '',
-            tenant_name: callData.tenant_info?.tenant_name || '',
-            tenant_contact: callData.tenant_info?.tenant_contact || '',
-            tenant_property_memo: callData.tenant_property_memo || '',
-            call_memo: callData.call_memo || ''
-          });
-
-          const propertyData = await propertyService.getProperty(callData.id);
-          setPropertyData({
-            property_type: propertyData.property_info.property_type || '',
-            transaction_type: propertyData.property_info.transaction_type || '',
-            price: propertyData.property_info.price || '',
-            area: propertyData.property_info.area || '',
-            city: propertyData.property_info.city || '',
-            district: propertyData.property_info.district || '',
-            legal_dong: propertyData.property_info.legal_dong || '',
-            detail_address: propertyData.property_info.detail_address || '',
-            floor: propertyData.property_info.floor || '',
-            property_name: propertyData.property_info.property_name || '',
-            moving_date: propertyData.property_info.moving_date || '',
-            loan_available: propertyData.property_info.loan_available || '',
-            premium: propertyData.property_info.premium || '',
-            memo: propertyData.property_info.memo || '',
-            owner_name: propertyData.owner_info?.owner_name || '',
-            owner_contact: propertyData.owner_info?.owner_contact || '',
-            owner_property_memo: propertyData.owner_property_memo || '',
-            tenant_name: propertyData.tenant_info?.tenant_name || '',
-            tenant_contact: propertyData.tenant_info?.tenant_contact || '',
-            tenant_property_memo: propertyData.tenant_property_memo || ''
-          });
-        } else {
           const data = await callService.getCall(id);
-          setCall(data);
-          setEditData(data);
-          setExtractedPropertyData({
-            property_type: data.extracted_property_info.property_type || '',
-            transaction_type: data.extracted_property_info.transaction_type || '',
-            price: data.extracted_property_info.price || '',
-            area: data.extracted_property_info.area || '',
-            city: data.extracted_property_info.city || '',
-            district: data.extracted_property_info.district || '',
-            legal_dong: data.extracted_property_info.legal_dong || '',
-            detail_address: data.extracted_property_info.detail_address || '',
-            floor: data.extracted_property_info.floor || '',
-            property_name: data.extracted_property_info.property_name || '',
-            moving_date: data.extracted_property_info.moving_date || '',
-            loan_available: data.extracted_property_info.loan_available || '',
-            premium: data.extracted_property_info.premium || '',
-            memo: data.extracted_property_info.memo || '',
-            owner_name: data.owner_info?.owner_name || '',
-            owner_contact: data.owner_info?.owner_contact || '',
-            owner_property_memo: data.owner_property_memo || '',
-            tenant_name: data.tenant_info?.tenant_name || '',
-            tenant_contact: data.tenant_info?.tenant_contact || '',
-            tenant_property_memo: data.tenant_property_memo || '',
-            call_memo: data.call_memo || ''
-          });
+          const flatData = {
+            ...data,
+            property_name: data.extracted_property_info?.property_name || '',
+            price: data.extracted_property_info?.price || '',
+            city: data.extracted_property_info?.city || '',
+            district: data.extracted_property_info?.district || '',
+            legal_dong: data.extracted_property_info?.legal_dong || '',
+            detail_address: data.extracted_property_info?.detail_address || '',
+            loan_available: data.extracted_property_info?.loan_available || '',
+            transaction_type: data.extracted_property_info?.transaction_type || '',
+            property_type: data.extracted_property_info?.property_type || '',
+            floor: data.extracted_property_info?.floor || '',
+            area: data.extracted_property_info?.area || '',
+            premium: data.extracted_property_info?.premium || '',
+            owner_property_memo: data.extracted_property_info?.owner_property_memo || '',
+            owner_name: data.extracted_property_info?.owner_info?.owner_name || '',
+            owner_contact: data.extracted_property_info?.owner_info?.owner_contact || '',
+            tenant_property_memo: data.extracted_property_info?.tenant_property_memo || '',
+            tenant_name: data.extracted_property_info?.tenant_info?.tenant_name || '',
+            tenant_contact: data.extracted_property_info?.tenant_info?.tenant_contact || '',
+            memo: data.extracted_property_info?.memo || '',
+            moving_date: data.extracted_property_info?.moving_date || '',
+            property_id: data.property_id || ''
+          };
 
-          const propertyInfo = await propertyService.getProperty(data.id);
+          setCall(flatData);
+          setEditData(flatData);
+          setExtractedPropertyData(flatData);
+          console.info("Data:", flatData);
+          
+          const propertyInfo = await propertyService.getProperty(flatData.property_id);
           setPropertyData({
-            property_type: propertyInfo.property_info.property_type || '',
-            transaction_type: propertyInfo.property_info.transaction_type || '',
+            property_name: propertyInfo.property_info.property_name || '',
             price: propertyInfo.property_info.price || '',
-            area: propertyInfo.property_info.area || '',
             city: propertyInfo.property_info.city || '',
             district: propertyInfo.property_info.district || '',
             legal_dong: propertyInfo.property_info.legal_dong || '',
             detail_address: propertyInfo.property_info.detail_address || '',
-            floor: propertyInfo.property_info.floor || '',
-            property_name: propertyInfo.property_info.property_name || '',
-            moving_date: propertyInfo.property_info.moving_date || '',
             loan_available: propertyInfo.property_info.loan_available || '',
+            transaction_type: propertyInfo.property_info.transaction_type || '',
+            property_type: propertyInfo.property_info.property_type || '',
+            floor: propertyInfo.property_info.floor || '',
+            area: propertyInfo.property_info.area || '',
             premium: propertyInfo.property_info.premium || '',
+            owner_property_memo: propertyInfo.property_info.owner_property_memo || '',
+            owner_name: propertyInfo.property_info.owner_info?.owner_name || '',
+            owner_contact: propertyInfo.property_info.owner_info?.owner_contact || '',
+            tenant_property_memo: propertyInfo.property_info.tenant_property_memo || '',
+            tenant_name: propertyInfo.property_info.tenant_info?.tenant_name || '',
+            tenant_contact: propertyInfo.property_info.tenant_info?.tenant_contact || '',
             memo: propertyInfo.property_info.memo || '',
-            owner_name: propertyInfo.owner_info?.owner_name || '',
-            owner_contact: propertyInfo.owner_info?.owner_contact || '',
-            owner_property_memo: propertyInfo.owner_property_memo || '',
-            tenant_name: propertyInfo.tenant_info?.tenant_name || '',
-            tenant_contact: propertyInfo.tenant_info?.tenant_contact || '',
-            tenant_property_memo: propertyInfo.tenant_property_memo || ''
+            moving_date: propertyInfo.property_info.moving_date || '',
+            status: propertyInfo.property_info.status || ''
           });
+        } catch (error) {
+          console.error('Error fetching call:', error);
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching call:', error);
-        setLoading(false);
-      }
-    };
-
-    fetchCall();
-  }, [id, location.state]);
+      };
+  
+      fetchCall();
+    }, [id]);
 
   const formatDateTime = (dateTimeStr) => {
     if (!dateTimeStr) return '-';
@@ -222,21 +174,62 @@ const CallDetail = () => {
 
   const handleSaveMemo = async () => {
     try {
-      if (editData.call_memo === call.call_memo) {
+      if (editData.memo === call.memo) {
         alert('수정 사항이 없습니다.');
         return;
       }
-
-      await callService.updateCall(call.job_id, { call_memo: editData.call_memo });
-      setCall(prev => ({ ...prev, call_memo: editData.call_memo }));
+  
+      const newMemo = editData.memo || '';
+  
+      // flat 구조의 데이터를 nested 구조로 변환
+      const updatedExtractedPropertyInfo = {
+        ...call.extracted_property_info,
+        memo: newMemo
+      };
+  
+      await callService.updateCall(call.job_id, { 
+        extracted_property_info: updatedExtractedPropertyInfo 
+      });
+  
+      // 로컬 call 객체를 업데이트
+      setCall(prev => ({
+        ...prev,
+        extracted_property_info: updatedExtractedPropertyInfo,
+        memo: newMemo  // flat 상태 유지용으로도 저장
+      }));
       alert('메모가 저장되었습니다.');
     } catch (error) {
       alert('메모 저장 중 오류가 발생했습니다.');
     }
   };
 
-  const handleCancelMemo = () => {
-    setEditData(prev => ({ ...prev, call_memo: call.call_memo }));
+  const handleDeleteMemo = async () => {
+    try {
+      const updatedExtractedPropertyInfo = {
+        ...call.extracted_property_info,
+        memo: null
+      };
+  
+      await callService.updateCall(call.job_id, { 
+        extracted_property_info: updatedExtractedPropertyInfo 
+      });
+  
+      setCall(prev => ({
+        ...prev,
+        extracted_property_info: updatedExtractedPropertyInfo,
+        memo: null
+      }));
+
+      setEditData(prev => ({
+        ...prev,
+        extracted_property_info: { ...prev.extracted_property_info, memo: null },
+        memo: null
+      }));
+  
+      alert('메모가 삭제되었습니다.');
+    } catch (error) {
+      alert('메모 삭제 중 오류가 발생했습니다.');
+    }
   };
 
   const handleCancelCall = () => {
@@ -245,11 +238,36 @@ const CallDetail = () => {
   };
 
 
-  const handleChange = (field, value) => {
-    setEditData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleChange = (fieldPath, value) => {
+    // fieldPath가 'extracted_property_info.memo'와 같이 점(.)으로 구분된다면,
+    // 이를 분석하여 중첩된 객체를 업데이트합니다.
+    const fields = fieldPath.split('.');
+    
+    // 만약 단일 필드라면, 간단히 처리
+    if (fields.length === 1) {
+      setEditData(prev => ({
+        ...prev,
+        [fieldPath]: value
+      }));
+    } else {
+      // 중첩 필드 처리
+      setEditData(prev => {
+        // 깊은 복사(deep copy)를 통해 원본 객체의 중첩 구조 보존
+        let updated = { ...prev };
+        let current = updated;
+        
+        // 마지막 키 이전까지 순회하면서 객체를 탐색
+        for (let i = 0; i < fields.length - 1; i++) {
+          const key = fields[i];
+          current[key] = { ...current[key] };  // 깊은 복사
+          current = current[key];
+        }
+        
+        // 마지막 키에 값 할당
+        current[fields[fields.length - 1]] = value;
+        return updated;
+      });
+    }
   };
 
   const handleEditProperty = () => {
@@ -306,6 +324,9 @@ const CallDetail = () => {
     setShowModal(false);
   };
 
+
+  // 반영 버튼 관련 메서드 //
+
   const handlePropertyReflect = (field) => {
     if (field === 'all') {
       // 모든 필드를 extractedPropertyData에서 propertyData로 덮어쓰기
@@ -328,8 +349,12 @@ const CallDetail = () => {
     }));
   };
 
+
+  // 로딩 중일 때 로딩 화면 표시 //
   if (loading) return <div>Loading...</div>;
 
+
+  // 페이지 렌더링 //
   return (
     <Container fluid className="py-4">
       <BackButton onClick={() => navigate(-1)} />
@@ -345,7 +370,7 @@ const CallDetail = () => {
             handleCancelCall={handleCancelCall}
             handleChange={handleChange}
             formatDateTime={formatDateTime}
-            handleDeleteMemo={handleCancelMemo}
+            handleDeleteMemo={handleDeleteMemo}
             handleSaveMemo={handleSaveMemo}
           />
         </Col>

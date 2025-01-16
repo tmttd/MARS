@@ -20,7 +20,7 @@ const CallList = () => {
       const sortedData = data.sort((a, b) => 
         new Date(b.recording_date) - new Date(a.recording_date)
       );
-      console.error("Sorted Data:", sortedData);
+      console.info("Sorted Data:", sortedData);
       // 번호 재할당
       const numberedData = sortedData.map((call, index) => ({
         ...call,

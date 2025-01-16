@@ -13,7 +13,7 @@ const CallInformation = ({
   handleSaveCall, 
   handleCancelCall, 
   handleChange,
-  handleCancelMemo,
+  handleDeleteMemo,
   handleSaveMemo,
   formatDateTime 
 }) => {
@@ -178,8 +178,8 @@ const CallInformation = ({
                 label="통화 관련 메모"
                 icon={<FaStickyNote />}
                 type="textarea"
-                value={editData?.call_memo}
-                onChange={(e) => handleChange('call_memo', e.target.value)}
+                value={editData?.memo}
+                onChange={(e) => handleChange('memo', e.target.value)}
                 minHeight="200px"
                 isScrollable={true}
                 placeholder="메모를 입력하세요."
@@ -188,7 +188,7 @@ const CallInformation = ({
                     <Button 
                       variant="danger" 
                       size="sm" 
-                      onClick={handleCancelMemo}
+                      onClick={handleDeleteMemo}
                       style={{ marginRight: '5px' }}
                     >
                       삭제

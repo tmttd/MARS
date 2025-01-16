@@ -76,9 +76,7 @@ const CallTable = ({ calls, onUpdate }) => {
 
   const handleDetail = (id) => {
     console.log("Selected Call ID:", id);
-    navigate(`/calls/${id}`, {
-      state: { callData: calls.find(c => c.job_id === id) }
-    });
+    navigate(`/calls/${id}`);
   };
 
   const renderCell = (call, field, id) => {

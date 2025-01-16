@@ -11,7 +11,7 @@ import LabeledFormGroup from '../common/FormControls/LabeledFormGroup';
  * @param {object} props.propertyData      - 폼에서 표시할 매물 데이터
  * @param {function} props.onChange        - 필드 값 변경 시 호출되는 콜백 (id, value) => void
  * @param {function} [props.onSubmit]      - '저장' 버튼 클릭 시 호출되는 콜백
- * @param {function} [props.onLoadProperty]- '기존 매물 불러오기' 버튼 클릭 시 호출되는 콜백
+ * @param {function} [props.onLoadProperty] - '기존 매물 불러오기' 버튼 클릭 시 호출되는 콜백
  * @param {string}   [props.submitLabel]   - 저장 버튼에 표시할 텍스트 (기본: "저장")
  * @param {array}    [props.formFields]    - 입력 필드 정의를 prop으로 받음
  * @param {boolean}  [props.isDisabled]    - 필드 비활성화 여부
@@ -65,8 +65,18 @@ function PropertyForm({
               <Col md={field.colSize} key={field.id}>
                 <LabeledFormGroup
                   label={field.label}
-                  value={propertyData?.[propertyInfoKey]?.[field.id] || ''}
-                  onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                  value={
+                    propertyInfoKey
+                      ? propertyData?.[propertyInfoKey]?.[field.id] || ''
+                      : propertyData?.[field.id] || ''
+                  }
+                  onChange={(e) => {
+                    if (propertyInfoKey) {
+                      handleFieldChange(`${propertyInfoKey}.${field.id}`, e.target.value);
+                    } else {
+                      handleFieldChange(field.id, e.target.value);
+                    }
+                  }}
                   placeholder={field.placeholder}
                   minHeight={field.minHeight}
                   isScrollable={field.isScrollable}
@@ -82,22 +92,55 @@ function PropertyForm({
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="성함"
-                      value={propertyData?.[propertyInfoKey]?.owner_info?.owner_name || ''}
-                      onChange={(e) => handleFieldChange('owner_info.owner_name', e.target.value)}
+                      value={
+                        propertyInfoKey
+                          ? propertyData?.[propertyInfoKey]?.owner_info?.owner_name || ''
+                          : propertyData?.owner_name || ''
+                      }
+                      onChange={(e) => {
+                        if (propertyInfoKey) {
+                          // propertyInfoKey가 있을 경우 nested 구조 업데이트
+                          // 예: handleFieldChange를 다르게 호출하거나, 별도의 업데이트 로직 구현
+                          handleFieldChange('owner_info.owner_name', e.target.value);
+                        } else {
+                          // flat 구조 업데이트
+                          handleFieldChange('owner_name', e.target.value);
+                        }
+                      }}
                     />
                   </Col>
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="연락처"
-                      value={propertyData?.[propertyInfoKey]?.owner_info?.owner_contact || ''}
-                      onChange={(e) => handleFieldChange('owner_info.owner_contact', e.target.value)}
+                      value={
+                        propertyInfoKey
+                          ? propertyData?.[propertyInfoKey]?.owner_info?.owner_contact || ''
+                          : propertyData?.owner_contact || ''
+                      }
+                      onChange={(e) => {
+                        if (propertyInfoKey) {
+                          handleFieldChange(`${propertyInfoKey}.owner_info.owner_contact`, e.target.value);
+                        } else {
+                          handleFieldChange('owner_contact', e.target.value);
+                        }
+                      }}
                     />
                   </Col>
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="소유주 메모"
-                      value={propertyData?.[propertyInfoKey]?.owner_property_memo || ''}
-                      onChange={(e) => handleFieldChange('owner_property_memo', e.target.value)}
+                      value={
+                        propertyInfoKey
+                          ? propertyData?.[propertyInfoKey]?.owner_property_memo || ''
+                          : propertyData?.owner_property_memo || ''
+                      }
+                      onChange={(e) => {
+                        if (propertyInfoKey) {
+                          handleFieldChange(`${propertyInfoKey}.owner_property_memo`, e.target.value);
+                        } else {
+                          handleFieldChange('owner_property_memo', e.target.value);
+                        }
+                      }}
                       minHeight="100px"
                       isScrollable
                     />
@@ -111,22 +154,52 @@ function PropertyForm({
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="성함"
-                      value={propertyData?.[propertyInfoKey]?.tenant_info?.tenant_name || ''}
-                      onChange={(e) => handleFieldChange('tenant_info.tenant_name', e.target.value)}
+                      value={
+                        propertyInfoKey
+                          ? propertyData?.[propertyInfoKey]?.tenant_info?.tenant_name || ''
+                          : propertyData?.tenant_name || ''
+                      }
+                      onChange={(e) => {
+                        if (propertyInfoKey) {
+                          handleFieldChange(`${propertyInfoKey}.tenant_info.tenant_name`, e.target.value);
+                        } else {
+                          handleFieldChange('tenant_name', e.target.value);
+                        }
+                      }}
                     />
                   </Col>
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="연락처"
-                      value={propertyData?.[propertyInfoKey]?.tenant_info?.tenant_contact || ''}
-                      onChange={(e) => handleFieldChange('tenant_info.tenant_contact', e.target.value)}
+                      value={
+                        propertyInfoKey
+                          ? propertyData?.[propertyInfoKey]?.tenant_info?.tenant_contact || ''
+                          : propertyData?.tenant_contact || ''
+                      }
+                      onChange={(e) => {
+                        if (propertyInfoKey) {
+                          handleFieldChange(`${propertyInfoKey}.tenant_info.tenant_contact`, e.target.value);
+                        } else {
+                          handleFieldChange('tenant_contact', e.target.value);
+                        }
+                      }}
                     />
                   </Col>
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="세입자 메모"
-                      value={propertyData?.[propertyInfoKey]?.tenant_property_memo || ''}
-                      onChange={(e) => handleFieldChange('tenant_property_memo', e.target.value)}
+                      value={
+                        propertyInfoKey
+                          ? propertyData?.[propertyInfoKey]?.tenant_property_memo || ''
+                          : propertyData?.tenant_property_memo || ''
+                      }
+                      onChange={(e) => {
+                        if (propertyInfoKey) {
+                          handleFieldChange(`${propertyInfoKey}.tenant_property_memo`, e.target.value);
+                        } else {
+                          handleFieldChange('tenant_property_memo', e.target.value);
+                        }
+                      }}
                       minHeight="100px"
                       isScrollable
                     />
