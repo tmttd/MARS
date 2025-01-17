@@ -180,7 +180,7 @@ async def read_property(property_id: str):
 async def update_property(property_id: str, property_update: PropertyUpdate):
     try:
         result = await db.properties.update_one(
-            {"_id": ObjectId(property_id)}, 
+            {"property_id": property_id}, 
             {"$set": property_update.model_dump(exclude_unset=True)}
         )
         if result.modified_count == 0:

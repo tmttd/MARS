@@ -1,88 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button } from 'react-bootstrap';
 import PropertyForm from '../PropertyForm';
-import { propertyService } from '../../../services/api';
 
 const PropertyInfoModal = ({ 
   show, 
   onHide, 
-  propertyData,
-  onUpdate
+  propertyData
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [isDisabled, setIsDisabled] = useState(true);
   const [editedData, setEditedData] = useState(propertyData);
 
   useEffect(() => {
     setEditedData(propertyData);
   }, [propertyData]);
-
-  const handleEdit = () => {
-    setIsEditing(true);
-    setIsDisabled(false);
-  };
-
-  const handleCancel = () => {
-    setEditedData(propertyData);
-    setIsEditing(false);
-    setIsDisabled(true);
-  };
-
-  const handleChange = (fieldId, value) => {
-    setEditedData(prev => ({
-      ...prev,
-      property_info: {
-        ...prev.property_info,
-        [fieldId]: value
-      }
-    }));
-  };
-
-  const handleSubmit = async () => {
-    try {
-      await propertyService.updateProperty(
-        editedData.property_id,
-        editedData
-      );
-      setIsEditing(false);
-      setIsDisabled(true);
-      onHide();
-      if (onUpdate) onUpdate();
-    } catch (error) {
-      alert('수정 중 오류가 발생했습니다.');
-    }
-  };
-
-  const rightButton = isEditing ? (
-    <div className="d-flex gap-2">
-      <Button 
-        variant="success" 
-        size="lg" 
-        onClick={handleSubmit} 
-        className="flex-grow-1"
-      >
-        완료
-      </Button>
-      <Button 
-        variant="secondary" 
-        size="lg" 
-        onClick={handleCancel}
-        className="flex-grow-1"
-      >
-        취소
-      </Button>
-    </div>
-  ) : (
-    <div className="d-flex justify-content-end">
-      <Button 
-        variant="primary" 
-        size="lg" 
-        onClick={handleEdit}
-    >
-        수정하기
-      </Button>
-    </div>
-  );
 
   const formFields = [
     { id: 'property_type', label: '매물 종류', placeholder: '예: 아파트', colSize: 3 },
@@ -116,14 +45,18 @@ const PropertyInfoModal = ({
       <Modal.Body>
         <PropertyForm
           propertyData={editedData}
-          onChange={handleChange}
-          onSubmit={handleSubmit}
           formFields={formFields}
-          isDisabled={isDisabled}
-          rightButton={rightButton}
           title="매물 상세 정보"
-          bottomButton={null}
-          propertyInfoKey="property_info"
+          rightButtonType="edit"
+          bottomButton={
+            <Button 
+              variant="primary" 
+              size="lg"
+              className="w-100"
+            >
+              저장하기
+            </Button>
+          }
         />
       </Modal.Body>
       <Modal.Footer>

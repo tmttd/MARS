@@ -1,24 +1,20 @@
 // PropertyForm.js
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, Form, Row, Col, Button } from 'react-bootstrap';
 import { FaBuilding } from 'react-icons/fa';
 import LabeledFormGroup from '../common/FormControls/LabeledFormGroup';
+import { propertyService } from '../../services/api';
 
 /**
  * PropertyForm
  * 
  * @param {object} props
  * @param {object} props.propertyData      - 폼에서 표시할 매물 데이터
- * @param {function} props.onChange        - 필드 값 변경 시 호출되는 콜백 (id, value) => void
- * @param {function} [props.onSubmit]      - '저장' 버튼 클릭 시 호출되는 콜백
- * @param {function} [props.onLoadProperty] - '기존 매물 불러오기' 버튼 클릭 시 호출되는 콜백
- * @param {string}   [props.submitLabel]   - 저장 버튼에 표시할 텍스트 (기본: "저장")
  * @param {array}    [props.formFields]    - 입력 필드 정의를 prop으로 받음
- * @param {boolean}  [props.isDisabled]    - 필드 비활성화 여부
- * @param {node}     [props.rightButton]   - 우측 상단 버튼 (기존 '기존 매물 불러오기' 대체)
+ * @param {node}     [props.rightButton]   - 우측 상단 버튼
  * @param {node}     [props.bottomButton]  - 하단 제출 버튼
  * @param {string}   [props.title]         - 폼 제목
- * @param {string}   [props.propertyInfoKey] - 매물 정보의 키
+ * @param {string}   [props.rightButtonType] - 우측 상단 버튼의 역할 ('edit' | 'load' | undefined)
  * 
  * @description
  * 재사용 가능한 매물 입력 Form 컴포넌트.
@@ -26,26 +22,101 @@ import LabeledFormGroup from '../common/FormControls/LabeledFormGroup';
  */
 function PropertyForm({
   propertyData,
-  onChange,
-  onSubmit,
-  formFields = [],
-  isDisabled = false,
-  rightButton = null,
-  bottomButton = null,
-  title = "매물 입력창",
-  propertyInfoKey = 'property_info'
+  formFields,
+  title,
+  rightButtonType,  // 'edit' | 'load' | undefined
+  rightButton,      // 커스텀 rightButton UI
+  bottomButton,    // 커스텀 bottomButton UI
+  isDisabled: initialDisabled = true
 }) {
+  const [formData, setFormData] = useState(propertyData);
+  const [isDisabled, setIsDisabled] = useState(initialDisabled);
+
   const handleFieldChange = (fieldId, value) => {
-    if (onChange) {
-      onChange(fieldId, value);
+    setFormData(prev => ({
+      ...prev,
+      [fieldId]: value
+    }));
+  };
+
+  // 완료 버튼용 새로운 핸들러
+  const handleComplete = () => {
+    setIsDisabled(true);  // 수정 모드 종료
+  };
+
+  const handleCancel = () => {
+    setFormData(propertyData);  // 원래 데이터로 롤백
+    setIsDisabled(true);   // 수정 모드 종료
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (formData.property_id) {
+        console.log('SubmitData', formData);
+        await propertyService.updateProperty(formData.property_id, formData);
+        alert('저장되었습니다.');
+      } else {
+        console.log('CreateData', formData);
+        await propertyService.createProperty(formData);
+        alert('저장되었습니다.');
+      }
+    } catch (error) {
+      console.error('Property save error:', error);
+      alert('저장 중 오류가 발생했습니다.');
     }
   };
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
-    if (onSubmit) {
-      onSubmit();
+  const handleLoad = async () => {
+    try {
+      const loadedProperty = await propertyService.getProperty(propertyData.property_id);
+      setFormData(loadedProperty);
+      alert('매물 불러오기 완료');
+    } catch (error) {
+      console.error('Property load error:', error);
+      alert('매물 불러오기 중 오류가 발생했습니다.');
     }
+  };
+
+  // 오른쪽 버튼 렌더링 로직
+  const renderRightButton = () => {
+    // 커스텀 rightButton이 있는 경우
+    if (rightButton) {
+      return React.cloneElement(rightButton, {
+        onClick: rightButtonType === 'load' ? handleLoad : undefined
+      });
+    }
+
+    // edit 타입일 경우 수정/완료/취소 버튼
+    if (rightButtonType === 'edit') {
+      if (isDisabled) {
+        return (
+          <Button variant="primary" size="md" onClick={() => setIsDisabled(false)}>
+            수정하기
+          </Button>
+        );
+      }
+      return (
+        <div className="d-flex gap-2">
+          <Button 
+            variant="success" 
+            size="md" 
+            onClick={handleComplete}
+          >
+            완료
+          </Button>
+          <Button 
+            variant="secondary" 
+            size="md" 
+            onClick={handleCancel}
+          >
+            취소
+          </Button>
+        </div>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -56,27 +127,17 @@ function PropertyForm({
             <FaBuilding className="me-2 text-primary" />
             {title}
           </h4>
-          {rightButton && rightButton}
+          {renderRightButton()}
         </div>
 
-        <Form onSubmit={handleSubmit}>
+        <Form>
           <Row className="g-3">
             {formFields.map((field) => (
               <Col md={field.colSize} key={field.id}>
                 <LabeledFormGroup
                   label={field.label}
-                  value={
-                    propertyInfoKey
-                      ? propertyData?.[propertyInfoKey]?.[field.id] || ''
-                      : propertyData?.[field.id] || ''
-                  }
-                  onChange={(e) => {
-                    if (propertyInfoKey) {
-                      handleFieldChange(`${propertyInfoKey}.${field.id}`, e.target.value);
-                    } else {
-                      handleFieldChange(field.id, e.target.value);
-                    }
-                  }}
+                  value={formData?.[field.id] || ''}
+                  onChange={(e) => handleFieldChange(field.id, e.target.value)}
                   placeholder={field.placeholder}
                   minHeight={field.minHeight}
                   isScrollable={field.isScrollable}
@@ -92,57 +153,27 @@ function PropertyForm({
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="성함"
-                      value={
-                        propertyInfoKey
-                          ? propertyData?.[propertyInfoKey]?.owner_info?.owner_name || ''
-                          : propertyData?.owner_name || ''
-                      }
-                      onChange={(e) => {
-                        if (propertyInfoKey) {
-                          // propertyInfoKey가 있을 경우 nested 구조 업데이트
-                          // 예: handleFieldChange를 다르게 호출하거나, 별도의 업데이트 로직 구현
-                          handleFieldChange('owner_info.owner_name', e.target.value);
-                        } else {
-                          // flat 구조 업데이트
-                          handleFieldChange('owner_name', e.target.value);
-                        }
-                      }}
+                      value={formData?.owner_name || ''}
+                      onChange={(e) => handleFieldChange('owner_name', e.target.value)}
+                      disabled={isDisabled}
                     />
                   </Col>
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="연락처"
-                      value={
-                        propertyInfoKey
-                          ? propertyData?.[propertyInfoKey]?.owner_info?.owner_contact || ''
-                          : propertyData?.owner_contact || ''
-                      }
-                      onChange={(e) => {
-                        if (propertyInfoKey) {
-                          handleFieldChange(`${propertyInfoKey}.owner_info.owner_contact`, e.target.value);
-                        } else {
-                          handleFieldChange('owner_contact', e.target.value);
-                        }
-                      }}
+                      value={formData?.owner_contact || ''}
+                      onChange={(e) => handleFieldChange('owner_contact', e.target.value)}
+                      disabled={isDisabled}
                     />
                   </Col>
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="소유주 메모"
-                      value={
-                        propertyInfoKey
-                          ? propertyData?.[propertyInfoKey]?.owner_property_memo || ''
-                          : propertyData?.owner_property_memo || ''
-                      }
-                      onChange={(e) => {
-                        if (propertyInfoKey) {
-                          handleFieldChange(`${propertyInfoKey}.owner_property_memo`, e.target.value);
-                        } else {
-                          handleFieldChange('owner_property_memo', e.target.value);
-                        }
-                      }}
+                      value={formData?.owner_property_memo || ''}
+                      onChange={(e) => handleFieldChange('owner_property_memo', e.target.value)}
                       minHeight="100px"
                       isScrollable
+                      disabled={isDisabled}
                     />
                   </Col>
                 </Row>
@@ -154,54 +185,27 @@ function PropertyForm({
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="성함"
-                      value={
-                        propertyInfoKey
-                          ? propertyData?.[propertyInfoKey]?.tenant_info?.tenant_name || ''
-                          : propertyData?.tenant_name || ''
-                      }
-                      onChange={(e) => {
-                        if (propertyInfoKey) {
-                          handleFieldChange(`${propertyInfoKey}.tenant_info.tenant_name`, e.target.value);
-                        } else {
-                          handleFieldChange('tenant_name', e.target.value);
-                        }
-                      }}
+                      value={formData?.tenant_name || ''}
+                      onChange={(e) => handleFieldChange('tenant_name', e.target.value)}
+                      disabled={isDisabled}
                     />
                   </Col>
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="연락처"
-                      value={
-                        propertyInfoKey
-                          ? propertyData?.[propertyInfoKey]?.tenant_info?.tenant_contact || ''
-                          : propertyData?.tenant_contact || ''
-                      }
-                      onChange={(e) => {
-                        if (propertyInfoKey) {
-                          handleFieldChange(`${propertyInfoKey}.tenant_info.tenant_contact`, e.target.value);
-                        } else {
-                          handleFieldChange('tenant_contact', e.target.value);
-                        }
-                      }}
+                      value={formData?.tenant_contact || ''}
+                      onChange={(e) => handleFieldChange('tenant_contact', e.target.value)}
+                      disabled={isDisabled}
                     />
                   </Col>
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="세입자 메모"
-                      value={
-                        propertyInfoKey
-                          ? propertyData?.[propertyInfoKey]?.tenant_property_memo || ''
-                          : propertyData?.tenant_property_memo || ''
-                      }
-                      onChange={(e) => {
-                        if (propertyInfoKey) {
-                          handleFieldChange(`${propertyInfoKey}.tenant_property_memo`, e.target.value);
-                        } else {
-                          handleFieldChange('tenant_property_memo', e.target.value);
-                        }
-                      }}
+                      value={formData?.tenant_property_memo || ''}
+                      onChange={(e) => handleFieldChange('tenant_property_memo', e.target.value)}
                       minHeight="100px"
                       isScrollable
+                      disabled={isDisabled}
                     />
                   </Col>
                 </Row>
@@ -209,9 +213,11 @@ function PropertyForm({
             </Row>
           </Row>
 
-          <div className="mt-4">
-            {bottomButton}
-          </div>
+          {/* bottmButton이 제공된 경우에만 렌더링 */}
+          {bottomButton && React.cloneElement(bottomButton, {
+            onClick: handleSubmit,
+            type: 'submit'
+          })}
         </Form>
       </Card.Body>
     </Card>

@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { Table, Button, Form, Badge } from 'react-bootstrap';
+import React, { useState, useEffect } from 'react';
+import { Table, Button, Badge } from 'react-bootstrap';
 import { propertyService } from '../../services/api';
 import PropertyInfoModal from './detail/PropertyInfoModal';
 
-const PropertyTable = ({ properties, onUpdate }) => {
+const PropertyTable = ({ properties }) => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
 
@@ -15,14 +15,25 @@ const PropertyTable = ({ properties, onUpdate }) => {
 
   const handleShowDetail = (property) => {
     setSelectedProperty(property);
-    setShowDetailModal(true);
+  };
+   
+  useEffect(() => {
+    if (selectedProperty) {
+      setShowDetailModal(true);
+    }
+  }, [selectedProperty]);
+
+  const handleCloseDetail = () => {
+    setShowDetailModal(false);
+    setSelectedProperty(null);
   };
 
   const handleDelete = async (propertyId) => {
     if (window.confirm('정말로 삭제하시겠습니까?')) {
       try {
         await propertyService.deleteProperty(propertyId);
-        if (onUpdate) onUpdate();
+        // 삭제 성공 후 페이지 새로고침
+        window.location.reload();  // 또는 navigate(0)
       } catch (error) {
         alert('삭제 중 오류가 발생했습니다.');
       }
@@ -30,28 +41,38 @@ const PropertyTable = ({ properties, onUpdate }) => {
   };
 
   const renderCell = (property, field) => {
-
+    // 가격 포맷팅 로직
     if (field === 'price') {
-      return property.property_info?.[field] ? `${property.property_info[field]}만원` : '-';
+      const priceValue = property[field];
+
+      if (priceValue) {
+        if (priceValue >= 10000) {
+          const uk = Math.floor(priceValue / 100000000); // 억 단위
+          const man = Math.floor((priceValue % 100000000) / 10000); // 만 단위
+          const formattedPrice = [];
+    
+          if (uk > 0) {
+            formattedPrice.push(`${uk}억`);
+          }
+          if (man > 0) {
+            formattedPrice.push(`${man}만원`);
+          }
+    
+          return formattedPrice.join(' ') || '-';
+        } else {
+          return `${priceValue}만원`;
+        }
+      }
+      return '-';
     }
 
+    // 나중에 full_address로 바뀜 //
     if (field === 'address') {
-      return `${property.property_info?.district || ''} ${property.property_info?.legal_dong || ''} ${property.property_info?.detail_address || ''}`;
+      return `${property.district || ''} ${property.legal_dong || ''} ${property.detail_address || ''}`;
     }
 
-    if (field in property) {
-      return property[field] || '-';
-    }
-
-    if (field in (property.property_info || {})) {
-      return property.property_info[field] || '-';
-    }
-
-    if (field in (property.property_info.owner_info || {})) {
-      return property.property_info.owner_info[field] || '-';
-    }
-
-    return '-';
+    // 일반 필드 처리
+    return property[field] || '-';
   };
 
   const propertyTypeColors = {
@@ -96,7 +117,7 @@ const PropertyTable = ({ properties, onUpdate }) => {
               <td>{index + 1}</td>
               <td>{formatDateTime(property.created_at)}</td>
               <td>
-                {renderPropertyTypeBadge(property.property_info.property_type)}
+                {renderPropertyTypeBadge(property.property_type)}
               </td>
               <td>{renderCell(property, 'transaction_type')}</td>
               <td>{renderCell(property, 'address')}</td>
@@ -138,11 +159,10 @@ const PropertyTable = ({ properties, onUpdate }) => {
 
       <PropertyInfoModal
         show={showDetailModal}
-        onHide={() => setShowDetailModal(false)}
+        onHide={handleCloseDetail}
         propertyData={selectedProperty}
-        onUpdate={onUpdate}
       />  
-      {console.log(selectedProperty)}
+      {showDetailModal && console.log("모달이 열릴 때의 selectedProperty:", selectedProperty)}
     </div>
   );
 };

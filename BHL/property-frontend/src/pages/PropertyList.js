@@ -6,6 +6,27 @@ import { propertyService } from '../services/api';
 import '../styles/PropertyList.css';
 import { useNavigate } from 'react-router-dom';
 
+const flattenPropertyData = (property) => {
+  if (!property) return {};
+
+  // property_info가 없으면 원본 객체 반환
+  if (!property.property_info) return property;
+
+  // property_info에서 필요한 데이터 추출
+  const { owner_info, tenant_info, ...restInfo } = property.property_info;
+  
+  // 기본 property 객체에서 property_info 제거하고 나머지 데이터만 유지
+  const { property_info, ...baseProperty } = property;
+
+  // 최종 객체 생성
+  return {
+    ...baseProperty,
+    ...restInfo,
+    ...(owner_info || {}),
+    ...(tenant_info || {})
+  };
+};
+
 const PropertyList = () => {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -17,7 +38,8 @@ const PropertyList = () => {
   const fetchProperties = async () => {
     try {
       const data = await propertyService.getProperties();
-      setProperties(data);
+      const flattenedData = data.map(property => flattenPropertyData(property));
+      setProperties(flattenedData);
       setLoading(false);
     } catch (err) {
       console.error(err);
@@ -37,7 +59,7 @@ const PropertyList = () => {
       case 'property_name':
         return property.property_name?.toLowerCase().includes(searchTerm.toLowerCase());
       case 'owner_contact':
-        return property.owner_info?.owner_contact?.toLowerCase().includes(searchTerm.toLowerCase());
+        return property.owner_contact?.toLowerCase().includes(searchTerm.toLowerCase());
       default:
         return true;
     }
@@ -126,8 +148,7 @@ const PropertyList = () => {
 
           <div className="table-container shadow-sm rounded">
             <PropertyTable 
-              properties={filteredProperties} 
-              onUpdate={fetchProperties}
+              properties={filteredProperties}
             />
           </div>
         </Card.Body>

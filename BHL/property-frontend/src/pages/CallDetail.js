@@ -38,7 +38,6 @@ const CallDetail = () => {
     memo: '',
     moving_date: ''
   });
-  const [isEditingProperty, setIsEditingProperty] = useState(false);
   const [propertyData, setPropertyData] = useState({
     property_name: '',
     price: '',
@@ -142,12 +141,6 @@ const CallDetail = () => {
     return date.toLocaleString('ko-KR');
   };
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const handleEditCall = () => {
     setIsEditingCall(true);
   };
@@ -237,7 +230,6 @@ const CallDetail = () => {
     setIsEditingCall(false);
   };
 
-
   const handleChange = (fieldPath, value) => {
     // fieldPath가 'extracted_property_info.memo'와 같이 점(.)으로 구분된다면,
     // 이를 분석하여 중첩된 객체를 업데이트합니다.
@@ -268,49 +260,6 @@ const CallDetail = () => {
         return updated;
       });
     }
-  };
-
-  const handleEditProperty = () => {
-    setIsEditingProperty(true);
-  };
-
-  const handleSaveProperty = async () => {
-    try {
-      const hasChanges = Object.keys(propertyData).some(key => 
-        propertyData[key] !== (call.property_info[key] || '')
-      );
-
-      if (!hasChanges) {
-        alert('변경된 값이 없습니다.');
-        return;
-      }
-
-      // 임시 알림
-      alert('구현중입니다.');
-      setIsEditingProperty(false);
-      
-      // TODO: 실제 API 구현 시 아래 코드 사용
-      // await propertyService.updateProperty(call.job_id, extractedPropertyData);
-      // setCall(prev => ({ ...prev, ...extractedPropertyData }));
-      // setIsEditingProperty(false);
-      // alert('매물 정보가 저장되었습니다.');
-      
-    } catch (error) {
-      alert('매물 정보 저장 중 오류가 발생했습니다.');
-    }
-  };
-
-  const handleCancelProperty = () => {
-    setPropertyData({
-      property_type: call.property_info.property_type || '',
-      transaction_type: call.property_info.transaction_type || '',
-      city: call.property_info.city || '',
-      district: call.property_info.district || '',
-      property_name: call.property_info.property_name || '',
-      detail_address: call.property_info.detail_address || '',
-      legal_dong: call.property_info.legal_dong || ''
-    });
-    setIsEditingProperty(false);
   };
 
   const handlePropertyChange = (field, value) => {

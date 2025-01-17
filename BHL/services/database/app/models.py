@@ -1,7 +1,8 @@
 from pydantic import BaseModel, Field, FieldValidationInfo
-from typing import Optional, List
+from typing import Optional
 from bson import ObjectId
-from datetime import datetime, date
+from datetime import datetime
+from typing import Union
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -47,7 +48,7 @@ class ExtractedPropertyInfo(BaseModel):
     owner_info: Optional[OwnerInfo] = None
     tenant_info: Optional[TenantInfo] = None
     memo: Optional[str] = None
-    moving_date: Optional[date] = None
+    moving_date: Optional[datetime] = None
 
 class Call(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
@@ -110,7 +111,7 @@ class PropertyInfo(BaseModel):
     owner_info: Optional[OwnerInfo] = None
     tenant_info: Optional[TenantInfo] = None
     memo: Optional[str] = None
-    moving_date: Optional[date] = None
+    moving_date: Optional[datetime] = None
 
 class Property(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")

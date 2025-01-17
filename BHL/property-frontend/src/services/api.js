@@ -2,6 +2,60 @@ import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8003';
 
+const unflattenPropertyData = (flatData) => {
+  if (!flatData) return {};
+
+  // 최상위 레벨 필드 분리
+  const {
+    // property_info로 들어갈 필드들
+    property_name, price, deposit, city, district, legal_dong, detail_address,
+    full_address, loan_available, transaction_type, property_type, floor, area,
+    premium, memo, moving_date, owner_property_memo, tenant_property_memo,
+    // owner_info로 들어갈 필드들
+    owner_name, owner_contact,
+    // tenant_info로 들어갈 필드들
+    tenant_name, tenant_contact,
+    // 최상위 유지할 필드들
+    property_id, created_at, status,
+    ...rest
+  } = flatData;
+
+  return {
+    property_id,
+    created_at,
+    status,
+    property_info: {
+      property_name,
+      price,
+      deposit,
+      city,
+      district,
+      legal_dong,
+      detail_address,
+      full_address,
+      loan_available,
+      transaction_type,
+      property_type,
+      floor,
+      area,
+      premium,
+      memo,
+      moving_date,
+      owner_property_memo,    
+      tenant_property_memo,   
+      owner_info: {
+        owner_name,
+        owner_contact
+      },
+      tenant_info: {
+        tenant_name,
+        tenant_contact
+      }
+    },
+    ...rest
+  };
+};
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -36,7 +90,9 @@ export const propertyService = {
 
   createProperty: async (data) => {
     try {
-      const response = await api.post('/properties/', data);
+      const structuredData = unflattenPropertyData(data);
+      console.log('structuredData', structuredData);
+      const response = await api.post('/properties/', structuredData);
       return response.data;
     } catch (error) {
       console.error('Create Property Error:', error);
@@ -46,7 +102,9 @@ export const propertyService = {
 
   updateProperty: async (propertyId, data) => {
     try {
-      const response = await api.put(`/properties/${propertyId}`, data);
+      const structuredData = unflattenPropertyData(data);
+      console.log('structuredData', structuredData);
+      const response = await api.put(`/properties/${propertyId}`, structuredData);
       return response.data;
     } catch (error) {
       console.error('Update Property Error:', error);
