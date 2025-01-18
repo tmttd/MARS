@@ -3,7 +3,8 @@ import PropertyForm from '../../property/PropertyForm';
 import { Button } from 'react-bootstrap';
 
 function PropertyInput({
-  propertyData         // 부모로부터 내려받은 매물 데이터
+  propertyData,
+  jobId
 }) {
 
   const formFields = [
@@ -54,6 +55,7 @@ function PropertyInput({
               </Button>
         }
         onSubmitSuccess={null}
+        jobId={jobId}
       />
     </div>
   );

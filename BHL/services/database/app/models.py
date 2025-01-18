@@ -119,6 +119,7 @@ class Property(BaseModel):
     created_at: datetime
     property_info: PropertyInfo
     status: Optional[str] = None
+    job_id: Optional[str] = None
 
     class Config:
         allow_population_by_reference = True
@@ -131,3 +132,4 @@ class PropertyUpdate(BaseModel):
     property_info: Optional[PropertyInfo] = None
     created_at: Optional[datetime] = None
     status: Optional[str] = None
+    job_id: Optional[str] = None

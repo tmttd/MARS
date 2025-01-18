@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Row, Col } from 'react-bootstrap';
 import { callService, propertyService } from '../services/api';
+import { flattenData } from '../components/common/FlattenData';
 
 // 컴포넌트 import
 import BackButton from '../components/common/BackButton';
@@ -23,29 +24,7 @@ const CallDetail = () => {
     district: '',
     legal_dong: '',
     detail_address: '',
-    loan_available: '',
-    transaction_type: '',
-    property_type: '',
-    floor: '',
-    area: '',
-    premium: '',
-    owner_property_memo: '',
-    owner_name: '',
-    owner_contact: '',
-    tenant_property_memo: '',
-    tenant_name: '',
-    tenant_contact: '',
-    memo: '',
-    moving_date: ''
-  });
-  const [propertyData, setPropertyData] = useState({
-    property_name: '',
-    price: '',
-    city: '',
-    district: '',
-    legal_dong: '',
-    detail_address: '',
-    loan_available: '',
+    loan_available: false,     // boolean 값 가정
     transaction_type: '',
     property_type: '',
     floor: '',
@@ -59,7 +38,36 @@ const CallDetail = () => {
     tenant_contact: '',
     memo: '',
     moving_date: '',
+    deposit: '',
+    full_address: '',
     property_id: ''
+  });
+  const [propertyData, setPropertyData] = useState({
+    property_id: '',
+    property_name: '',
+    price: '',
+    city: '',
+    district: '',
+    legal_dong: '',
+    detail_address: '',
+    loan_available: false,      // boolean 값 가정
+    transaction_type: '',
+    property_type: '',
+    floor: '',
+    area: '',
+    premium: '',
+    owner_property_memo: '',
+    owner_name: '',
+    owner_contact: '',
+    tenant_property_memo: '',
+    tenant_name: '',
+    tenant_contact: '',
+    memo: '',
+    moving_date: '',
+    deposit: '',
+    full_address: '',
+    status: '',
+    job_id: ''
   });
   const [showModal, setShowModal] = useState(false);
   const [modalContent, setModalContent] = useState('');
@@ -70,70 +78,35 @@ const CallDetail = () => {
     const fetchCall = async () => {
       setLoading(true);
       try {
-          const data = await callService.getCall(id);
-          const flatData = {
-            ...data,
-            property_name: data.extracted_property_info?.property_name || '',
-            price: data.extracted_property_info?.price || '',
-            city: data.extracted_property_info?.city || '',
-            district: data.extracted_property_info?.district || '',
-            legal_dong: data.extracted_property_info?.legal_dong || '',
-            detail_address: data.extracted_property_info?.detail_address || '',
-            loan_available: data.extracted_property_info?.loan_available || '',
-            transaction_type: data.extracted_property_info?.transaction_type || '',
-            property_type: data.extracted_property_info?.property_type || '',
-            floor: data.extracted_property_info?.floor || '',
-            area: data.extracted_property_info?.area || '',
-            premium: data.extracted_property_info?.premium || '',
-            owner_property_memo: data.extracted_property_info?.owner_property_memo || '',
-            owner_name: data.extracted_property_info?.owner_info?.owner_name || '',
-            owner_contact: data.extracted_property_info?.owner_info?.owner_contact || '',
-            tenant_property_memo: data.extracted_property_info?.tenant_property_memo || '',
-            tenant_name: data.extracted_property_info?.tenant_info?.tenant_name || '',
-            tenant_contact: data.extracted_property_info?.tenant_info?.tenant_contact || '',
-            memo: data.extracted_property_info?.memo || '',
-            moving_date: data.extracted_property_info?.moving_date || '',
-            property_id: data.property_id || ''
-          };
-
-          setCall(flatData);
-          setEditData(flatData);
-          setExtractedPropertyData(flatData);
-          console.info("Data:", flatData);
-          
-          const propertyInfo = await propertyService.getProperty(flatData.property_id);
-          setPropertyData({
-            property_name: propertyInfo.property_info.property_name || '',
-            price: propertyInfo.property_info.price || '',
-            city: propertyInfo.property_info.city || '',
-            district: propertyInfo.property_info.district || '',
-            legal_dong: propertyInfo.property_info.legal_dong || '',
-            detail_address: propertyInfo.property_info.detail_address || '',
-            loan_available: propertyInfo.property_info.loan_available || '',
-            transaction_type: propertyInfo.property_info.transaction_type || '',
-            property_type: propertyInfo.property_info.property_type || '',
-            floor: propertyInfo.property_info.floor || '',
-            area: propertyInfo.property_info.area || '',
-            premium: propertyInfo.property_info.premium || '',
-            owner_property_memo: propertyInfo.property_info.owner_property_memo || '',
-            owner_name: propertyInfo.property_info.owner_info?.owner_name || '',
-            owner_contact: propertyInfo.property_info.owner_info?.owner_contact || '',
-            tenant_property_memo: propertyInfo.property_info.tenant_property_memo || '',
-            tenant_name: propertyInfo.property_info.tenant_info?.tenant_name || '',
-            tenant_contact: propertyInfo.property_info.tenant_info?.tenant_contact || '',
-            memo: propertyInfo.property_info.memo || '',
-            moving_date: propertyInfo.property_info.moving_date || '',
-            status: propertyInfo.property_info.status || ''
-          });
-        } catch (error) {
-          console.error('Error fetching call:', error);
-        } finally {
-          setLoading(false);
-        }
-      };
+        const data = await callService.getCall(id);
+        console.info("first data:", data);
+        
+        // extracted_property_info를 평탄화하여 flatData 생성
+        const flattenedExtractedProperty = flattenData(data);
+        
+        // 최상위 필드(property_id 등)를 포함하여 flatData 완성
+        const flatData = {...flattenedExtractedProperty};
+        
+        console.info("flatData:", flatData);
   
-      fetchCall();
-    }, [id]);
+        setCall(flatData);
+        setEditData(flatData);
+        setExtractedPropertyData(flatData);
+        
+        const propertyInfo = await propertyService.getProperty(flatData.property_id);
+        // propertyInfo에도 flattenData를 적용할 수 있음 (필요하다면)
+        const flattenedPropertyInfo = flattenData(propertyInfo);
+        setPropertyData(flattenedPropertyInfo);
+        console.info("propertyData:", flattenedPropertyInfo);
+      } catch (error) {
+        console.error('Error fetching call:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    fetchCall();
+  }, [id]);
 
   const formatDateTime = (dateTimeStr) => {
     if (!dateTimeStr) return '-';
@@ -337,6 +310,7 @@ const CallDetail = () => {
             <Col md={6}>
               <PropertyInput 
                 propertyData={propertyData}
+                jobId={id}
               />
             </Col>
           </Row>

@@ -3,36 +3,28 @@ import React, { useState } from 'react';
 import { Card, Form, Row, Col, Button } from 'react-bootstrap';
 import { FaBuilding } from 'react-icons/fa';
 import LabeledFormGroup from '../common/FormControls/LabeledFormGroup';
-import { propertyService } from '../../services/api';
+import { propertyService, callService } from '../../services/api';
+import { flattenData } from '../common/FlattenData';
+import PropertyListModal from './PropertyListModal';
 
-/**
- * PropertyForm
- * 
- * @param {object} props
- * @param {object} props.propertyData      - 폼에서 표시할 매물 데이터
- * @param {array}    [props.formFields]    - 입력 필드 정의를 prop으로 받음
- * @param {node}     [props.rightButton]   - 우측 상단 버튼
- * @param {node}     [props.bottomButton]  - 하단 제출 버튼
- * @param {string}   [props.title]         - 폼 제목
- * @param {string}   [props.rightButtonType] - 우측 상단 버튼의 역할 ('edit' | 'load' | undefined)
- * @param {function} [props.onSubmitSuccess] - 저장 성공 후 호출할 콜백 함수
- * 
- * @description
- * 재사용 가능한 매물 입력 Form 컴포넌트.
- * 매물 기본 정보부터 소유주/세입자 정보까지 한눈에 입력할 수 있도록 구성.
- */
 function PropertyForm({
   propertyData,
   formFields,
   title,
   rightButtonType,  // 'edit' | 'load' | undefined
   rightButton,      // 커스텀 rightButton UI
-  bottomButton,    // 커스텀 bottomButton UI
+  bottomButton,     // 커스텀 bottomButton UI
   isDisabled: initialDisabled = true,
-  onSubmitSuccess
+  onSubmitSuccess,
+  jobId = null
 }) {
   const [formData, setFormData] = useState(propertyData);
   const [isDisabled, setIsDisabled] = useState(initialDisabled);
+  const [showModal, setShowModal] = useState(false);
+  
+  // 상태 분리: 매물 목록과 선택된 매물
+  const [propertyList, setPropertyList] = useState([]);
+  const [selectedProperty, setSelectedProperty] = useState(null);
 
   const handleFieldChange = (fieldId, value) => {
     setFormData(prev => ({
@@ -41,14 +33,13 @@ function PropertyForm({
     }));
   };
 
-  // 완료 버튼용 새로운 핸들러
   const handleComplete = () => {
-    setIsDisabled(true);  // 수정 모드 종료
+    setIsDisabled(true);
   };
 
   const handleCancel = () => {
-    setFormData(propertyData);  // 원래 데이터로 롤백
-    setIsDisabled(true);   // 수정 모드 종료
+    setFormData(propertyData);
+    setIsDisabled(true);
   };
 
   const handleSubmit = async (e) => {
@@ -63,7 +54,6 @@ function PropertyForm({
         await propertyService.createProperty(formData);
         alert('저장되었습니다.');
       }
-      // 저장 성공 후 콜백 함수 호출
       if (onSubmitSuccess) {
         onSubmitSuccess();
       }
@@ -75,25 +65,53 @@ function PropertyForm({
 
   const handleLoad = async () => {
     try {
-      const loadedProperty = await propertyService.getProperty(propertyData.property_id);
-      setFormData(loadedProperty);
-      alert('매물 불러오기 완료');
+      const response = await propertyService.getProperties();
+      setPropertyList(response);  // 매물 목록 상태 업데이트
+      setShowModal(true);
     } catch (error) {
-      console.error('Property load error:', error);
-      alert('매물 불러오기 중 오류가 발생했습니다.');
+      alert('매물 목록을 불러오는 중 오류가 발생했습니다.');
     }
   };
 
-  // 오른쪽 버튼 렌더링 로직
+  const handleSelectedProperty = async (property) => {
+    const flattenedProperty = flattenData(property);
+    setSelectedProperty(flattenedProperty);
+    setFormData(flattenedProperty);
+
+    try {
+      // Call 데이터 업데이트: property_id 설정
+      const updatedCall = await callService.updateCall(jobId, { 
+        property_id: flattenedProperty.property_id 
+      });
+      console.info("Call 데이터가 업데이트되었습니다.", updatedCall);
+  
+      // Property 데이터 업데이트: job_id 포함
+      const updatedProperty = await propertyService.updateProperty(
+        flattenedProperty.property_id,
+        {
+          ...flattenedProperty,
+          job_id: jobId
+        }
+      );
+      console.info("Property 데이터가 업데이트되었습니다.", updatedProperty);
+      // 업데이트된 property 데이터를 로컬 상태에 반영
+      setFormData(updatedProperty);
+    } catch (error) {
+      console.error("업데이트 중 오류 발생:", error);
+    }
+    setShowModal(false);
+  
+    setTimeout(() => {
+      alert("선택한 매물 정보가 반영되었습니다.");
+    }, 0);
+  };
+
   const renderRightButton = () => {
-    // 커스텀 rightButton이 있는 경우
     if (rightButton) {
       return React.cloneElement(rightButton, {
         onClick: rightButtonType === 'load' ? handleLoad : undefined
       });
     }
-
-    // edit 타입일 경우 수정/완료/취소 버튼
     if (rightButtonType === 'edit') {
       if (isDisabled) {
         return (
@@ -121,7 +139,6 @@ function PropertyForm({
         </div>
       );
     }
-
     return null;
   };
 
@@ -151,8 +168,8 @@ function PropertyForm({
                 />
               </Col>
             ))}
-
-            <Row className="mt-4">
+          
+          <Row className="mt-4">
               <Col md={6}>
                 <h5><strong>소유주 정보</strong></h5>
                 <Row>
@@ -219,11 +236,17 @@ function PropertyForm({
             </Row>
           </Row>
 
-          {/* bottmButton이 제공된 경우에만 렌더링 */}
           {bottomButton && React.cloneElement(bottomButton, {
             onClick: handleSubmit,
             type: 'submit'
           })}
+
+          <PropertyListModal
+            show={showModal}
+            onHide={() => setShowModal(false)}
+            properties={propertyList}
+            onSelect={handleSelectedProperty}
+          />
         </Form>
       </Card.Body>
     </Card>
