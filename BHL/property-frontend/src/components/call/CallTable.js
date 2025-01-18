@@ -74,11 +74,17 @@ const CallTable = ({ calls, onUpdate }) => {
   }
 };
 
+const handleDelete = async (id) => {
+  const isConfirmed = window.confirm('정말로 삭제하시겠습니까?'); // confirm 사용
+  if (isConfirmed) {
+    await callService.deleteCall(id);
+    if (onUpdate) onUpdate();
+  }
+};
+
   const handleDetail = (id) => {
     console.log("Selected Call ID:", id);
-    navigate(`/calls/${id}`, {
-      state: { callData: calls.find(c => c.job_id === id) }
-    });
+    navigate(`/calls/${id}`);
   };
 
   const renderCell = (call, field, id) => {
@@ -134,12 +140,12 @@ const CallTable = ({ calls, onUpdate }) => {
             <th style={{ minWidth: '80px' }}>성명</th>
             <th>연락처</th>
             <th style={{ minWidth: '50px' }}>종류</th>
-            <th>거래 종류</th>
+            <th style={{ minWidth: '40px' }}>거래 종류</th>
             <th style={{ minWidth: '80px' }}>단지명</th>
             <th style={{ minWidth: '50px' }}>위치</th>
             <th style={{ minWidth: '180px' }}>통화주제</th>
-            <th>통화요약</th>
-            <th style={{ minWidth: '130px' }}></th>
+            <th>통화요약</th> 
+            <th style={{ minWidth: '200px' }}></th>
           </tr>
         </thead>
         <tbody>
@@ -210,6 +216,21 @@ const CallTable = ({ calls, onUpdate }) => {
                       onClick={() => handleDetail(call.job_id)}
                     >
                       상세
+                    </Button>
+                    <div 
+                      className="vr mx-2" 
+                      style={{ 
+                        display: 'inline-block',
+                        height: '30px',
+                        margin: '0 4px'
+                      }} 
+                    />
+                    <Button 
+                      variant="danger" 
+                      size="sm" 
+                      onClick={() => handleDelete(call.job_id)}
+                    >
+                      삭제
                     </Button>
                   </>
                 )}

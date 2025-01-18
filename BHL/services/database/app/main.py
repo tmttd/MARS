@@ -1,11 +1,10 @@
 from fastapi import FastAPI, HTTPException, Query
 from motor.motor_asyncio import AsyncIOMotorClient
 from typing import List, Optional
-from .models import Call, CallUpdate, Property, PropertyInfo, PropertyUpdate
-from bson import ObjectId
+from .models import Call, CallUpdate, Property, PropertyUpdate
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import logging
 
 # 로깅 설정
@@ -151,11 +150,16 @@ async def list_properties(
         logger.error(f"List properties error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/properties/", response_model=Property)
+@app.post("/properties/", response_model=PropertyUpdate)
 async def create_property(property: PropertyUpdate):
     try:
         property_data = property.model_dump()
-        property_data["property_id"] = str(uuid.uuid4())[:16]  # uuid16 생성
+        property_data["property_id"] = str(uuid.uuid4())
+        # 한국 시간대 (UTC+9)
+        KST = timezone(timedelta(hours=9))
+
+        # 현재 한국 시간 가져오기
+        property_data["created_at"] = datetime.now(KST)
         result = await db.properties.insert_one(property_data)
         created_property = await db.properties.find_one({"property_id": property_data["property_id"]})
         logger.info(f"Created Property: {created_property}")
@@ -180,7 +184,7 @@ async def read_property(property_id: str):
 async def update_property(property_id: str, property_update: PropertyUpdate):
     try:
         result = await db.properties.update_one(
-            {"_id": ObjectId(property_id)}, 
+            {"property_id": property_id}, 
             {"$set": property_update.model_dump(exclude_unset=True)}
         )
         if result.modified_count == 0:

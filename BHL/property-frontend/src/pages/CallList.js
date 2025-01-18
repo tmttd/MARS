@@ -20,7 +20,7 @@ const CallList = () => {
       const sortedData = data.sort((a, b) => 
         new Date(b.recording_date) - new Date(a.recording_date)
       );
-      console.error("Sorted Data:", sortedData);
+      console.info("Sorted Data:", sortedData);
       // 번호 재할당
       const numberedData = sortedData.map((call, index) => ({
         ...call,
@@ -47,7 +47,7 @@ const CallList = () => {
       case 'customer_name':
         return call.customer_name?.toLowerCase().includes(searchTerm.toLowerCase());  
       case 'property_name':
-        return call.extracted_property_info.property_name?.toLowerCase().includes(searchTerm.toLowerCase());
+        return call.extracted_property_info?.property_name?.toLowerCase().includes(searchTerm.toLowerCase());
       default:
         return true;
     }
@@ -130,7 +130,7 @@ const CallList = () => {
                   <FaUser className="me-2" />성명
                 </option>
                 <option value="property_name">
-                  <FaBuilding className="me-2" />건물명
+                  <FaBuilding className="me-2" />단지명
                 </option>
               </Form.Select>
             </Col>
@@ -141,7 +141,7 @@ const CallList = () => {
                   type="text"
                   placeholder={`${
                     searchType === 'customer_contact' ? '연락처' : 
-                    searchType === 'customer_name' ? '성명' : '건물명'
+                    searchType === 'customer_name' ? '성명' : '단지명'
                   }(으)로 검색`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}

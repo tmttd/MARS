@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import PropertyList from './pages/PropertyList';
 import CallList from './pages/CallList';
 import CallDetail from './pages/CallDetail';
+import PropertyCreate from './pages/PropertyCreate';
 import { Navbar, Nav, Container } from 'react-bootstrap';
 import { FaHome } from 'react-icons/fa';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -26,6 +27,7 @@ function App() {
 
       <Routes>
         <Route path="/properties" element={<PropertyList />} />
+        <Route path="/properties/create" element={<PropertyCreate />} />
         <Route path="/calls" element={<CallList />} />
         <Route path="/calls/:id" element={<CallDetail />} />
         <Route path="/" element={<PropertyList />} />

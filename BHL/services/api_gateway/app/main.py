@@ -450,7 +450,8 @@ async def delete_property(property_id: str):
         logger.error(f"Delete Property error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
     
-            
+
+# 오디오 파일 관련 라우팅
 @app.get("/audio/files")
 async def get_audio_files():
     try:

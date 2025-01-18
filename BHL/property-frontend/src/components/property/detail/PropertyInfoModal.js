@@ -1,11 +1,18 @@
-import React from 'react';
-import PropertyForm from '../../property/PropertyForm';
-import { Button } from 'react-bootstrap';
+import React, { useState, useEffect } from 'react';
+import { Modal, Button } from 'react-bootstrap';
+import PropertyForm from '../PropertyForm';
 
-function PropertyInput({
+const PropertyInfoModal = ({ 
+  show, 
+  onHide, 
   propertyData,
-  jobId
-}) {
+  onUpdate
+}) => {
+  const [editedData, setEditedData] = useState(propertyData);
+
+  useEffect(() => {
+    setEditedData(propertyData);
+  }, [propertyData]);
 
   const formFields = [
     { id: 'property_type', label: '매물 종류', placeholder: '예: 아파트', colSize: 3 },
@@ -32,33 +39,37 @@ function PropertyInput({
   ];
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      <PropertyForm
-        propertyData={propertyData}
-        formFields={formFields}
-        isDisabled={false}
-        rightButton={
-          <Button variant="dark" size="md">
-            기존 매물 불러오기
-          </Button>
-        }
-        rightButtonType="load"
-        title="매물 입력창"
-        bottomButton={
-          <Button 
-                variant="primary" 
-                size="lg" 
-                type="submit" 
-                className="w-100"
-              >
-                저장하기
-              </Button>
-        }
-        onSubmitSuccess={null}
-        jobId={jobId}
-      />
-    </div>
+    <Modal show={show} onHide={onHide} size="xl" backdrop="static">
+      <Modal.Header closeButton>
+        <Modal.Title></Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <PropertyForm
+          propertyData={editedData}
+          formFields={formFields}
+          title="매물 상세 정보"
+          rightButtonType="edit"
+          bottomButton={
+            <Button 
+              variant="primary" 
+              size="lg"
+              className="w-100"
+            >
+              저장하기
+            </Button>
+          }
+          onSubmitSuccess={() => {
+            onUpdate();
+          }}
+        />
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onHide}>
+          닫기
+        </Button>
+      </Modal.Footer>
+    </Modal>
   );
-}
+};
 
-export default PropertyInput;
+export default PropertyInfoModal;

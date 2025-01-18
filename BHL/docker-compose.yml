@@ -225,9 +225,9 @@ services:
       - mars_network
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
+      interval: 2s
       timeout: 5s
-      retries: 5
+      retries: 50
       start_period: 5s
     logging:
       driver: "json-file"

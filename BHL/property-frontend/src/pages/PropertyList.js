@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Spinner, Alert, Form, Row, Col, Card } from 'react-bootstrap';
-import { FaSearch, FaBuilding, FaPhone } from 'react-icons/fa';
+import { Container, Spinner, Alert, Form, Row, Col, Card, Button } from 'react-bootstrap';
+import { FaSearch, FaBuilding, FaPhone, FaPlus } from 'react-icons/fa';
 import PropertyTable from '../components/property/PropertyTable';
 import { propertyService } from '../services/api';
 import '../styles/PropertyList.css';
+import { useNavigate } from 'react-router-dom';
+import { flattenData } from '../components/common/FlattenData';
 
 const PropertyList = () => {
   const [properties, setProperties] = useState([]);
@@ -11,11 +13,13 @@ const PropertyList = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState('property_name');
+  const navigate = useNavigate();
 
   const fetchProperties = async () => {
     try {
       const data = await propertyService.getProperties();
-      setProperties(data);
+      const flattenedData = data.map(property => flattenData(property));
+      setProperties(flattenedData);
       setLoading(false);
     } catch (err) {
       console.error(err);
@@ -41,6 +45,11 @@ const PropertyList = () => {
     }
   });
 
+  const handlePropertyCreate = () => {
+    console.log('신규 매물 추가');
+    navigate('/properties/create');
+  };
+
   if (loading) return (
     <Container className="d-flex justify-content-center align-items-center min-vh-100">
       <div className="text-center">
@@ -63,13 +72,25 @@ const PropertyList = () => {
     <Container fluid className="py-4 bg-light min-vh-100">
       <Card className="shadow-sm mb-4">
         <Card.Body>
-          <h1 className="text-primary mb-4" style={{ fontSize: '1.5rem' }}>
-            <FaBuilding className="me-2" />
-            부동산 매물 장부
-          </h1>
-          
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h1 className="text-primary mb-4" style={{ fontSize: '1.5rem' }}>
+              <FaBuilding className="me-2" />
+              부동산 매물 장부
+            </h1>
+            <div>
+              <Button
+                variant="primary"
+                as="span"
+                className="d-flex align-items-center"
+                onClick={handlePropertyCreate}
+              >
+                  <FaPlus className="me-2" />
+                  신규 매물 등록
+                </Button>
+            </div>
+          </div>
           <Row className="g-3 mb-4">
-            <Col md={3}>
+            <Col md={1}>
               <Form.Select 
                 value={searchType}
                 onChange={(e) => setSearchType(e.target.value)}
@@ -83,7 +104,7 @@ const PropertyList = () => {
                 </option>
               </Form.Select>
             </Col>
-            <Col md={9}>
+            <Col md={3}>
               <div className="search-container">
                 <FaSearch className="search-icon" />
                 <Form.Control
@@ -99,8 +120,8 @@ const PropertyList = () => {
 
           <div className="table-container shadow-sm rounded">
             <PropertyTable 
-              properties={filteredProperties} 
-              onUpdate={fetchProperties}
+              properties={filteredProperties}
+              onRefresh={fetchProperties}
             />
           </div>
         </Card.Body>

@@ -1,7 +1,8 @@
 from pydantic import BaseModel, Field, FieldValidationInfo
-from typing import Optional, List
+from typing import Optional
 from bson import ObjectId
-from datetime import datetime, date
+from datetime import datetime
+from typing import Union
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -30,11 +31,13 @@ class TenantInfo(BaseModel):
 class ExtractedPropertyInfo(BaseModel):
     property_name: Optional[str] = None
     price: Optional[int] = None
+    deposit: Optional[int] = None
     loan_available: Optional[bool] = None
     city: Optional[str] = None
     district: Optional[str] = None
     legal_dong: Optional[str] = None
     detail_address: Optional[str] = None
+    full_address: Optional[str] = None
     transaction_type: Optional[str] = None
     property_type: Optional[str] = None
     floor: Optional[int] = None
@@ -45,7 +48,7 @@ class ExtractedPropertyInfo(BaseModel):
     owner_info: Optional[OwnerInfo] = None
     tenant_info: Optional[TenantInfo] = None
     memo: Optional[str] = None
-    moving_date: Optional[date] = None
+    moving_date: Optional[datetime] = None
 
 class Call(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
@@ -58,7 +61,7 @@ class Call(BaseModel):
     extracted_property_info: Optional[ExtractedPropertyInfo] = None
     summary_content: Optional[str] = None
     summary_title: Optional[str] = None
-    call_memo: Optional[str] = None
+    property_id: Optional[str] = None
 
     class Config:
         allow_population_by_reference = True
@@ -86,16 +89,18 @@ class CallUpdate(BaseModel):
     extracted_property_info: Optional[ExtractedPropertyInfo] = None
     summary_content: Optional[str] = None
     summary_title: Optional[str] = None
-    call_memo: Optional[str] = None
+    property_id: Optional[str] = None
 
 class PropertyInfo(BaseModel):
     property_name: Optional[str] = None
     price: Optional[str] = None
+    deposit: Optional[str] = None
     loan_available: Optional[bool] = None
     city: Optional[str] = None
     district: Optional[str] = None
     legal_dong: Optional[str] = None
     detail_address: Optional[str] = None
+    full_address: Optional[str] = None
     transaction_type: Optional[str] = None
     property_type: Optional[str] = None
     floor: Optional[int] = None
@@ -106,7 +111,7 @@ class PropertyInfo(BaseModel):
     owner_info: Optional[OwnerInfo] = None
     tenant_info: Optional[TenantInfo] = None
     memo: Optional[str] = None
-    moving_date: Optional[date] = None
+    moving_date: Optional[datetime] = None
 
 class Property(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
@@ -114,6 +119,7 @@ class Property(BaseModel):
     created_at: datetime
     property_info: PropertyInfo
     status: Optional[str] = None
+    job_id: Optional[str] = None
 
     class Config:
         allow_population_by_reference = True
@@ -126,3 +132,4 @@ class PropertyUpdate(BaseModel):
     property_info: Optional[PropertyInfo] = None
     created_at: Optional[datetime] = None
     status: Optional[str] = None
+    job_id: Optional[str] = None
