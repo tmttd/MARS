@@ -9,7 +9,7 @@ const BackButton = ({ onClick }) => {
       style={{ cursor: 'pointer' }}
     >
       <FaArrowLeft className="me-2" />
-      목록으로 돌아가기
+      뒤로가기
     </span>
   );
 };
