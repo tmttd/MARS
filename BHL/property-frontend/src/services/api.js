@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8003';
@@ -91,7 +92,9 @@ export const propertyService = {
   createProperty: async (data) => {
     try {
       const structuredData = unflattenPropertyData(data);
+      
       console.log('structuredData', structuredData);
+
       const response = await api.post('/properties/', structuredData);
       return response.data;
     } catch (error) {

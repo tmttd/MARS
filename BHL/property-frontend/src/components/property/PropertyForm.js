@@ -15,6 +15,7 @@ import { propertyService } from '../../services/api';
  * @param {node}     [props.bottomButton]  - 하단 제출 버튼
  * @param {string}   [props.title]         - 폼 제목
  * @param {string}   [props.rightButtonType] - 우측 상단 버튼의 역할 ('edit' | 'load' | undefined)
+ * @param {function} [props.onSubmitSuccess] - 저장 성공 후 호출할 콜백 함수
  * 
  * @description
  * 재사용 가능한 매물 입력 Form 컴포넌트.
@@ -27,7 +28,8 @@ function PropertyForm({
   rightButtonType,  // 'edit' | 'load' | undefined
   rightButton,      // 커스텀 rightButton UI
   bottomButton,    // 커스텀 bottomButton UI
-  isDisabled: initialDisabled = true
+  isDisabled: initialDisabled = true,
+  onSubmitSuccess
 }) {
   const [formData, setFormData] = useState(propertyData);
   const [isDisabled, setIsDisabled] = useState(initialDisabled);
@@ -60,6 +62,10 @@ function PropertyForm({
         console.log('CreateData', formData);
         await propertyService.createProperty(formData);
         alert('저장되었습니다.');
+      }
+      // 저장 성공 후 콜백 함수 호출
+      if (onSubmitSuccess) {
+        onSubmitSuccess();
       }
     } catch (error) {
       console.error('Property save error:', error);

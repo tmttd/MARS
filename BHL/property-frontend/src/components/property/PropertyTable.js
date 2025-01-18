@@ -3,7 +3,7 @@ import { Table, Button, Badge } from 'react-bootstrap';
 import { propertyService } from '../../services/api';
 import PropertyInfoModal from './detail/PropertyInfoModal';
 
-const PropertyTable = ({ properties }) => {
+const PropertyTable = ({ properties, onRefresh }) => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
 
@@ -47,20 +47,20 @@ const PropertyTable = ({ properties }) => {
 
       if (priceValue) {
         if (priceValue >= 10000) {
-          const uk = Math.floor(priceValue / 100000000); // 억 단위
-          const man = Math.floor((priceValue % 100000000) / 10000); // 만 단위
+          const uk = Math.floor(priceValue / 10000); // 만 단위로 변환
+          const man = priceValue % 10000; // 나머지 만원 단위
+
           const formattedPrice = [];
-    
           if (uk > 0) {
             formattedPrice.push(`${uk}억`);
           }
           if (man > 0) {
             formattedPrice.push(`${man}만원`);
           }
-    
+
           return formattedPrice.join(' ') || '-';
         } else {
-          return `${priceValue}만원`;
+          return `${priceValue}만원`; // 만원 단위로 표시
         }
       }
       return '-';
@@ -129,7 +129,7 @@ const PropertyTable = ({ properties }) => {
               <td>{renderCell(property, 'memo')}</td>
               <td className="text-center">
                 <Button 
-                  variant="primary" 
+                  variant="info" 
                   size="sm" 
                   onClick={() => handleShowDetail(property)}
                 >
@@ -161,6 +161,7 @@ const PropertyTable = ({ properties }) => {
         show={showDetailModal}
         onHide={handleCloseDetail}
         propertyData={selectedProperty}
+        onUpdate={onRefresh}
       />  
       {showDetailModal && console.log("모달이 열릴 때의 selectedProperty:", selectedProperty)}
     </div>

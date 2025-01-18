@@ -5,7 +5,8 @@ import PropertyForm from '../PropertyForm';
 const PropertyInfoModal = ({ 
   show, 
   onHide, 
-  propertyData
+  propertyData,
+  onUpdate
 }) => {
   const [editedData, setEditedData] = useState(propertyData);
 
@@ -57,6 +58,9 @@ const PropertyInfoModal = ({
               저장하기
             </Button>
           }
+          onSubmitSuccess={() => {
+            onUpdate();
+          }}
         />
       </Modal.Body>
       <Modal.Footer>

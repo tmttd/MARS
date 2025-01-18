@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Row, Col } from 'react-bootstrap';
 import { callService, propertyService } from '../services/api';
@@ -337,7 +337,6 @@ const CallDetail = () => {
             <Col md={6}>
               <PropertyInput 
                 propertyData={propertyData}
-                handlePropertyChange={handlePropertyChange}
               />
             </Col>
           </Row>

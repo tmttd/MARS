@@ -50,9 +50,10 @@ function PropertyInput({
                 type="submit" 
                 className="w-100"
               >
-                저장
+                저장하기
               </Button>
         }
+        onSubmitSuccess={null}
       />
     </div>
   );

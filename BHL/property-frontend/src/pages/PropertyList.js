@@ -67,7 +67,7 @@ const PropertyList = () => {
 
   const handlePropertyCreate = () => {
     console.log('신규 매물 추가');
-    navigate('/property/create');
+    navigate('/properties/create');
   };
 
   if (loading) return (
@@ -98,23 +98,15 @@ const PropertyList = () => {
               부동산 매물 장부
             </h1>
             <div>
-              <input
-                type="file"
-                accept="audio/*"
-                style={{ display: 'none' }}
-                id="upload-audio-file"
-                onChange={handlePropertyCreate}
-              />
-              <label htmlFor="upload-audio-file">
-                <Button
-                  variant="primary"
-                  as="span"
-                  className="d-flex align-items-center"
-                >
+              <Button
+                variant="primary"
+                as="span"
+                className="d-flex align-items-center"
+                onClick={handlePropertyCreate}
+              >
                   <FaPlus className="me-2" />
-                  신규 매물 추가
+                  신규 매물 등록
                 </Button>
-              </label>
             </div>
           </div>
           <Row className="g-3 mb-4">
@@ -149,6 +141,7 @@ const PropertyList = () => {
           <div className="table-container shadow-sm rounded">
             <PropertyTable 
               properties={filteredProperties}
+              onRefresh={fetchProperties}
             />
           </div>
         </Card.Body>
