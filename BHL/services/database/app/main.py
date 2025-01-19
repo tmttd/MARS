@@ -22,9 +22,10 @@ db = client[WORK_MONGODB_DB]
 app = FastAPI(title="Database Service")
 
 # CRUD for calls
-@app.get("/calls/", response_model=List[Call])
+@app.get("/calls/", response_model=dict)
 async def list_calls(
     limit: Optional[int] = Query(10),
+    offset: Optional[int] = Query(0),
     customer_contact: Optional[str] = Query(None),
     customer_name: Optional[str] = Query(None),
     property_name: Optional[str] = Query(None),
@@ -47,15 +48,23 @@ async def list_calls(
         if after_date:
             query["recording_date"] = {"$gt": after_date}
 
+        total_count = await db.calls.count_documents(query)
+
         calls = []
-        cursor = db.calls.find(query).limit(limit)
+        # 여기서 정렬 조건을 추가 (예: recording_date 내림차순)
+        cursor = db.calls.find(query).sort("recording_date", -1).skip(offset).limit(limit)
         async for call in cursor:
-            calls.append(call)
-        logger.info(f"Calls: {calls}")
-        return calls
+            calls.append(Call(**call))
+
+        return {
+            "results": calls,
+            "totalCount": total_count
+        }
     except Exception as e:
         logger.error(f"List calls error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
 
 ## 쓸 일 없음.
 # @app.post("/calls/", response_model=Call)
@@ -110,42 +119,40 @@ async def delete_call(call_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 # CRUD for properties
-@app.get("/properties/", response_model=List[Property])
+@app.get("/properties/", response_model=dict)
 async def list_properties(
-    limit: Optional[int] = Query(10),
-    property_name: Optional[str] = Query(None),
-    city: Optional[str] = Query(None),
-    district: Optional[str] = Query(None),
-    transaction_type: Optional[str] = Query(None),
-    property_type: Optional[str] = Query(None),
-    owner_name: Optional[str] = Query(None),
-    tenant_name: Optional[str] = Query(None)
+    limit: int = Query(10),
+    offset: int = Query(0),
+    property_name: Optional[str] = None,
+    owner_contact: Optional[str] = None,
+    # 다른 필드 (city, district...) 필요한 경우 추가
 ):
     try:
         query = {}
         if property_name:
-            query["property_name"] = property_name
-        if city:
-            query["city"] = city
-        if district:
-            query["district"] = district
-        if transaction_type:
-            query["transaction_type"] = transaction_type
-        if property_type:
-            query["property_type"] = property_type
-        if owner_name:
-            query["owner_name"] = owner_name
-        if tenant_name:
-            query["tenant_name"] = tenant_name
+            # 부분 일치 검색을 위해서는 Regex 사용 가능: {'$regex': property_name, '$options': 'i'}
+            query["property_name"] = {"$regex": property_name, "$options": "i"}
 
-        properties = []
-        cursor = db.properties.find(query).limit(limit)
-        async for property in cursor:
-            property["id"] = str(property["_id"])
-            del property["_id"]
-            properties.append(property)
-        logger.info(f"Properties: {properties}")
-        return properties
+        if owner_contact:
+            query["owner_contact"] = {"$regex": owner_contact, "$options": "i"}
+
+        # total_count 계산
+        total_count = await db.properties.count_documents(query)
+
+        # 실제 데이터 조회 (정렬 필요하다면 .sort("created_at", -1) 등 추가)
+        docs = []
+        cursor = db.properties.find(query).skip(offset).limit(limit)
+        async for doc in cursor:
+            doc["property_id"] = str(doc["_id"])  # DB에서 _id → property_id
+            doc.pop("_id", None)
+            docs.append(doc)
+
+        # 최종 반환 (dict 형태)
+        return {
+            "results": docs,
+            "totalCount": total_count
+        }
+
     except Exception as e:
         logger.error(f"List properties error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

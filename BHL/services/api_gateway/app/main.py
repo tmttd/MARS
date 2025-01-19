@@ -313,9 +313,10 @@ async def proxy_request(method: str, url: str, **kwargs):
 
 # ### 통화 기록 조회(전체 조회, 필터링 조회 가능) 엔드포인트 ###
 
-@app.get("/calls/", response_model=List[dict])
+@app.get("/calls/", response_model=dict)
 async def list_calls(
     limit: Optional[int] = Query(10),
+    offset: Optional[int] = Query(0),
     customer_contact: Optional[str] = Query(None),
     customer_name: Optional[str] = Query(None),
     property_name: Optional[str] = Query(None),
@@ -335,7 +336,7 @@ async def list_calls(
         }
         # 필터링된 쿼리 파라미터 제거
         params = {k: v for k, v in params.items() if v is not None}
-        url = f"{DATABASE_SERVICE_URL}/calls/?limit={limit}"
+        url = f"{DATABASE_SERVICE_URL}/calls/?limit={limit}&offset={offset}"
         return await proxy_request("GET", url, params=params)
     except Exception as e:
         logger.error(f"List Calls error: {e}")
@@ -382,30 +383,25 @@ async def delete_call(call_id: str):
 # ### Properties 엔드포인트 ###
 
 # ### 부동산 정보 조회 엔드포인트(전체 조회, 필터링 조회 가능) ###
-@app.get("/properties/", response_model=List[dict])
+@app.get("/properties/", response_model=dict)
 async def list_properties(
     limit: Optional[int] = Query(10),
+    offset: Optional[int] = Query(0),
     property_name: Optional[str] = Query(None),
-    city: Optional[str] = Query(None),
-    district: Optional[str] = Query(None),
-    transaction_type: Optional[str] = Query(None),
-    property_type: Optional[str] = Query(None),
-    owner_name: Optional[str] = Query(None),
-    tenant_name: Optional[str] = Query(None)
+    owner_contact: Optional[str] = Query(None),
+    # 필요한 필터 필드들 추가...
 ):
     try:
         params = {
+            "limit": limit,
+            "offset": offset,
+            # 다른 필터가 존재하면 포함
             "property_name": property_name,
-            "city": city,
-            "district": district,
-            "transaction_type": transaction_type,
-            "property_type": property_type,
-            "owner_name": owner_name,
-            "tenant_name": tenant_name,
-            "limit": limit  # limit 파라미터 추가
+            "owner_contact": owner_contact
         }
-        # 필터링된 쿼리 파라미터 제거
+        # None인 항목 제거
         params = {k: v for k, v in params.items() if v is not None}
+
         url = f"{DATABASE_SERVICE_URL}/properties/"
         return await proxy_request("GET", url, params=params)
     except Exception as e:

@@ -65,14 +65,24 @@ const api = axios.create({
 });
 
 export const propertyService = {
-  getProperties: async (limit = 10, filters = {}) => {
+  getProperties: async (page = 1, limit = 10, filters = {}) => {
     try {
+      // offset 계산
+      const offset = (page - 1) * limit;
+
+      // 필터 중 key=value 형태로 서버에 전달
+      // 예: { property_name: 'foo' } → /properties/?property_name=foo
       const params = {
         limit,
-        ...filters
+        offset,
+        ...filters,
       };
+
       const response = await api.get('/properties/', { params });
-      return response.data;
+      // 서버가 { results, totalCount } 형태로 응답한다고 가정
+      const { results, totalCount } = response.data;
+
+      return { results, totalCount };
     } catch (error) {
       console.error('API Error details:', error.response || error);
       throw new Error(error.response?.data?.detail || '부동산 정보를 불러오는데 실패했습니다.');
@@ -127,14 +137,16 @@ export const propertyService = {
 };
 
 export const callService = {
-  getCalls: async (limit = 20, filters = {}) => {
+  getCalls: async (page = 1, limit = 10, filters = {}) => {
     try {
       const params = {
         limit,
-        ...filters
+        offset: (page - 1) * limit,
+        ...filters  // 필터 조건 추가
       };
       const response = await api.get('/calls/', { params });
-      const calls = response.data;
+      // 응답 형식이 { results, totalCount }라고 가정
+      const { results: calls, totalCount } = response.data; 
 
       // 연락처 포맷팅 함수
       const formatPhoneNumber = (phoneNumber) => {
@@ -155,12 +167,13 @@ export const callService = {
         }
       });
 
-      return calls;
+      return { calls, totalCount };
     } catch (error) {
       console.error('API Error details:', error.response || error);
       throw new Error(error.response?.data?.detail || '통화 기록을 불러오는데 실패했습니다.');
     }
   },
+
 
   getCall: async (callId) => {
     try {
