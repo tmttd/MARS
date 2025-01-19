@@ -1,7 +1,7 @@
 // src/pages/PropertyList.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Spinner, Alert, Form, Row, Col, Card, Button, Pagination } from 'react-bootstrap';
-import { FaSearch, FaBuilding, FaPhone, FaPlus } from 'react-icons/fa';
+import { FaSearch, FaBuilding, FaPhone, FaPlus, FaTimes } from 'react-icons/fa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PropertyTable from '../components/property/PropertyTable';
 import { propertyService } from '../services/api';
@@ -20,6 +20,7 @@ const PropertyList = () => {
   const [page, setPage] = useState(initialPage);
 
   // 검색 조건
+  const [tempSearchTerm, setTempSearchTerm] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState('property_name');
 
@@ -117,6 +118,11 @@ const PropertyList = () => {
     navigate('/properties/create');
   };
 
+  // 검색 버튼 클릭 시 동작하는 함수
+  const handleSearch = () => {
+    setSearchTerm(tempSearchTerm);
+  };
+
   // -----------------------
   // 7) 로딩/에러 처리
   // -----------------------
@@ -185,15 +191,49 @@ const PropertyList = () => {
               </Form.Select>
             </Col>
             <Col md={3}>
-              <div className="search-container">
+              <div className="search-container" style={{ position: 'relative' }}>
                 <FaSearch className="search-icon" />
                 <Form.Control
                   type="text"
                   placeholder={searchType === 'property_name' ? '단지명(으)로 검색' : '연락처(으)로 검색'}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={tempSearchTerm}
+                  onChange={(e) => setTempSearchTerm(e.target.value)}
+                  onKeyDown={(e) => { if(e.key === 'Enter') handleSearch(); }}
                   className="search-input shadow-sm border-0"
                 />
+                {tempSearchTerm && (
+                  <button 
+                    className="clear-button" 
+                    onClick={() => {
+                      setTempSearchTerm('')
+                      setSearchTerm('')
+                    }}
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      cursor: 'pointer', 
+                      position: 'absolute', 
+                      right: '40px',
+                      top: '50%', 
+                      transform: 'translateY(-50%)'
+                    }}
+                  >
+                    <FaTimes />
+                  </button>
+                )}
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  onClick={handleSearch}
+                  style={{
+                    position: 'absolute',
+                    right: '0',
+                    top: '50%',
+                    transform: 'translateY(-50%)'
+                  }}
+                >
+                  검색
+                </Button>
               </div>
             </Col>
           </Row>

@@ -14,6 +14,7 @@ const CallList = () => {
   const [calls, setCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [tempSearchTerm, setTempSearchTerm] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState('customer_contact');
   const prevSearchTerm = useRef(searchTerm);
@@ -82,6 +83,11 @@ const CallList = () => {
   const handlePageChange = (newPage) => {
     setPage(newPage);
     setSearchParams({ page: newPage.toString() }); // URL 쿼리 파라미터 업데이트
+  };
+
+  // 검색 버튼 클릭 시 동작하는 함수
+  const handleSearch = () => {
+    setSearchTerm(tempSearchTerm);
   };
 
   const handleFileUpload = async (event) => {
@@ -167,28 +173,30 @@ const CallList = () => {
               </Form.Select>
             </Col>
             <Col md={3}>
-              <div className="search-container">
+              <div className="search-container" style={{ position: 'relative' }}>
                 <FaSearch className="search-icon" />
                 <Form.Control
                   type="text"
-                  placeholder={`${
-                    searchType === 'customer_contact' ? '연락처' : 
-                    searchType === 'customer_name' ? '성명' : '단지명'
-                  }(으)로 검색`}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={`${searchType === 'customer_contact' ? '연락처' : 
+                                searchType === 'customer_name' ? '성명' : '단지명'}(으)로 검색`}
+                  value={tempSearchTerm}
+                  onChange={(e) => setTempSearchTerm(e.target.value)}
+                  onKeyDown={(e) => { if(e.key === 'Enter') handleSearch(); }}
                   className="search-input shadow-sm border-0"
                 />
-                {searchTerm && (
+                {tempSearchTerm && (
                   <button 
                     className="clear-button" 
-                    onClick={() => setSearchTerm('')}
+                    onClick={() => {
+                      setTempSearchTerm('')
+                      setSearchTerm('')
+                    }}
                     style={{ 
                       background: 'none', 
                       border: 'none', 
                       cursor: 'pointer', 
                       position: 'absolute', 
-                      right: '10px', 
+                      right: '40px',  // 버튼 옆 여유 공간 확보
                       top: '50%', 
                       transform: 'translateY(-50%)' 
                     }}
@@ -196,6 +204,19 @@ const CallList = () => {
                     <FaTimes />
                   </button>
                 )}
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  onClick={handleSearch}
+                  style={{
+                    position: 'absolute',
+                    right: '0',
+                    top: '50%',
+                    transform: 'translateY(-50%)'
+                  }}
+                >
+                  검색
+                </Button>
               </div>
             </Col>
           </Row>
