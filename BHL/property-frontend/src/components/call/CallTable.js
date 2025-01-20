@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Table, Button, Form, Badge } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { callService } from '../../services/api';
 
-const CallTable = ({ calls, onUpdate }) => {
+const CallTable = ({ calls, onUpdate, currentPage }) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [editMode, setEditMode] = useState({});
   const [editData, setEditData] = useState({});
 
@@ -82,10 +83,9 @@ const handleDelete = async (id) => {
   }
 };
 
-  const handleDetail = (id) => {
-    console.log("Selected Call ID:", id);
-    navigate(`/calls/${id}`);
-  };
+const handleDetail = (id) => {
+  navigate(`/calls/${id}?page=${currentPage}`); // 현재 페이지를 쿼리 파라미터에 포함
+};
 
   const renderCell = (call, field, id) => {
     if (editMode[id]) {
@@ -151,7 +151,7 @@ const handleDelete = async (id) => {
         <tbody>
           {calls.map((call, index) => (
             <tr key={call.job_id}>
-              <td>{index + 1}</td>
+              <td>{call.call_number}</td>
               <td>{formatDateTime(call.recording_date)}</td>
               <td>{renderCell(call, 'customer_name', call.job_id)}</td>
               <td>{renderCell(call, 'customer_contact', call.job_id)}</td>

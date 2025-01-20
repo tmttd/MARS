@@ -1,32 +1,48 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Spinner, Alert, Form, Row, Col, Card, Button } from 'react-bootstrap';
+import React, { useState, useEffect, useRef } from 'react';
+import { Container, Spinner, Alert, Form, Row, Col, Card, Button, Pagination } from 'react-bootstrap';
 import { FaSearch, FaPhone, FaBuilding, FaTimes, FaUser, FaCloudUploadAlt } from 'react-icons/fa';
+import { useSearchParams } from 'react-router-dom'; // useSearchParams 추가
 import CallTable from '../components/call/CallTable';
 import { callService } from '../services/api';
 import { uploadService } from '../services/api';
 import '../styles/PropertyList.css';
 
 const CallList = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialPage = Number(searchParams.get('page')) || 1;
+  const initialMount = useRef(true);
   const [calls, setCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [tempSearchTerm, setTempSearchTerm] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchType, setSearchType] = useState('customer_contact');
+  const prevSearchTerm = useRef(searchTerm);
+  const prevSearchType = useRef(searchType);
+  const [page, setPage] = useState(initialPage);
+  const [totalPages, setTotalPages] = useState(1);
+  const ITEMS_PER_PAGE = 10; // 한 페이지에 보여줄 데이터 수
 
-  const fetchCalls = async () => {
+  const fetchCalls = async (page = 1) => {
+    setLoading(true);
+    setError(null);
     try {
-      const data = await callService.getCalls();
-      // 통화일시 기준으로 내림차순 정렬
-      const sortedData = data.sort((a, b) => 
-        new Date(b.recording_date) - new Date(a.recording_date)
-      );
-      console.info("Sorted Data:", sortedData);
-      // 번호 재할당
-      const numberedData = sortedData.map((call, index) => ({
+      // 필터 조건을 filters 객체로 구성
+      const filters = {};
+      if (searchTerm) {
+        filters[searchType] = searchTerm;
+      }
+      
+      const { calls: fetchedCalls, totalCount } = await callService.getCalls(page, ITEMS_PER_PAGE, filters);
+      
+      // call_number를 페이지 번호와 ITEMS_PER_PAGE 기반으로 계산
+      const offset = (page - 1) * ITEMS_PER_PAGE;
+      const numberedData = fetchedCalls.map((call, index) => ({
         ...call,
-        call_number: sortedData.length - index // 역순으로 번호 부여
+        call_number: offset + index + 1,
       }));
       setCalls(numberedData);
+      setTotalPages(Math.ceil(totalCount / ITEMS_PER_PAGE));
       setLoading(false);
     } catch (err) {
       setError('데이터를 불러오는 중 오류가 발생했습니다.');
@@ -34,24 +50,45 @@ const CallList = () => {
     }
   };
 
+  // 페이지 번호가 변경될 때마다 데이터 로드
   useEffect(() => {
-    fetchCalls(); // 컴포넌트가 마운트될 때마다 데이터를 가져옴
-  }, []); // 빈 배열을 사용하여 컴포넌트가 처음 마운트될 때만 호출
+    fetchCalls(page);
+  }, [page]);
 
-  const filteredCalls = calls.filter(call => {
-    if (!searchTerm) return true;
-    
-    switch (searchType) {
-      case 'customer_contact':
-        return call.customer_contact?.toLowerCase().includes(searchTerm.toLowerCase());
-      case 'customer_name':
-        return call.customer_name?.toLowerCase().includes(searchTerm.toLowerCase());  
-      case 'property_name':
-        return call.extracted_property_info?.property_name?.toLowerCase().includes(searchTerm.toLowerCase());
-      default:
-        return true;
+  // URL 쿼리 파라미터 변경 감지: 브라우저 뒤로가기 등으로 인한 page 값 변경 처리
+  useEffect(() => {
+    const newPage = Number(searchParams.get('page')) || 1;
+    if (newPage !== page) {
+      setPage(newPage);
     }
-  });
+  }, [searchParams, page]);
+
+  // 검색 조건 변경 시 페이지 리셋
+  useEffect(() => {
+    const termChanged = prevSearchTerm.current !== searchTerm;
+    const typeChanged = prevSearchType.current !== searchType;
+
+    // 레퍼런스 업데이트
+    prevSearchTerm.current = searchTerm;
+    prevSearchType.current = searchType;
+
+    // 실제 변경이 있었을 때만 페이지 리셋
+    if (termChanged || typeChanged) {
+      setPage(1);
+      setSearchParams({ page: '1' });
+      fetchCalls(1);
+    }
+  }, [searchTerm, searchType, setSearchParams]);
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    setSearchParams({ page: newPage.toString() }); // URL 쿼리 파라미터 업데이트
+  };
+
+  // 검색 버튼 클릭 시 동작하는 함수
+  const handleSearch = () => {
+    setSearchTerm(tempSearchTerm);
+  };
 
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -60,7 +97,7 @@ const CallList = () => {
     try {
       const response = await uploadService.uploadFile(file);
       console.log('Upload response:', response);
-      await fetchCalls();
+      await fetchCalls(page); // 현재 페이지 기준으로 데이터 갱신
     } catch (error) {
       console.error('Upload failed:', error);
       setError('파일 업로드에 실패했습니다.');
@@ -89,12 +126,12 @@ const CallList = () => {
     <Container fluid className="py-4 bg-light min-vh-100">
       <Card className="shadow-sm mb-4">
         <Card.Body>
+          {/* 상단의 타이틀 및 파일 업로드 버튼 */}
           <div className="d-flex justify-content-between align-items-center mb-4">
             <h1 className="text-primary mb-0" style={{ fontSize: '1.5rem' }}>
               <FaPhone className="me-2" />
               통화 기록 목록
             </h1>
-            
             <div>
               <input
                 type="file"
@@ -115,7 +152,8 @@ const CallList = () => {
               </label>
             </div>
           </div>
-          
+
+          {/* 검색 필터 UI */}
           <Row className="g-3 mb-4">
             <Col md={1}>
               <Form.Select 
@@ -135,28 +173,30 @@ const CallList = () => {
               </Form.Select>
             </Col>
             <Col md={3}>
-              <div className="search-container">
+              <div className="search-container" style={{ position: 'relative' }}>
                 <FaSearch className="search-icon" />
                 <Form.Control
                   type="text"
-                  placeholder={`${
-                    searchType === 'customer_contact' ? '연락처' : 
-                    searchType === 'customer_name' ? '성명' : '단지명'
-                  }(으)로 검색`}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={`${searchType === 'customer_contact' ? '연락처' : 
+                                searchType === 'customer_name' ? '성명' : '단지명'}(으)로 검색`}
+                  value={tempSearchTerm}
+                  onChange={(e) => setTempSearchTerm(e.target.value)}
+                  onKeyDown={(e) => { if(e.key === 'Enter') handleSearch(); }}
                   className="search-input shadow-sm border-0"
                 />
-                {searchTerm && (
+                {tempSearchTerm && (
                   <button 
                     className="clear-button" 
-                    onClick={() => setSearchTerm('')}
+                    onClick={() => {
+                      setTempSearchTerm('')
+                      setSearchTerm('')
+                    }}
                     style={{ 
                       background: 'none', 
                       border: 'none', 
                       cursor: 'pointer', 
                       position: 'absolute', 
-                      right: '10px', 
+                      right: '40px',  // 버튼 옆 여유 공간 확보
                       top: '50%', 
                       transform: 'translateY(-50%)' 
                     }}
@@ -164,15 +204,55 @@ const CallList = () => {
                     <FaTimes />
                   </button>
                 )}
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  onClick={handleSearch}
+                  style={{
+                    position: 'absolute',
+                    right: '0',
+                    top: '50%',
+                    transform: 'translateY(-50%)'
+                  }}
+                >
+                  검색
+                </Button>
               </div>
             </Col>
           </Row>
 
+          {/* CallTable 및 Pagination */}
           <div className="table-container shadow-sm rounded">
             <CallTable 
-              calls={filteredCalls}
-              onUpdate={fetchCalls}
+              calls={calls}
+              onUpdate={() => fetchCalls(page)}
+              currentPage={page}
             />
+          </div>
+
+          <div className="d-flex justify-content-center mt-4">
+            <Pagination>
+              <Pagination.Prev 
+                disabled={page === 1} 
+                onClick={() => handlePageChange(page - 1)} 
+              />
+              {[...Array(totalPages)].map((_, idx) => {
+                const pageNum = idx + 1;
+                return (
+                  <Pagination.Item 
+                    key={pageNum} 
+                    active={pageNum === page}
+                    onClick={() => handlePageChange(pageNum)}
+                  >
+                    {pageNum}
+                  </Pagination.Item>
+                );
+              })}
+              <Pagination.Next 
+                disabled={page === totalPages} 
+                onClick={() => handlePageChange(page + 1)} 
+              />
+            </Pagination>
           </div>
         </Card.Body>
       </Card>
