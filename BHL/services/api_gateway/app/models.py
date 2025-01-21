@@ -17,3 +17,13 @@ class ProcessingJob(BaseModel):
 class UploadRequest(BaseModel):
     filename: str
     content_type: str
+
+class RegisterRequest(BaseModel):
+    username: str
+    email: str
+    password: str
+    confirm_password: str
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str

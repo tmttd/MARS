@@ -31,7 +31,8 @@ async def list_calls(
     property_name: Optional[str] = Query(None),
     recording_date: Optional[datetime] = Query(None),
     before_date: Optional[datetime] = Query(None),
-    after_date: Optional[datetime] = Query(None)
+    after_date: Optional[datetime] = Query(None),
+    created_by: Optional[str] = Query(None)
 ):
     try:
         query = {}
@@ -47,6 +48,8 @@ async def list_calls(
             query["recording_date"] = {"$lt": before_date}
         if after_date:
             query["recording_date"] = {"$gt": after_date}
+        if created_by:
+            query["created_by"] = created_by
 
         total_count = await db.calls.count_documents(query)
 
@@ -167,6 +170,11 @@ async def create_property(property: PropertyUpdate):
 
         # 현재 한국 시간 가져오기
         property_data["created_at"] = datetime.now(KST)
+        
+        # created_by 필드가 없는 경우 기본값 설정
+        if "created_by" not in property_data or not property_data["created_by"]:
+            property_data["created_by"] = "system"  # 기본값으로 "system" 설정
+            
         result = await db.properties.insert_one(property_data)
         created_property = await db.properties.find_one({"property_id": property_data["property_id"]})
         logger.info(f"Created Property: {created_property}")

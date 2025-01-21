@@ -62,6 +62,7 @@ class Call(BaseModel):
     summary_content: Optional[str] = None
     summary_title: Optional[str] = None
     property_id: Optional[str] = None
+    created_by: str
 
     class Config:
         allow_population_by_reference = True
@@ -90,6 +91,7 @@ class CallUpdate(BaseModel):
     summary_content: Optional[str] = None
     summary_title: Optional[str] = None
     property_id: Optional[str] = None
+    created_by: Optional[str] = None
 
 class PropertyInfo(BaseModel):
     property_name: Optional[str] = None
@@ -120,6 +122,7 @@ class Property(BaseModel):
     property_info: PropertyInfo
     status: Optional[str] = None
     job_id: Optional[str] = None
+    created_by: str
 
     class Config:
         allow_population_by_reference = True
@@ -133,3 +136,4 @@ class PropertyUpdate(BaseModel):
     created_at: Optional[datetime] = None
     status: Optional[str] = None
     job_id: Optional[str] = None
+    created_by: Optional[str] = None

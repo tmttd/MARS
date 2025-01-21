@@ -95,12 +95,17 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
         
         logger.info(f"파일 저장됨: {input_path}")
 
+        # 파일 경로에서 user_name 추출
+        file_path_parts = file.filename.split('/')
+        user_name = file_path_parts[0] if len(file_path_parts) > 1 else None
+        actual_filename = file_path_parts[-1]
+
         try:
-            # 파일명에서 확장자를 제거하고 분리
-            filename_without_ext = file.filename[:-4]
+            # 파일명에서 확장자를 제거하고 분리 (.m4a 확장자 처리)
+            filename_without_ext = actual_filename[:-4] if actual_filename.endswith('.m4a') else actual_filename
             parts = filename_without_ext.split("_")
             
-            logger.info(f"파일명: {file.filename}")
+            logger.info(f"파일명: {actual_filename}")
             
             # 분리된 부분을 처리
             if len(parts) >= 3:
@@ -122,10 +127,11 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
             {
                 "$set": {
                     "job_id": job_id,
-                    "file_name": file.filename,
+                    "file_name": actual_filename,
                     "customer_name": customer_name,
                     "customer_contact": customer_contact,
-                    "recording_date": parse_string_to_datetime(recording_date)
+                    "recording_date": parse_string_to_datetime(recording_date),
+                    "created_by": user_name
                 }
             },
             upsert=True
@@ -141,7 +147,8 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
             "message": f"오디오 변환 시작: {input_path}",
             "metadata": {
                 "created_at": current_time,
-                "updated_at": current_time
+                "updated_at": current_time,
+                "created_by": user_name
             }
         })
         
@@ -155,7 +162,8 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
                     'output_dir': OUTPUT_DIR,
                     'db_connection_string': MONGODB_URI,
                     'work_db_connection_string': settings.WORK_MONGODB_URI,
-                    'work_db_name': settings.WORK_MONGODB_DB
+                    'work_db_name': settings.WORK_MONGODB_DB,
+                    'user_name': user_name
                 },
                 queue='converter'
             )
