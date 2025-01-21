@@ -1,18 +1,13 @@
 // src/components/property/PropertyTable.js
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Badge } from 'react-bootstrap';
+import { Table, Button, Badge, Form } from 'react-bootstrap';
 import { propertyService } from '../../services/api';
+import { formatDate } from '../../utils/FormatTools';
 import PropertyInfoModal from './detail/PropertyInfoModal';
 
 const PropertyTable = ({ properties, onRefresh }) => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
-
-  const formatDateTime = (dateTimeStr) => {
-    if (!dateTimeStr) return '-';
-    const date = new Date(dateTimeStr);
-    return date.toLocaleString('ko-KR');
-  };
 
   const handleShowDetail = (property) => {
     setSelectedProperty(property);
@@ -41,28 +36,66 @@ const PropertyTable = ({ properties, onRefresh }) => {
     }
   };
 
-  const renderCell = (property, field) => {
-    // 가격 포맷팅 로직 (예: 억/만원)
-    if (field === 'price') {
-      const priceValue = property[field];
-      if (priceValue) {
-        if (priceValue >= 10000) {
-          const uk = Math.floor(priceValue / 10000); // 만 단위로 변환
-          const man = priceValue % 10000;            // 나머지 만원
-          const formattedPrice = [];
-          if (uk > 0) formattedPrice.push(`${uk}억`);
-          if (man > 0) formattedPrice.push(`${man}만원`);
-          return formattedPrice.join(' ') || '-';
-        } else {
-          return `${priceValue}만원`;
-        }
-      }
-      return '-';
-    }
+  // 상태 옵션 정의
+  const statusOptions = [
+    '등록 대기',
+    '등록 완료',
+    '계약 완료',
+    '기간 만료',
+  ];
 
+  // status 변경 처리 함수
+  const handleStatusChange = async (propertyId, newStatus) => {
+    try {
+      // 현재 property 데이터 찾기
+      const currentProperty = properties.find(p => p.property_id === propertyId);
+      if (!currentProperty) {
+        throw new Error('Property not found');
+      }
+
+      // 기존 데이터를 유지하면서 status만 업데이트
+      const updatedData = {
+        ...currentProperty,
+        status: newStatus
+      };
+
+      await propertyService.updateProperty(propertyId, updatedData);
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      alert('상태 업데이트 중 오류가 발생했습니다.');
+      console.error('Status update error:', error);
+    }
+  };
+
+  const renderCell = (property, field) => {
     // address 필드 (city + district + legal_dong 등 합치기)
     if (field === 'address') {
       return `${property.district || ''} ${property.legal_dong || ''} ${property.detail_address || ''}`.trim() || '-';
+    }
+    
+    // status 필드일 경우 드롭다운 렌더링
+    if (field === 'status') {
+      return (
+        <Form.Select
+          size="sm"
+          value={property.status || ''}
+          onChange={(e) => handleStatusChange(property.property_id, e.target.value)}
+          style={{
+            fontWeight: 'bold',         // 글씨 굵기
+            fontSize: '0.9rem',         // 글씨 크기
+            color: '#000000',          // 글씨 색상
+            opacity: 1,                // 투명도
+            padding: '4px 8px'         // 패딩
+          }}     
+        >
+          <option value="">선택</option>
+          {statusOptions.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </Form.Select>
+      );
     }
 
     // 일반 필드 처리
@@ -71,10 +104,12 @@ const PropertyTable = ({ properties, onRefresh }) => {
 
   const propertyTypeColors = {
     아파트: 'primary',
-    상가: 'success',
-    기타: 'warning',
-    오피스텔: 'info',
-    사무실: 'dark',
+    오피스텔: 'dark',
+    재건축: 'success',
+    주상복합: 'warning',
+    상가: 'info',
+    사무실: 'light',
+    기타: 'secondary'
   };
 
   const renderPropertyTypeBadge = (propertyType) => {
@@ -93,11 +128,11 @@ const PropertyTable = ({ properties, onRefresh }) => {
             <th>거래 종류</th>
             <th>주소</th>
             <th>단지명</th>
-            <th>가격</th>
+            <th>가격(만원)</th>
             <th>소유주</th>
             <th>연락처</th>
-            <th>상태</th>
             <th>메모</th>
+            <th style={{ minWidth: '100px' }}>작업상태</th>
             <th></th>
           </tr>
         </thead>
@@ -106,7 +141,7 @@ const PropertyTable = ({ properties, onRefresh }) => {
             <tr key={property.property_id}>
               {/* property_number가 있다면 property.property_number */}
               <td>{property.property_number || index + 1}</td>
-              <td>{formatDateTime(property.created_at)}</td>
+              <td>{formatDate(property.created_at)}</td>
               <td>{renderPropertyTypeBadge(property.property_type)}</td>
               <td>{renderCell(property, 'transaction_type')}</td>
               <td>{renderCell(property, 'address')}</td>
@@ -114,24 +149,17 @@ const PropertyTable = ({ properties, onRefresh }) => {
               <td>{renderCell(property, 'price')}</td>
               <td>{renderCell(property, 'owner_name')}</td>
               <td>{renderCell(property, 'owner_contact')}</td>
-              <td>{renderCell(property, 'status')}</td>
               <td>{renderCell(property, 'memo')}</td>
+              <td>{renderCell(property, 'status')}</td>
               <td className="text-center">
                 <Button
-                  variant="info"
+                  variant="primary"
                   size="sm"
                   onClick={() => handleShowDetail(property)}
+                  className="me-2"
                 >
                   상세
                 </Button>
-                <div
-                  className="vr mx-2"
-                  style={{
-                    display: 'inline-block',
-                    height: '30px',
-                    margin: '0 4px',
-                  }}
-                />
                 <Button
                   variant="danger"
                   size="sm"

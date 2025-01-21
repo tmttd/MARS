@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Row, Col } from 'react-bootstrap';
 import { callService, propertyService } from '../services/api';
-import { flattenData } from '../components/common/FlattenData';
-
+import { formatDateTime } from '../utils/FormatTools';
 // 컴포넌트 import
 import BackButton from '../components/common/BackButton';
 import CallInformation from '../components/call/detail/CallInformation';
@@ -24,7 +23,7 @@ const CallDetail = () => {
     district: '',
     legal_dong: '',
     detail_address: '',
-    loan_available: false,     // boolean 값 가정
+    loan_info: '',     // boolean 값 가정
     transaction_type: '',
     property_type: '',
     floor: '',
@@ -40,7 +39,8 @@ const CallDetail = () => {
     moving_date: '',
     deposit: '',
     full_address: '',
-    property_id: ''
+    property_id: '',
+    call_memo: ''
   });
   const [propertyData, setPropertyData] = useState({
     property_id: '',
@@ -50,7 +50,7 @@ const CallDetail = () => {
     district: '',
     legal_dong: '',
     detail_address: '',
-    loan_available: false,      // boolean 값 가정
+    loan_info: '',      // boolean 값 가정
     transaction_type: '',
     property_type: '',
     floor: '',
@@ -81,23 +81,13 @@ const CallDetail = () => {
         const data = await callService.getCall(id);
         console.info("first data:", data);
         
-        // extracted_property_info를 평탄화하여 flatData 생성
-        const flattenedExtractedProperty = flattenData(data);
+        setCall(data);
+        setEditData(data);
+        setExtractedPropertyData(data);
         
-        // 최상위 필드(property_id 등)를 포함하여 flatData 완성
-        const flatData = {...flattenedExtractedProperty};
-        
-        console.info("flatData:", flatData);
-  
-        setCall(flatData);
-        setEditData(flatData);
-        setExtractedPropertyData(flatData);
-        
-        const propertyInfo = await propertyService.getProperty(flatData.property_id);
-        // propertyInfo에도 flattenData를 적용할 수 있음 (필요하다면)
-        const flattenedPropertyInfo = flattenData(propertyInfo);
-        setPropertyData(flattenedPropertyInfo);
-        console.info("propertyData:", flattenedPropertyInfo);
+        const propertyInfo = await propertyService.getProperty(data.property_id);
+        setPropertyData(propertyInfo);
+        console.info("propertyData:", propertyInfo);
       } catch (error) {
         console.error('Error fetching call:', error);
       } finally {
@@ -107,12 +97,6 @@ const CallDetail = () => {
   
     fetchCall();
   }, [id]);
-
-  const formatDateTime = (dateTimeStr) => {
-    if (!dateTimeStr) return '-';
-    const date = new Date(dateTimeStr);
-    return date.toLocaleString('ko-KR');
-  };
 
   const handleEditCall = () => {
     setIsEditingCall(true);
@@ -140,29 +124,20 @@ const CallDetail = () => {
 
   const handleSaveMemo = async () => {
     try {
-      if (editData.memo === call.memo) {
+      if (editData.call_memo === call.call_memo) {
         alert('수정 사항이 없습니다.');
         return;
       }
-  
-      const newMemo = editData.memo || '';
-  
-      // flat 구조의 데이터를 nested 구조로 변환
-      const updatedExtractedPropertyInfo = {
-        ...call.extracted_property_info,
-        memo: newMemo
-      };
-  
-      await callService.updateCall(call.job_id, { 
-        extracted_property_info: updatedExtractedPropertyInfo 
-      });
-  
-      // 로컬 call 객체를 업데이트
-      setCall(prev => ({
-        ...prev,
-        extracted_property_info: updatedExtractedPropertyInfo,
-        memo: newMemo  // flat 상태 유지용으로도 저장
-      }));
+
+      const newMemo = editData.call_memo || '';
+
+      // 기존 데이터 가져오기
+      const updatedCallData = { ...call, call_memo: newMemo };
+
+      await callService.updateCall(call.job_id, updatedCallData);
+
+      setCall(updatedCallData);
+      setIsEditingCall(false);
       alert('메모가 저장되었습니다.');
     } catch (error) {
       alert('메모 저장 중 오류가 발생했습니다.');
@@ -171,25 +146,18 @@ const CallDetail = () => {
 
   const handleDeleteMemo = async () => {
     try {
-      const updatedExtractedPropertyInfo = {
-        ...call.extracted_property_info,
-        memo: null
-      };
-  
       await callService.updateCall(call.job_id, { 
-        extracted_property_info: updatedExtractedPropertyInfo 
+        call_memo: null 
       });
   
       setCall(prev => ({
         ...prev,
-        extracted_property_info: updatedExtractedPropertyInfo,
-        memo: null
+        call_memo: null
       }));
 
       setEditData(prev => ({
         ...prev,
-        extracted_property_info: { ...prev.extracted_property_info, memo: null },
-        memo: null
+        call_memo: null
       }));
   
       alert('메모가 삭제되었습니다.');
@@ -203,36 +171,11 @@ const CallDetail = () => {
     setIsEditingCall(false);
   };
 
-  const handleChange = (fieldPath, value) => {
-    // fieldPath가 'extracted_property_info.memo'와 같이 점(.)으로 구분된다면,
-    // 이를 분석하여 중첩된 객체를 업데이트합니다.
-    const fields = fieldPath.split('.');
-    
-    // 만약 단일 필드라면, 간단히 처리
-    if (fields.length === 1) {
-      setEditData(prev => ({
-        ...prev,
-        [fieldPath]: value
-      }));
-    } else {
-      // 중첩 필드 처리
-      setEditData(prev => {
-        // 깊은 복사(deep copy)를 통해 원본 객체의 중첩 구조 보존
-        let updated = { ...prev };
-        let current = updated;
-        
-        // 마지막 키 이전까지 순회하면서 객체를 탐색
-        for (let i = 0; i < fields.length - 1; i++) {
-          const key = fields[i];
-          current[key] = { ...current[key] };  // 깊은 복사
-          current = current[key];
-        }
-        
-        // 마지막 키에 값 할당
-        current[fields[fields.length - 1]] = value;
-        return updated;
-      });
-    }
+  const handleChange = (field, value) => {
+    setEditData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const handlePropertyChange = (field, value) => {
@@ -250,10 +193,16 @@ const CallDetail = () => {
   // 반영 버튼 관련 메서드 //
 
   const handlePropertyReflect = (field) => {
+    console.log(`handlePropertyReflect 호출됨. field: ${field}`);
+    console.log('extractedPropertyData:', extractedPropertyData);
+    
     if (field === 'all') {
       // 모든 필드를 extractedPropertyData에서 propertyData로 덮어쓰기
       setPropertyData({
         ...extractedPropertyData, // 모든 필드를 덮어쓰기
+      });
+      console.log('propertyData 업데이트 (all):', {
+        ...extractedPropertyData,
       });
     } else {
       // 특정 필드에 대한 반영
@@ -261,14 +210,24 @@ const CallDetail = () => {
         ...prevData,
         [field]: extractedPropertyData[field],
       }));
+      console.log(`propertyData 업데이트 (${field}):`, {
+        ...propertyData,
+        [field]: extractedPropertyData[field],
+      });
     }
   };
 
   const propertyReflectCancel = (field) => {
+    console.log(`propertyReflectCancel 호출됨. field: ${field}`);
+    
     setPropertyData(prevData => ({
       ...prevData,
       [field]: '',
     }));
+    console.log(`propertyData 업데이트 취소 (${field}):`, {
+      ...propertyData,
+      [field]: '',
+    });
   };
 
 

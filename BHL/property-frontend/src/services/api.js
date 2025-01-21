@@ -1,61 +1,8 @@
-import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
+import { flattenData, unflattenPropertyData, unflattenCallData } from '../utils/FlattenData';
+import { formatPhoneNumber } from '../utils/FormatTools';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8003';
-
-const unflattenPropertyData = (flatData) => {
-  if (!flatData) return {};
-
-  // 최상위 레벨 필드 분리
-  const {
-    // property_info로 들어갈 필드들
-    property_name, price, deposit, city, district, legal_dong, detail_address,
-    full_address, loan_available, transaction_type, property_type, floor, area,
-    premium, memo, moving_date, owner_property_memo, tenant_property_memo,
-    // owner_info로 들어갈 필드들
-    owner_name, owner_contact,
-    // tenant_info로 들어갈 필드들
-    tenant_name, tenant_contact,
-    // 최상위 유지할 필드들
-    property_id, created_at, status,
-    ...rest
-  } = flatData;
-
-  return {
-    property_id,
-    created_at,
-    status,
-    property_info: {
-      property_name,
-      price,
-      deposit,
-      city,
-      district,
-      legal_dong,
-      detail_address,
-      full_address,
-      loan_available,
-      transaction_type,
-      property_type,
-      floor,
-      area,
-      premium,
-      memo,
-      moving_date,
-      owner_property_memo,    
-      tenant_property_memo,   
-      owner_info: {
-        owner_name,
-        owner_contact
-      },
-      tenant_info: {
-        tenant_name,
-        tenant_contact
-      }
-    },
-    ...rest
-  };
-};
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -67,6 +14,7 @@ const api = axios.create({
 export const propertyService = {
   getProperties: async (page = 1, limit = 10, filters = {}) => {
     try {
+      console.log('[API] getProperties 요청:', { page, limit, filters });
       // offset 계산
       const offset = (page - 1) * limit;
 
@@ -82,7 +30,21 @@ export const propertyService = {
       // 서버가 { results, totalCount } 형태로 응답한다고 가정
       const { results, totalCount } = response.data;
 
-      return { results, totalCount };
+      // flattenData 적용
+      const flattenedResults = results.map(flattenData);
+
+      // 연락처 포맷팅 적용
+      flattenedResults.forEach(property => {
+        if (property.owner_contact) {
+          property.owner_contact = formatPhoneNumber(property.owner_contact);
+        }
+        if (property.tenant_contact) {
+          property.tenant_contact = formatPhoneNumber(property.tenant_contact);
+        }
+      });
+
+      console.log('[API] getProperties 응답:', { results: flattenedResults, totalCount });
+      return { results: flattenedResults, totalCount };
     } catch (error) {
       console.error('API Error details:', error.response || error);
       throw new Error(error.response?.data?.detail || '부동산 정보를 불러오는데 실패했습니다.');
@@ -91,8 +53,19 @@ export const propertyService = {
 
   getProperty: async (propertyId) => {
     try {
+      console.log('[API] getProperty 요청:', { propertyId });
       const response = await api.get(`/properties/${propertyId}`);
-      return response.data;
+      // flattenData 적용
+      const flattenedData = flattenData(response.data);
+      // 연락처 포맷팅 적용
+      if (flattenedData.owner_contact) {
+        flattenedData.owner_contact = formatPhoneNumber(flattenedData.owner_contact);
+      }
+      if (flattenedData.tenant_contact) {
+        flattenedData.tenant_contact = formatPhoneNumber(flattenedData.tenant_contact);
+      }
+      console.log('[API] getProperty 응답:', flattenedData);
+      return flattenedData;
     } catch (error) {
       console.error('Get Property Error:', error);
       throw new Error('부동산 정보를 불러오는데 실패했습니다.');
@@ -101,11 +74,13 @@ export const propertyService = {
 
   createProperty: async (data) => {
     try {
+      console.log('[API] createProperty 요청:', data);
       const structuredData = unflattenPropertyData(data);
       
       console.log('structuredData', structuredData);
 
       const response = await api.post('/properties/', structuredData);
+      console.log('[API] createProperty 응답:', response.data);
       return response.data;
     } catch (error) {
       console.error('Create Property Error:', error);
@@ -115,10 +90,13 @@ export const propertyService = {
 
   updateProperty: async (propertyId, data) => {
     try {
+      console.log('[API] updateProperty 요청:', { propertyId, data });
       const structuredData = unflattenPropertyData(data);
       console.log('structuredData', structuredData);
       const response = await api.put(`/properties/${propertyId}`, structuredData);
-      return response.data;
+      console.log('[API] updateProperty 응답:', response.data);
+      const flattenedData = flattenData(response.data);
+      return flattenedData;
     } catch (error) {
       console.error('Update Property Error:', error);
       throw new Error('부동산 정보 업데이트에 실패했습니다.');
@@ -127,7 +105,9 @@ export const propertyService = {
 
   deleteProperty: async (propertyId) => {
     try {
+      console.log('[API] deleteProperty 요청:', { propertyId });
       const response = await api.delete(`/properties/${propertyId}`);
+      console.log('[API] deleteProperty 응답:', response.data);
       return response.data;
     } catch (error) {
       console.error('Delete Property Error:', error);
@@ -139,6 +119,7 @@ export const propertyService = {
 export const callService = {
   getCalls: async (page = 1, limit = 10, filters = {}) => {
     try {
+      console.log('[API] getCalls 요청:', { page, limit, filters });
       const params = {
         limit,
         offset: (page - 1) * limit,
@@ -148,37 +129,47 @@ export const callService = {
       // 응답 형식이 { results, totalCount }라고 가정
       const { results: calls, totalCount } = response.data; 
 
-      // 연락처 포맷팅 함수
-      const formatPhoneNumber = (phoneNumber) => {
-        const cleaned = phoneNumber.replace(/\D/g, '');
-        if (cleaned.startsWith('010')) {
-          return cleaned.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
-        } else if (cleaned.startsWith('02')) {
-          return cleaned.replace(/(\d{2})(\d{3})(\d{4})/, '$1-$2-$3');
-        } else {
-          return cleaned.replace(/(\d{3})(\d{3,4})(\d{4})/, '$1-$2-$3');
+      console.log('calls', calls);
+      // 각 통화 기록의 flattenData 적용 및 customer_contact 포맷팅
+      const flattenedCalls = calls.map(call => {
+        const flattenedCall = flattenData(call); // flattenData 적용
+        if (flattenedCall.customer_contact) {
+          flattenedCall.customer_contact = formatPhoneNumber(flattenedCall.customer_contact);
         }
-      };
-
-      // 각 통화 기록의 customer_contact 포맷팅
-      calls.forEach(call => {
-        if (call.customer_contact) {
-          call.customer_contact = formatPhoneNumber(call.customer_contact);
+        if (flattenedCall.owner_contact) {
+          flattenedCall.owner_contact = formatPhoneNumber(flattenedCall.owner_contact);
         }
+        if (flattenedCall.tenant_contact) {
+          flattenedCall.tenant_contact = formatPhoneNumber(flattenedCall.tenant_contact);
+        }
+        return flattenedCall; // flattenedCall 반환
       });
 
-      return { calls, totalCount };
+      console.log('[API] getCalls 응답:', { calls: flattenedCalls, totalCount });
+      return { calls: flattenedCalls, totalCount };
     } catch (error) {
       console.error('API Error details:', error.response || error);
       throw new Error(error.response?.data?.detail || '통화 기록을 불러오는데 실패했습니다.');
     }
   },
 
-
   getCall: async (callId) => {
     try {
+      console.log('[API] getCall 요청:', { callId });
       const response = await api.get(`/calls/${callId}`);
-      return response.data;
+      // flattenData 적용
+      const flattenedData = flattenData(response.data);
+      if (flattenedData.customer_contact) {
+        flattenedData.customer_contact = formatPhoneNumber(flattenedData.customer_contact);
+      }
+      if (flattenedData.owner_contact) {
+        flattenedData.owner_contact = formatPhoneNumber(flattenedData.owner_contact);
+      }
+      if (flattenedData.tenant_contact) {
+        flattenedData.tenant_contact = formatPhoneNumber(flattenedData.tenant_contact);
+      }
+      console.log('[API] getCall 응답:', flattenedData);
+      return flattenedData;
     } catch (error) {
       console.error('Get Call Error:', error);
       throw new Error('통화 기록을 불러오는데 실패했습니다.');
@@ -187,7 +178,9 @@ export const callService = {
 
   createCall: async (data) => {
     try {
+      console.log('[API] createCall 요청:', data);
       const response = await api.post('/calls/', data);
+      console.log('[API] createCall 응답:', response.data);
       return response.data;
     } catch (error) {
       console.error('Create Call Error:', error);
@@ -197,7 +190,10 @@ export const callService = {
 
   updateCall: async (callId, data) => {
     try {
-      const response = await api.put(`/calls/${callId}`, data);
+      console.log('[API] updateCall 요청:', { callId, data });
+      const unflattenedData = unflattenCallData(data);
+      const response = await api.put(`/calls/${callId}`, unflattenedData);
+      console.log('[API] updateCall 응답:', response.data);
       return response.data;
     } catch (error) {
       console.error('Update Call Error:', error);
@@ -207,7 +203,9 @@ export const callService = {
 
   deleteCall: async (callId) => {
     try {
+      console.log('[API] deleteCall 요청:', { callId });
       const response = await api.delete(`/calls/${callId}`);
+      console.log('[API] deleteCall 응답:', response.data);
       return response.data;
     } catch (error) {
       console.error('Delete Call Error:', error);
@@ -251,6 +249,8 @@ export const uploadService = {
         throw new Error('Failed to upload file');
       }
       
+      console.log('[API] uploadFile Presigned URL 응답:', urlResponse.data);
+      console.log('[API] uploadFile 완료');
       return { success: true };
       
     } catch (error) {
