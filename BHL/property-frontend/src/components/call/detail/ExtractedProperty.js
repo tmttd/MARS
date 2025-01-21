@@ -3,6 +3,7 @@ import { Card, Form, Row, Col, Button } from 'react-bootstrap';
 import { FaRobot } from 'react-icons/fa';
 import LabeledFormGroup from '../../common/FormControls/LabeledFormGroup';
 import RenderReflectButton from '../../common/RenderReflectButton';
+import { formFields } from '../../common/FormControls/FormField';
 
 const ExtractedProperty = ({ extractedPropertyData, handlePropertyReflect, propertyReflectCancel }) => {
   const [showActionButtons, setShowActionButtons] = useState(false);
@@ -52,330 +53,33 @@ const ExtractedProperty = ({ extractedPropertyData, handlePropertyReflect, prope
         </div>
         <Form>
           <Row className="g-3">
-            <Col md={3}>
-              <LabeledFormGroup
-                label="매물 종류"
-                value={extractedPropertyData?.property_type}
-                disabled={true}
-                rightElement={
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <RenderReflectButton 
-                    fieldId="property_type" 
-                    handlePropertyReflect={handlePropertyReflect} 
-                    showActionButtons={showActionButtons} 
-                  />
-                  <RenderReflectButton 
-                    fieldId="property_type" 
-                    variant="danger"
-                    handlePropertyReflect={propertyReflectCancel} 
-                    showActionButtons={showActionButtons} 
-                    buttonText="취소"
-                  />
-                </div>
-                }
-              />
-            </Col>
-            <Col md={3}>
-              <LabeledFormGroup
-                label="거래 종류"
-                value={extractedPropertyData?.transaction_type}
-                disabled={true}
-                rightElement={
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <RenderReflectButton 
-                    fieldId="transaction_type" 
-                    handlePropertyReflect={handlePropertyReflect} 
-                    showActionButtons={showActionButtons} 
-                  />
-                  <RenderReflectButton 
-                    fieldId="transaction_type" 
-                    variant="danger"
-                    handlePropertyReflect={propertyReflectCancel} 
-                    showActionButtons={showActionButtons} 
-                    buttonText="취소"
-                  />
-                </div>
-                }
-              />
-            </Col>
-            <Col md={3}>
-              <LabeledFormGroup
-                label="가격"
-                value={extractedPropertyData?.price}
-                disabled={true}
-                rightElement={
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <RenderReflectButton 
-                    fieldId="price" 
-                    handlePropertyReflect={handlePropertyReflect} 
-                    showActionButtons={showActionButtons} 
-                  />
-                  <RenderReflectButton 
-                    fieldId="price" 
-                    variant="danger"
-                    handlePropertyReflect={propertyReflectCancel} 
-                    showActionButtons={showActionButtons} 
-                    buttonText="취소"
-                  />
-                </div>
-                }
-              />
-            </Col>
-            <Col md={3}>
-              <LabeledFormGroup
-                label="면적"
-                value={extractedPropertyData?.area}
-                disabled={true}
-                rightElement={
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <RenderReflectButton 
-                    fieldId="area" 
-                    handlePropertyReflect={handlePropertyReflect} 
-                    showActionButtons={showActionButtons} 
-                  />
-                  <RenderReflectButton 
-                    fieldId="area" 
-                    variant="danger"
-                    handlePropertyReflect={propertyReflectCancel} 
-                    showActionButtons={showActionButtons} 
-                    buttonText="취소"
-                  />
-                </div>
-                }
-              />
-            </Col>
-            <Col md={2}>
-              <LabeledFormGroup
-                label="시"
-                value={extractedPropertyData?.city}
-                disabled={true}
-                rightElement={
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <RenderReflectButton 
-                    fieldId="city" 
-                    handlePropertyReflect={handlePropertyReflect} 
-                    showActionButtons={showActionButtons} 
-                  />
-                  <RenderReflectButton 
-                    fieldId="city" 
-                    variant="danger"
-                    handlePropertyReflect={propertyReflectCancel} 
-                    showActionButtons={showActionButtons} 
-                    buttonText="취소"
-                  />
-                </div>
-                }
-              />
-            </Col>
-            <Col md={2}>
-              <LabeledFormGroup
-                label="구"
-                value={extractedPropertyData?.district}
-                disabled={true}
-                rightElement={
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <RenderReflectButton 
-                    fieldId="district" 
-                    handlePropertyReflect={handlePropertyReflect} 
-                    showActionButtons={showActionButtons} 
-                  />
-                  <RenderReflectButton 
-                    fieldId="district" 
-                    variant="danger"
-                    handlePropertyReflect={propertyReflectCancel} 
-                    showActionButtons={showActionButtons} 
-                    buttonText="취소"
-                  />
-                </div>
-                }
-              />
-            </Col>
-            <Col md={2}>
-              <LabeledFormGroup
-                label="동"
-                value={extractedPropertyData?.legal_dong}
-                disabled={true}
-                rightElement={
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <RenderReflectButton 
-                    fieldId="legal_dong" 
-                    handlePropertyReflect={handlePropertyReflect} 
-                    showActionButtons={showActionButtons} 
-                  />
-                  <RenderReflectButton 
-                    fieldId="legal_dong" 
-                    variant="danger"
-                    handlePropertyReflect={propertyReflectCancel} 
-                    showActionButtons={showActionButtons} 
-                    buttonText="취소"
-                  />
-                </div>
-                }
-              />
-            </Col>
-            <Col md={6}>
-              <LabeledFormGroup
-                label="상세주소"
-                value={extractedPropertyData?.detail_address}
-                disabled={true}
-                rightElement={
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <RenderReflectButton 
-                    fieldId="detail_address" 
-                    handlePropertyReflect={handlePropertyReflect} 
-                    showActionButtons={showActionButtons} 
-                  />
-                  <RenderReflectButton 
-                    fieldId="detail_address" 
-                    variant="danger"
-                    handlePropertyReflect={propertyReflectCancel} 
-                    showActionButtons={showActionButtons} 
-                    buttonText="취소"
-                  />
-                </div>
-                }
-              />
-            </Col>
-            <Col md={2}>
-              <LabeledFormGroup
-                label="층"
-                value={extractedPropertyData?.floor}
-                disabled={true}
-                rightElement={
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <RenderReflectButton 
-                    fieldId="floor" 
-                    handlePropertyReflect={handlePropertyReflect} 
-                    showActionButtons={showActionButtons} 
-                  />
-                  <RenderReflectButton 
-                    fieldId="floor" 
-                    variant="danger"
-                    handlePropertyReflect={propertyReflectCancel} 
-                    showActionButtons={showActionButtons} 
-                    buttonText="취소"
-                  />
-                </div>
-                }
-              />
-            </Col>
-            <Col md={5}>
-              <LabeledFormGroup
-                label="단지명"
-                value={extractedPropertyData?.property_name}
-                disabled={true}
-                rightElement={
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <RenderReflectButton 
-                    fieldId="property_name" 
-                    handlePropertyReflect={handlePropertyReflect} 
-                    showActionButtons={showActionButtons} 
-                  />
-                  <RenderReflectButton 
-                    fieldId="property_name" 
-                    variant="danger"
-                    handlePropertyReflect={propertyReflectCancel} 
-                    showActionButtons={showActionButtons} 
-                    buttonText="취소"
-                  />
-                </div>
-                }
-              />
-            </Col>
-            <Col md={5}>
-              <LabeledFormGroup
-                label="입주가능일"
-                value={extractedPropertyData?.moving_date}
-                disabled={true}
-                rightElement={
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <RenderReflectButton 
-                    fieldId="moving_date" 
-                    handlePropertyReflect={handlePropertyReflect} 
-                    showActionButtons={showActionButtons} 
-                  />
-                  <RenderReflectButton 
-                    fieldId="moving_date" 
-                    variant="danger"
-                    handlePropertyReflect={propertyReflectCancel} 
-                    showActionButtons={showActionButtons} 
-                    buttonText="취소"
-                  />
-                </div>
-                }
-              />
-            </Col>
-            <Col md={6}>
-              <LabeledFormGroup
-                label="대출여부"
-                value={extractedPropertyData?.loan_available}
-                disabled={true}
-                rightElement={
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <RenderReflectButton 
-                    fieldId="loan_available" 
-                    handlePropertyReflect={handlePropertyReflect} 
-                    showActionButtons={showActionButtons} 
-                  />
-                  <RenderReflectButton 
-                    fieldId="loan_available" 
-                    variant="danger"
-                    handlePropertyReflect={propertyReflectCancel} 
-                    showActionButtons={showActionButtons} 
-                    buttonText="취소"
-                  />
-                </div>
-                }
-              />
-            </Col>
-            <Col md={6}>
-              <LabeledFormGroup
-                label="권리금"
-                value={extractedPropertyData?.premium}
-                disabled={true}
-                rightElement={
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <RenderReflectButton 
-                    fieldId="premium" 
-                    handlePropertyReflect={handlePropertyReflect} 
-                    showActionButtons={showActionButtons} 
-                  />
-                  <RenderReflectButton 
-                    fieldId="premium" 
-                    variant="danger"
-                    handlePropertyReflect={propertyReflectCancel} 
-                    showActionButtons={showActionButtons} 
-                    buttonText="취소"
-                  />
-                </div>
-                }
-              />
-            </Col>
-            <Col md={12}>
-              <LabeledFormGroup
-                label="메모"
-                value={extractedPropertyData?.memo}
-                disabled={true}
-                rightElement={
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                  <RenderReflectButton 
-                    fieldId="memo" 
-                    handlePropertyReflect={handlePropertyReflect} 
-                    showActionButtons={showActionButtons} 
-                  />
-                  <RenderReflectButton 
-                    fieldId="memo" 
-                    variant="danger"
-                    handlePropertyReflect={propertyReflectCancel} 
-                    showActionButtons={showActionButtons} 
-                    buttonText="취소"
-                  />
-                </div>
-                }
-                minHeight="100px"
-                isScrollable={true}
-              />
-            </Col>
+            {formFields.map((field) => (
+              <Col md={field.colSize} key={field.id}>
+                <LabeledFormGroup
+                  label={field.label}
+                  value={extractedPropertyData?.[field.id]}
+                  disabled={true}
+                  rightElement={
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                      <RenderReflectButton 
+                        fieldId={field.id} 
+                        handlePropertyReflect={handlePropertyReflect} 
+                        showActionButtons={showActionButtons} 
+                      />
+                      <RenderReflectButton 
+                        fieldId={field.id} 
+                        variant="danger"
+                        handlePropertyReflect={propertyReflectCancel} 
+                        showActionButtons={showActionButtons} 
+                        buttonText="취소"
+                      />
+                    </div>
+                  }
+                  minHeight={field.minHeight}
+                  isScrollable={field.isScrollable}
+                />
+              </Col>
+            ))}
             <Row className="mt-4">
               <Col md={6}>
                 <h5><strong>소유주 정보</strong></h5>
@@ -383,7 +87,7 @@ const ExtractedProperty = ({ extractedPropertyData, handlePropertyReflect, prope
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="성함"
-                      value={extractedPropertyData?.owner_info?.owner_name || ''}
+                      value={extractedPropertyData?.owner_name || ''}
                       disabled={true}
                       rightElement={
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
@@ -406,7 +110,7 @@ const ExtractedProperty = ({ extractedPropertyData, handlePropertyReflect, prope
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="연락처"
-                      value={extractedPropertyData?.owner_info?.owner_contact || ''}
+                      value={extractedPropertyData?.owner_contact || ''}
                       disabled={true}
                       rightElement={
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
@@ -460,7 +164,7 @@ const ExtractedProperty = ({ extractedPropertyData, handlePropertyReflect, prope
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="성함"
-                      value={extractedPropertyData?.tenant_info?.tenant_name || ''}
+                      value={extractedPropertyData?.tenant_name || ''}
                       disabled={true}
                       rightElement={
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
@@ -483,7 +187,7 @@ const ExtractedProperty = ({ extractedPropertyData, handlePropertyReflect, prope
                   <Col md={11} className="mb-3">
                     <LabeledFormGroup
                       label="연락처"
-                      value={extractedPropertyData?.tenant_info?.tenant_contact || ''}
+                      value={extractedPropertyData?.tenant_contact || ''}
                       disabled={true}
                       rightElement={
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>

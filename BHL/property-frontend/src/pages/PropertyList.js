@@ -5,7 +5,6 @@ import { FaSearch, FaBuilding, FaPhone, FaPlus, FaTimes } from 'react-icons/fa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PropertyTable from '../components/property/PropertyTable';
 import { propertyService } from '../services/api';
-import { flattenData } from '../components/common/FlattenData';
 import '../styles/PropertyList.css';
 
 const PropertyList = () => {
@@ -52,12 +51,9 @@ const PropertyList = () => {
       // 서버로부터 { results, totalCount } 구조를 받는다고 가정
       const { results, totalCount } = await propertyService.getProperties(pageNum, ITEMS_PER_PAGE, filters);
       
-      // 서버로부터 받은 각 결과를 평탄화
-      const flattenedResults = results.map(item => flattenData(item));
-
       // 페이지별 번호 부여
       const offset = (pageNum - 1) * ITEMS_PER_PAGE;
-      const numberedData = flattenedResults.map((item, idx) => ({
+      const numberedData = results.map((item, idx) => ({
         ...item,
         property_number: offset + idx + 1,
       }));
@@ -100,7 +96,7 @@ const PropertyList = () => {
       setSearchParams({ page: '1' });
       fetchProperties(1);
     }
-  }, [searchTerm, searchType, setSearchParams]);
+  }, [searchTerm, searchType]);
 
   // -----------------------
   // 5) 페이지네이션 핸들러

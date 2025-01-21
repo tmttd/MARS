@@ -101,15 +101,33 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
             parts = filename_without_ext.split("_")
             
             logger.info(f"파일명: {file.filename}")
-            
+
             # 분리된 부분을 처리
             if len(parts) >= 3:
                 customer_name = parts[0]
-                customer_contact = parts[1]
+                # 전화번호 포맷팅
+                cleaned_contact = ''.join(filter(str.isdigit, str(parts[1])))
+                if cleaned_contact.startswith('010') and len(cleaned_contact) == 11:
+                    customer_contact = f"{cleaned_contact[:3]}-{cleaned_contact[3:7]}-{cleaned_contact[7:]}"
+                elif cleaned_contact.startswith('02') and (len(cleaned_contact) == 9 or len(cleaned_contact) == 10):
+                    customer_contact = f"02-{cleaned_contact[2:-4]}-{cleaned_contact[-4:]}"
+                elif len(cleaned_contact) == 10 or len(cleaned_contact) == 11:
+                    customer_contact = f"{cleaned_contact[:3]}-{cleaned_contact[3:-4]}-{cleaned_contact[-4:]}"
+                else:
+                    customer_contact = parts[1]
                 recording_date = parts[2]
             else:
                 customer_name = ''
-                customer_contact = parts[0]
+                # 전화번호 포맷팅
+                cleaned_contact = ''.join(filter(str.isdigit, str(parts[0])))
+                if cleaned_contact.startswith('010') and len(cleaned_contact) == 11:
+                    customer_contact = f"{cleaned_contact[:3]}-{cleaned_contact[3:7]}-{cleaned_contact[7:]}"
+                elif cleaned_contact.startswith('02') and (len(cleaned_contact) == 9 or len(cleaned_contact) == 10):
+                    customer_contact = f"02-{cleaned_contact[2:-4]}-{cleaned_contact[-4:]}"
+                elif len(cleaned_contact) == 10 or len(cleaned_contact) == 11:
+                    customer_contact = f"{cleaned_contact[:3]}-{cleaned_contact[3:-4]}-{cleaned_contact[-4:]}"
+                else:
+                    customer_contact = parts[0]
                 recording_date = parts[1]
 
         except Exception as e:

@@ -1,10 +1,10 @@
-// PropertyForm.js
-import React, { useState } from 'react';
+// BHL/property-frontend/src/components/property/PropertyForm.js
+
+import React, { useState, useEffect } from 'react';
 import { Card, Form, Row, Col, Button } from 'react-bootstrap';
 import { FaBuilding } from 'react-icons/fa';
 import LabeledFormGroup from '../common/FormControls/LabeledFormGroup';
 import { propertyService, callService } from '../../services/api';
-import { flattenData } from '../common/FlattenData';
 import PropertyListModal from './PropertyListModal';
 
 function PropertyForm({
@@ -26,6 +26,18 @@ function PropertyForm({
   const [propertyList, setPropertyList] = useState([]);
   const [selectedProperty, setSelectedProperty] = useState(null);
 
+  // 상태 옵션 추가
+  const statusOptions = [
+    '등록 대기',
+    '등록 완료',
+    '계약 완료',
+    '기간 만료',
+  ];
+
+  useEffect(() => {
+    setFormData(propertyData);
+  }, [propertyData]);
+
   const handleFieldChange = (fieldId, value) => {
     setFormData(prev => ({
       ...prev,
@@ -45,13 +57,16 @@ function PropertyForm({
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (formData.property_id) {
-        console.log('SubmitData', formData);
-        await propertyService.updateProperty(formData.property_id, formData);
+      // job_id를 formData에 추가
+      const updatedFormData = { ...formData, job_id: jobId }; // jobId를 prop으로 받아온 경우
+
+      if (updatedFormData.property_id) {
+        console.log('SubmitData', updatedFormData);
+        await propertyService.updateProperty(updatedFormData.property_id, updatedFormData);
         alert('저장되었습니다.');
       } else {
-        console.log('CreateData', formData);
-        await propertyService.createProperty(formData);
+        console.log('CreateData', updatedFormData);
+        await propertyService.createProperty(updatedFormData); // 수정된 formData 사용
         alert('저장되었습니다.');
       }
       if (onSubmitSuccess) {
@@ -62,11 +77,12 @@ function PropertyForm({
       alert('저장 중 오류가 발생했습니다.');
     }
   };
-
+  
   const handleLoad = async () => {
     try {
       const response = await propertyService.getProperties();
-      setPropertyList(response);  // 매물 목록 상태 업데이트
+      // response에서 results 배열만 추출해서 상태에 저장
+      setPropertyList(response.results);  
       setShowModal(true);
     } catch (error) {
       alert('매물 목록을 불러오는 중 오류가 발생했습니다.');
@@ -74,22 +90,21 @@ function PropertyForm({
   };
 
   const handleSelectedProperty = async (property) => {
-    const flattenedProperty = flattenData(property);
-    setSelectedProperty(flattenedProperty);
-    setFormData(flattenedProperty);
+    setSelectedProperty({ ...property });
+    setFormData({ ...property });
 
     try {
       // Call 데이터 업데이트: property_id 설정
       const updatedCall = await callService.updateCall(jobId, { 
-        property_id: flattenedProperty.property_id 
+        property_id: property.property_id 
       });
       console.info("Call 데이터가 업데이트되었습니다.", updatedCall);
   
       // Property 데이터 업데이트: job_id 포함
       const updatedProperty = await propertyService.updateProperty(
-        flattenedProperty.property_id,
+        property.property_id,
         {
-          ...flattenedProperty,
+          ...property,
           job_id: jobId
         }
       );
@@ -104,6 +119,29 @@ function PropertyForm({
     setTimeout(() => {
       alert("선택한 매물 정보가 반영되었습니다.");
     }, 0);
+  };
+
+  // handleStatusChange 함수 추가
+  const handleStatusChange = async (newStatus) => {
+    try {
+      // 항상 로컬 formData는 업데이트
+      setFormData(prev => ({
+        ...prev,
+        status: newStatus
+      }));
+
+      // property_id가 있을 때만 서버 업데이트
+      if (formData.property_id) {
+        const updatedData = {
+          ...formData,
+          status: newStatus
+        };
+        
+        await propertyService.updateProperty(formData.property_id, updatedData);
+      }
+    } catch (error) {
+      console.error('Status update error:', error);
+    }
   };
 
   const renderRightButton = () => {
@@ -150,7 +188,32 @@ function PropertyForm({
             <FaBuilding className="me-2 text-primary" />
             {title}
           </h4>
-          {renderRightButton()}
+          
+          {/* 상태 드롭다운 추가 */}
+          <div className="d-flex align-items-center gap-3">
+            <div className="d-flex align-items-center">
+              <span className="me-2 fw-bold">작업 상태:</span>
+              <Form.Select
+                size="sm"
+                value={formData?.status || ''}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                style={{
+                  fontWeight: 'bold',
+                  fontSize: '0.9rem',
+                  width: 'auto',
+                  minWidth: '100px'
+                }}
+              >
+                <option value="">선택</option>
+                {statusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </Form.Select>
+            </div>
+            {renderRightButton()}
+          </div>
         </div>
 
         <Form>
@@ -161,10 +224,13 @@ function PropertyForm({
                   label={field.label}
                   value={formData?.[field.id] || ''}
                   onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                  placeholder={field.placeholder}
+                  placeholder={isDisabled ? '' : field.placeholder}
                   minHeight={field.minHeight}
                   isScrollable={field.isScrollable}
                   disabled={isDisabled}
+                  type={field.type}
+                  options={field.options}
+                  unittext={field.unittext}
                 />
               </Col>
             ))}
@@ -179,6 +245,7 @@ function PropertyForm({
                       value={formData?.owner_name || ''}
                       onChange={(e) => handleFieldChange('owner_name', e.target.value)}
                       disabled={isDisabled}
+                      type="text"
                     />
                   </Col>
                   <Col md={11} className="mb-3">
@@ -187,6 +254,7 @@ function PropertyForm({
                       value={formData?.owner_contact || ''}
                       onChange={(e) => handleFieldChange('owner_contact', e.target.value)}
                       disabled={isDisabled}
+                      type="text"
                     />
                   </Col>
                   <Col md={11} className="mb-3">
@@ -197,6 +265,7 @@ function PropertyForm({
                       minHeight="100px"
                       isScrollable
                       disabled={isDisabled}
+                      type="textarea"
                     />
                   </Col>
                 </Row>
@@ -211,6 +280,7 @@ function PropertyForm({
                       value={formData?.tenant_name || ''}
                       onChange={(e) => handleFieldChange('tenant_name', e.target.value)}
                       disabled={isDisabled}
+                      type="text"
                     />
                   </Col>
                   <Col md={11} className="mb-3">
@@ -219,6 +289,7 @@ function PropertyForm({
                       value={formData?.tenant_contact || ''}
                       onChange={(e) => handleFieldChange('tenant_contact', e.target.value)}
                       disabled={isDisabled}
+                      type="text"
                     />
                   </Col>
                   <Col md={11} className="mb-3">
@@ -229,6 +300,7 @@ function PropertyForm({
                       minHeight="100px"
                       isScrollable
                       disabled={isDisabled}
+                      type="textarea"
                     />
                   </Col>
                 </Row>
