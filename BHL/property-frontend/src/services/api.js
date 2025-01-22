@@ -218,7 +218,14 @@ export const callService = {
 
 export const audioService = {
   playAudio: async (fileName) => {
-    const response = await api.get(`/audio/stream/${fileName}`);
+    // localStorage에서 현재 로그인한 사용자 정보 가져오기
+    const token = localStorage.getItem('token');
+    const decodedToken = token ? JSON.parse(atob(token.split('.')[1])) : null;
+    const userName = decodedToken ? decodedToken.sub : null;
+
+    const response = await api.get(`/audio/stream/${fileName}`, {
+      params: { user_name: userName }
+    });
     return response.data.url;
   }
 };

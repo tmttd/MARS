@@ -39,7 +39,7 @@ celery.conf.update(
 @celery.task(name='convert_audio')
 def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_string: str, work_db_connection_string: str, work_db_name: str, user_name: str = None):
     try:
-        logger.info(f"작업 수신됨: task_id={celery.current_task.request.id}, job_id={job_id}, user_name={user_name}")
+        logger.info(f"작업 수신됨: task_id={celery.current_task.request.id}, job_id={job_id}, user_name={user_name}", extra={"input_path": input_path})
         
         # MongoDB 연결 (로그용)
         client = MongoClient(db_connection_string)

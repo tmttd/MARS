@@ -49,14 +49,14 @@ class ConsumerService:
             self.sqs_service.change_message_visibility(message['ReceiptHandle'], 300)
             
             print("[DEBUG] Downloading file from S3...")
-            temp_file_path = self.s3_service.download_file(bucket, key)
+            temp_file_path, user_name = self.s3_service.download_file(bucket, key)
             if not temp_file_path:
                 print("[DEBUG] Failed to download file from S3")
                 return False
             
             try:
                 print("[DEBUG] Processing file through API...")
-                success = self.api_service.process_file(temp_file_path, os.path.basename(key))
+                success = self.api_service.process_file(temp_file_path, user_name, os.path.basename(key))
                 if success:
                     print("[DEBUG] API processing successful, deleting message...")
                     self.sqs_service.delete_message(message['ReceiptHandle'])

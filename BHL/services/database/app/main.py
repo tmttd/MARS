@@ -81,7 +81,7 @@ async def list_calls(
             query["recording_date"]["$gt"] = after_date
         if created_by:
             query["created_by"] = created_by
-
+        logger.info(f"Query: {query}")
         total_count = await db.calls.count_documents(query)
 
         calls = []

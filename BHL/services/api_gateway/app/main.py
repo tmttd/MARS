@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Response, Query, Request, Body, Depends
+from fastapi import FastAPI, UploadFile, File, HTTPException, Response, Query, Request, Body, Depends, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -53,7 +53,7 @@ redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
 security = HTTPBearer()
 
 @app.post("/Total_Processing")
-async def Total_Processing(file: UploadFile = File(...)):
+async def Total_Processing(file: UploadFile = File(...), user_name: str = Form(...)):
     try:
         job_id = str(uuid.uuid4())
         current_time = datetime.now(UTC)
@@ -80,9 +80,8 @@ async def Total_Processing(file: UploadFile = File(...)):
         # 오디오 변환 서비스로 파일 전송 (job_id 포함)
         async with httpx.AsyncClient() as client:
             files = {"file": (file.filename, file.file, file.content_type)}
-            params = {"job_id": job_id}  # job_id를 쿼리 파라미터로 전달
             response = await client.post(
-                f"{settings.CONVERTER_SERVICE_URL}/convert", files=files, params=params
+                f"{settings.CONVERTER_SERVICE_URL}/convert", files=files, params={"job_id": job_id, "user_name": user_name}
             )
 
             if response.status_code != 200:
@@ -462,34 +461,13 @@ async def delete_property(property_id: str):
     except Exception as e:
         logger.error(f"Delete Property error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-    
-
-# 오디오 파일 관련 라우팅
-@app.get("/audio/files")
-async def get_audio_files(request: Request):
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{settings.S3_SERVICE_URL}/audio/files",
-                params={"user_name": request.state.user["username"]}  # 미들웨어에서 설정된 사용자 정보 사용
-            )
-            response.raise_for_status()
-            return response.json()
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"오디오 파일 목록 조회 중 오류 발생: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="오디오 파일 목록을 가져오는 중 오류가 발생했습니다"
-        )
 
 @app.get("/audio/stream/{name}")
-async def get_audio_stream(name: str):
+async def get_audio_stream(name: str, user_name: str = None):
     try:
         # 오디오 스트림 URL 조회
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{settings.S3_SERVICE_URL}/audio/stream/{name}")
+            response = await client.get(f"{settings.S3_SERVICE_URL}/audio/stream/{name}", params={"user_name": user_name})
             response.raise_for_status()
             return response.json()
     except HTTPException:
@@ -518,11 +496,6 @@ async def upload_file(request: UploadRequest):
     except Exception as e:
         logger.error(f"파일 업로드 URL 생성 중 오류 발생: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-# 예시: 보호된 엔드포인트
-@app.get("/protected-route")
-async def protected_route(request: Request):
-    return {"message": "This is a protected route", "user": request.state.user}
 
 # 인증이 필요하지 않은 엔드포인트들
 @app.get("/health")
@@ -606,3 +579,24 @@ async def login(request: LoginRequest):
     except Exception as e:
         logger.error(f"로그인 중 오류 발생: {str(e)}")
         raise HTTPException(status_code=500, detail="로그인 처리 중 오류가 발생했습니다")
+
+@app.get("/users/me")
+async def get_current_user(request: Request):
+    try:
+        async with httpx.AsyncClient() as client:
+            # 요청의 Authorization 헤더를 그대로 전달
+            headers = {
+                "Authorization": request.headers.get("Authorization"),
+                "Accept": "application/json"
+            }
+            response = await client.get(
+                f"{settings.AUTH_SERVICE_URL}/users/me",
+                headers=headers
+            )
+            response.raise_for_status()
+            return response.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"사용자 정보 조회 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail="사용자 정보 조회 중 오류가 발생했습니다")

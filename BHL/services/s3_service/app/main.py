@@ -116,75 +116,18 @@ async def health_check():
     
     return HealthCheckResponse(**health_status)
 
-@app.get("/audio/files", response_model=AudioFileList)
-async def get_audio_files():
-    try:
-        logger.info("S3 버킷에서 오디오 파일 목록 조회 시작")
-        
-        paginator = s3_client.get_paginator('list_objects_v2')
-        pages = paginator.paginate(
-            Bucket=settings.S3_BUCKET_NAME
-        )
-        
-        audio_files = []
-        for page in pages:
-            logger.info(f"S3 페이지 내용: {page}")
-            if 'Contents' in page:
-                for obj in page['Contents']:
-                    logger.info(f"S3 객체: {obj}")
-                    if obj['Key'].endswith('.wav') or obj['Key'].endswith('.m4a'):
-                        try:
-                            response = s3_client.head_object(
-                                Bucket=settings.S3_BUCKET_NAME,
-                                Key=obj['Key']
-                            )
-                            logger.info(f"S3 객체 메타데이터: {response}")
-                            metadata = response.get('Metadata', {})
-                            
-                            # 전체 경로에서 사용자 이름과 파일 이름 추출
-                            s3_key = obj['Key']
-                            path_parts = s3_key.split('/')
-                            
-                            # 경로가 user_name/file_name 형식인 경우에만 처리
-                            if len(path_parts) >= 2:
-                                user_name = path_parts[0]
-                                filename = path_parts[-1]
-                                
-                                audio_files.append(AudioFile(
-                                    name=filename,
-                                    s3_key=s3_key,
-                                    s3_bucket=settings.S3_BUCKET_NAME,
-                                    user_name=user_name,  # 추출한 사용자 이름
-                                    duration=float(metadata.get('duration', 0)),
-                                    format="m4a" if filename.endswith('.m4a') else "wav",
-                                    created_at=obj['LastModified'],
-                                    updated_at=obj['LastModified']
-                                ))
-                        except Exception as e:
-                            logger.error(f"파일 메타데이터 조회 중 오류 발생: {str(e)}")
-                            continue
-        
-        logger.info(f"조회된 오디오 파일 목록: {audio_files}")
-        return AudioFileList(files=audio_files, total=len(audio_files))
-        
-    except Exception as e:
-        logger.error(f"음성 파일 목록 조회 중 오류 발생: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="음성 파일 목록을 가져오는 중 오류가 발생했습니다"
-        )
-
 @app.get("/audio/stream/{name}", response_model=AudioStreamResponse)
-async def get_audio_stream(name: str):
+async def get_audio_stream(name: str, user_name: str = None):
     try:
         logger.info(f"오디오 스트림 요청: {name}")
+        key = user_name + "/" + name
         
         try:
             # 파일 존재 여부 확인
             try:
                 s3_client.head_object(
                     Bucket=settings.S3_BUCKET_NAME,
-                    Key=name
+                    Key=key
                 )
             except Exception as e:
                 logger.error(f"S3에서 오디오 파일을 찾을 수 없음: {name}")
@@ -200,7 +143,7 @@ async def get_audio_stream(name: str):
                 'get_object',
                 Params={
                     'Bucket': settings.S3_BUCKET_NAME,
-                    'Key': name,
+                    'Key': key,
                     'ResponseContentType': content_type,
                     'ResponseContentDisposition': 'inline'
                 },

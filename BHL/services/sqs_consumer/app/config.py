@@ -9,7 +9,7 @@ class Config:
     SQS_QUEUE_URL = os.getenv('SQS_QUEUE_URL')
     AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-    API_ENDPOINT = os.getenv('API_ENDPOINT', 'http://localhost:8000/Total_Processing')
+    API_ENDPOINT = os.getenv('API_ENDPOINT', 'http://api_gateway:8000/Total_Processing')
 
     @classmethod
     def validate(cls):

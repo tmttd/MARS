@@ -7,15 +7,21 @@ class APIService:
     def __init__(self):
         self.api_endpoint = Config.API_ENDPOINT
 
-    def process_file(self, file_path: str, original_filename: str) -> bool:
+    def process_file(self, file_path: str, user_name: str, original_filename: str) -> bool:
         """파일을 API로 전송하여 처리"""
         try:
+            
+            print(f"[DEBUG] original_filename: {original_filename}")
             print(f"[DEBUG] Attempting to call API at: {self.api_endpoint}")
             with open(file_path, 'rb') as file:
                 files = {'file': (original_filename, file)}
+                data = {
+                    'user_name': user_name
+                }
                 response = requests.post(
                     self.api_endpoint,
-                    files=files
+                    files=files,
+                    data=data
                 )
             
             print(f"[DEBUG] API Response Headers: {response.headers}")

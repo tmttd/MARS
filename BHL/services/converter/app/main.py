@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from pymongo import MongoClient
 from datetime import datetime, timezone
 import os
@@ -77,7 +77,7 @@ async def get_conversion_status(job_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/convert")
-async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = None):
+async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = None, user_name: str = None):
     try:
         # job_id가 없으면 새로 생성
         if not job_id:
@@ -85,7 +85,7 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
             
         current_time = datetime.now(UTC)
         
-        logger.info(f"새 변환 작업 시작: {job_id}")
+        logger.info(f"새 변환 작업 시작: {job_id}, {file.filename}")
         
         # 파일 저장
         input_path = os.path.join(UPLOAD_DIR, f"{job_id}_{file.filename}")
@@ -94,18 +94,15 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
             buffer.write(content)
         
         logger.info(f"파일 저장됨: {input_path}")
-
-        # 파일 경로에서 user_name 추출
-        file_path_parts = file.filename.split('/')
-        user_name = file_path_parts[0] if len(file_path_parts) > 1 else None
-        actual_filename = file_path_parts[-1]
+        logger.info(f"파일 경로: {file.filename}")
+        
 
         try:
             # 파일명에서 확장자를 제거하고 분리 (.m4a 확장자 처리)
-            filename_without_ext = actual_filename[:-4] if actual_filename.endswith('.m4a') else actual_filename
+            filename_without_ext = file.filename[:-4] if file.filename.endswith('.m4a') else file.filename
             parts = filename_without_ext.split("_")
             
-            logger.info(f"파일명: {actual_filename}")
+            logger.info(f"파일명: {file.filename}")
             
             # 분리된 부분을 처리
             if len(parts) >= 3:
@@ -145,7 +142,7 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
             {
                 "$set": {
                     "job_id": job_id,
-                    "file_name": actual_filename,
+                    "file_name": file.filename,
                     "customer_name": customer_name,
                     "customer_contact": customer_contact,
                     "recording_date": parse_string_to_datetime(recording_date),
