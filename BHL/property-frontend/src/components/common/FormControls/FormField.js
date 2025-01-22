@@ -58,3 +58,11 @@ export const filterForms = [
             excludeNames: ['르엘', '아크로', '자이', '아이파크', '진흥', '엘프론트']
         }
       ];
+
+export const statusOptions = [
+    '전체',
+    '등록 대기',
+    '등록 완료',
+    '계약 완료',
+    '기간 만료',
+  ];

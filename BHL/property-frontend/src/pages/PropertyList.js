@@ -1,10 +1,11 @@
 // src/pages/PropertyList.js
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Spinner, Alert, Form, Row, Col, Card, Button, Pagination } from 'react-bootstrap';
-import { FaSearch, FaBuilding, FaPhone, FaPlus, FaTimes } from 'react-icons/fa';
+import { FaSearch, FaBuilding, FaPlus, FaTimes } from 'react-icons/fa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PropertyTable from '../components/property/PropertyTable';
 import FilterButton from '../components/common/FilterButton';
+import { statusOptions } from '../components/common/FormControls/FormField';
 import { filterForms } from '../components/common/FormControls/FormField';
 import { propertyService } from '../services/api';
 import '../styles/PropertyList.css';
@@ -26,6 +27,8 @@ const PropertyList = () => {
   // '기타' 필터에서 제외할 이름들을 저장하는 상태
   const [excludeNames, setExcludeNames] = useState([]);
 
+  const [statusFilter, setStatusFilter] = useState(''); // 단일 선택을 위한 상태 변수로 변경
+
   const [properties, setProperties] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -44,6 +47,9 @@ const PropertyList = () => {
       const filters = {};
       if (searchTerm) {
         filters[searchType] = searchTerm;
+      }
+      if (statusFilter) {
+        filters.status = statusFilter;
       }
       // "기타" 조건일 때 excludeNames 적용
       if (searchTerm === '기타' && excludeNames.length > 0) {
@@ -98,7 +104,7 @@ const PropertyList = () => {
       fetchProperties(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, searchType, excludeNames]);
+  }, [searchTerm, searchType, excludeNames, statusFilter]); // statusFilter 추가
 
   // -----------------------
   // 6) 페이지네이션 핸들러
@@ -128,6 +134,22 @@ const PropertyList = () => {
     } else {
       setSearchTerm(filterForm.value);
       setExcludeNames([]);
+    }
+  };
+
+  // 라디오 변경 핸들러
+  const handleStatusFilterChange = (status) => {
+    if (status === '전체') {
+      // '전체'가 선택되면 상태 필터를 해제
+      setStatusFilter('');
+    } else {
+      // '전체' 외 다른 항목이면 해당 상태로 설정
+      // 이미 그 상태가 선택되어 있을 때는 해제(토글)하고 싶다면 아래 코드 함께 적용
+      if (statusFilter === status) {
+        setStatusFilter('');
+      } else {
+        setStatusFilter(status);
+      }
     }
   };
 
@@ -168,24 +190,49 @@ const PropertyList = () => {
     <Container fluid className="py-4 bg-light min-vh-100">
       <Card className="shadow-sm mb-4">
         <Card.Body>
-          <div className="d-flex justify-content-between align-items-center mb-4">
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          {/* 왼쪽: h1 */}
+          <div>
             <h1 className="text-primary mb-0" style={{ fontSize: '1.5rem' }}>
               <FaBuilding className="me-2" />
               부동산 매물 장부
             </h1>
-            <div>
-              <Button
-                variant="primary"
-                className="d-flex align-items-center"
-                onClick={handlePropertyCreate}
-              >
-                <FaPlus className="me-2" />
-                신규 매물 등록
-              </Button>
-            </div>
           </div>
 
-          {/* 검색 영역 */}
+          {/* 가운데: 작업 상태 라디오 버튼 */}
+          <div className="d-flex align-items-center">
+            <span className="me-3 fw-bold">작업 상태:</span>
+            {statusOptions.map((status, index) => (
+              <Form.Check
+                key={index}
+                type="radio"
+                id={`status-${index}`}
+                name="status-filter"
+                label={status}
+                checked={
+                  // '전체'인 경우 checked는 statusFilter가 ''일 때
+                  status === '전체' ? statusFilter === '' : statusFilter === status
+                }
+                onChange={() => handleStatusFilterChange(status)}
+                className="me-3"
+              />
+            ))}
+          </div>
+
+          {/* 오른쪽: 버튼 */}
+          <div>
+            <Button
+              variant="primary"
+              className="d-flex align-items-center"
+              onClick={handlePropertyCreate}
+            >
+              <FaPlus className="me-2" />
+              신규 매물 등록
+            </Button>
+          </div>
+        </div>
+
+          {/* 검색 및 필터 버튼 영역 */}
           <Row className="g-3 mb-4">
             <Col md={1}>
               <Form.Select

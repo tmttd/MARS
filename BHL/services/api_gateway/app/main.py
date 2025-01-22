@@ -392,7 +392,8 @@ async def list_properties(
     offset: Optional[int] = Query(0),
     property_name: Optional[str] = Query(None),
     owner_contact: Optional[str] = Query(None),
-    exclude_property_names: Optional[List[str]] = Query(None)  # 추가된 부분
+    exclude_property_names: Optional[List[str]] = Query(None),
+    status: Optional[str] = Query(None)
     # 필요한 다른 필터 필드들 추가...
 ):
     try:
@@ -401,7 +402,8 @@ async def list_properties(
             "offset": offset,
             "property_name": property_name,
             "owner_contact": owner_contact,
-            "exclude_property_names": exclude_property_names  # 추가된 부분
+            "exclude_property_names": exclude_property_names,
+            "status": status
             # 다른 필터가 존재하면 포함...
         }
         # None인 항목 제거 (리스트는 None이 아니더라도 빈 배열일 수 있으니 주의)

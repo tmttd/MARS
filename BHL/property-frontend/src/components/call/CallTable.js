@@ -50,7 +50,7 @@ const CallTable = ({ calls, onUpdate, currentPage }) => {
             <th style={{ fontWeight: 'bold', textAlign: 'center' }}>연락처</th>
             <th style={{ minWidth: '50px', fontWeight: 'bold', textAlign: 'center' }}>종류</th>
             <th style={{ minWidth: '40px', fontWeight: 'bold', textAlign: 'center' }}>거래 종류</th>
-            <th style={{ minWidth: '50px', fontWeight: 'bold', textAlign: 'center' }}>주소</th>
+            <th style={{ minWidth: '50px', fontWeight: 'bold', textAlign: 'center' }}>위치</th>
             <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>단지명</th>
             <th style={{ minWidth: '180px', fontWeight: 'bold', textAlign: 'center' }}>통화주제</th>
             <th style={{ fontWeight: 'bold', textAlign: 'center' }}>통화요약</th> 
@@ -68,7 +68,7 @@ const CallTable = ({ calls, onUpdate, currentPage }) => {
               <td>{call.transaction_type || '-'}</td>
               <td>
                 <span>
-                  {call.district || ''} {call.legal_dong || ''} {call.detail_address || ''}
+                  {call.district || ''} {call.legal_dong || ''}
                 </span>
               </td>
               <td>{call.property_name || '-'}</td>

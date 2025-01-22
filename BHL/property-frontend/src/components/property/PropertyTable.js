@@ -4,6 +4,7 @@ import { Table, Button, Badge, Form } from 'react-bootstrap';
 import { propertyService } from '../../services/api';
 import { formatDate } from '../../utils/FormatTools';
 import PropertyInfoModal from './detail/PropertyInfoModal';
+import { statusOptions } from '../common/FormControls/FormField';
 
 const PropertyTable = ({ properties, onRefresh }) => {
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -35,14 +36,6 @@ const PropertyTable = ({ properties, onRefresh }) => {
       }
     }
   };
-
-  // 상태 옵션 정의
-  const statusOptions = [
-    '등록 대기',
-    '등록 완료',
-    '계약 완료',
-    '기간 만료',
-  ];
 
   // status 변경 처리 함수
   const handleStatusChange = async (propertyId, newStatus) => {

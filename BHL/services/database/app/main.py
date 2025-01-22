@@ -204,6 +204,7 @@ async def list_properties(
     tenant_contact: Optional[str] = None,
     district: Optional[str] = None,
     property_type: Optional[str] = None,
+    status: Optional[str] = None,
     exclude_property_names: Optional[List[str]] = Query(None), # 제외할 property_name 목록
 ):
     """
@@ -239,6 +240,9 @@ async def list_properties(
             query["property_info.district"] = {"$regex": district, "$options": "i"}
         if property_type:
             query["property_info.property_type"] = {"$regex": property_type, "$options": "i"}
+        if status:
+            query["status"] = {"$regex": status, "$options": "i"}
+
 
         total_count = await db.properties.count_documents(query)
 
