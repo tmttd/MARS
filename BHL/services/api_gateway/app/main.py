@@ -335,10 +335,12 @@ async def list_calls(
     recording_date: Optional[str] = Query(None),
     before_date: Optional[str] = Query(None),
     after_date: Optional[str] = Query(None),
-    exclude_property_names: Optional[List[str]] = Query(None)  # exclude_property_names 추가
+    exclude_property_names: Optional[List[str]] = Query(None)
 ):
     try:
-        # 모든 파라미터를 params에 포함
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
+        
         params = {
             "limit": limit,
             "offset": offset,
@@ -348,11 +350,10 @@ async def list_calls(
             "recording_date": recording_date,
             "before_date": before_date,
             "after_date": after_date,
-            "exclude_property_names": exclude_property_names  # 추가된 부분
+            "exclude_property_names": exclude_property_names,
+            "created_by": user_name  # 사용자 정보 추가
         }
-        # None 값 필터링
         params = {k: v for k, v in params.items() if v is not None}
-
         url = f"{DATABASE_SERVICE_URL}/calls/"
         return await proxy_request("GET", url, params=params)
     except Exception as e:
@@ -363,6 +364,8 @@ async def list_calls(
 async def create_call(request: Request):
     try:
         data = await request.json()
+        # 미들웨어에서 설정된 사용자 정보 사용
+        data["created_by"] = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/calls/"
         return await proxy_request("POST", url, json=data)
     except Exception as e:
@@ -370,10 +373,13 @@ async def create_call(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/calls/{call_id}", response_model=dict)
-async def read_call(call_id: str):
+async def read_call(call_id: str, request: Request):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/calls/{call_id}"
-        return await proxy_request("GET", url)
+        params = {"created_by": user_name}
+        return await proxy_request("GET", url, params=params)
     except Exception as e:
         logger.error(f"Read Call error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -382,17 +388,23 @@ async def read_call(call_id: str):
 async def update_call(call_id: str, request: Request):
     try:
         data = await request.json()
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/calls/{call_id}"
-        return await proxy_request("PUT", url, json=data)
+        params = {"created_by": user_name}
+        return await proxy_request("PUT", url, json=data, params=params)
     except Exception as e:
         logger.error(f"Update Call error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/calls/{call_id}", response_model=dict)
-async def delete_call(call_id: str):
+@app.delete("/calls/{call_id}")
+async def delete_call(call_id: str, request: Request):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/calls/{call_id}"
-        return await proxy_request("DELETE", url)
+        params = {"created_by": user_name}
+        return await proxy_request("DELETE", url, params=params)
     except Exception as e:
         logger.error(f"Delete Call error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -400,25 +412,28 @@ async def delete_call(call_id: str):
 # ### Properties 엔드포인트 ###
 @app.get("/properties/", response_model=dict)
 async def list_properties(
+    request: Request,
     limit: Optional[int] = Query(10),
     offset: Optional[int] = Query(0),
     property_name: Optional[str] = Query(None),
     owner_contact: Optional[str] = Query(None),
     exclude_property_names: Optional[List[str]] = Query(None),
     status: Optional[str] = Query(None)
-    # 필요한 다른 필터 필드들 추가...
 ):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
+        
         params = {
             "limit": limit,
             "offset": offset,
             "property_name": property_name,
             "owner_contact": owner_contact,
             "exclude_property_names": exclude_property_names,
-            "status": status
-            # 다른 필터가 존재하면 포함...
+            "status": status,
+            "created_by": user_name  # 사용자 정보 추가
         }
-        # None인 항목 제거 (리스트는 None이 아니더라도 빈 배열일 수 있으니 주의)
+        # None 값 필터링
         params = {k: v for k, v in params.items() if v is not None}
 
         url = f"{DATABASE_SERVICE_URL}/properties/"
@@ -440,10 +455,13 @@ async def create_property(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/properties/{property_id}", response_model=dict)
-async def read_property(property_id: str):
+async def read_property(property_id: str, request: Request):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/properties/{property_id}"
-        return await proxy_request("GET", url)
+        params = {"created_by": user_name}
+        return await proxy_request("GET", url, params=params)
     except Exception as e:
         logger.error(f"Read Property error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -452,24 +470,32 @@ async def read_property(property_id: str):
 async def update_property(property_id: str, request: Request):
     try:
         data = await request.json()
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/properties/{property_id}"
-        return await proxy_request("PUT", url, json=data)
+        params = {"created_by": user_name}
+        return await proxy_request("PUT", url, json=data, params=params)
     except Exception as e:
         logger.error(f"Update Property error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/properties/{property_id}", response_model=dict)
-async def delete_property(property_id: str):
+@app.delete("/properties/{property_id}")
+async def delete_property(property_id: str, request: Request):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/properties/{property_id}"
-        return await proxy_request("DELETE", url)
+        params = {"created_by": user_name}
+        return await proxy_request("DELETE", url, params=params)
     except Exception as e:
         logger.error(f"Delete Property error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/audio/stream/{name}")
-async def get_audio_stream(name: str, user_name: str = None):
+async def get_audio_stream(name: str, request: Request):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         # 오디오 스트림 URL 조회
         async with httpx.AsyncClient() as client:
             response = await client.get(f"{settings.S3_SERVICE_URL}/audio/stream/{name}", params={"user_name": user_name})
@@ -485,15 +511,18 @@ async def get_audio_stream(name: str, user_name: str = None):
         )
     
 @app.post("/audio/upload/")
-async def upload_file(request: UploadRequest):
+async def upload_file(upload_request: UploadRequest, request: Request):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         url = f"{settings.S3_SERVICE_URL}/audio/upload/"
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 url,
+                params={"user_name": user_name},
                 json={
-                    "filename": request.filename,
-                    "content_type": request.content_type
+                    "filename": upload_request.filename,
+                    "content_type": upload_request.content_type
                 }
             )
             response.raise_for_status()

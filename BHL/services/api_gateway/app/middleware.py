@@ -33,7 +33,7 @@ async def auth_middleware(request: Request, call_next):
         "/properties",  # 매물 관련 API - 개인정보와 매물 데이터 보호
         "/calls",      # 통화 관련 API - 통화 기록 보호
         "/users",      # 사용자 관련 API - 사용자 정보 보호
-        "/audio/files" # 오디오 파일 목록 - 사용자별 파일 접근 제어
+        "/audio"
     ]
     
     # 인증이 필요없는 경로들
@@ -46,8 +46,6 @@ async def auth_middleware(request: Request, call_next):
         "/Total_Processing", # 음성 파일 처리 (SQS Consumer 사용)
         "/webhook",          # 서비스간 내부 통신
         "/status",           # 작업 상태 확인
-        "/audio/stream",     # 오디오 스트리밍 (공개 URL)
-        "/audio/upload",      # 파일 업로드 URL 생성
         "/job"
     ]
 

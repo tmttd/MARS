@@ -132,7 +132,7 @@ class PropertyInfo(BaseModel):
 class Property(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     property_id: str
-    created_at: datetime
+    created_at: Optional[datetime] = None
     status: Optional[str] = None
     job_id: Optional[str] = None
     created_by: Optional[str] = None
@@ -143,7 +143,7 @@ class Property(BaseModel):
         arbitrary_types_allowed=True,
         json_encoders={
             ObjectId: str,
-            datetime: lambda dt: dt.isoformat()
+            datetime: lambda dt: dt.isoformat() if dt else None
         }
     )
 
