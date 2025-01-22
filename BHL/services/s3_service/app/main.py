@@ -141,17 +141,25 @@ async def get_audio_files():
                             logger.info(f"S3 객체 메타데이터: {response}")
                             metadata = response.get('Metadata', {})
                             
-                            filename = os.path.basename(obj['Key'])
+                            # 전체 경로에서 사용자 이름과 파일 이름 추출
+                            s3_key = obj['Key']
+                            path_parts = s3_key.split('/')
                             
-                            audio_files.append(AudioFile(
-                                name=filename,
-                                s3_key=obj['Key'],
-                                s3_bucket=settings.S3_BUCKET_NAME,
-                                duration=float(metadata.get('duration', 0)),
-                                format="m4a",
-                                created_at=obj['LastModified'],
-                                updated_at=obj['LastModified']
-                            ))
+                            # 경로가 user_name/file_name 형식인 경우에만 처리
+                            if len(path_parts) >= 2:
+                                user_name = path_parts[0]
+                                filename = path_parts[-1]
+                                
+                                audio_files.append(AudioFile(
+                                    name=filename,
+                                    s3_key=s3_key,
+                                    s3_bucket=settings.S3_BUCKET_NAME,
+                                    user_name=user_name,  # 추출한 사용자 이름
+                                    duration=float(metadata.get('duration', 0)),
+                                    format="m4a" if filename.endswith('.m4a') else "wav",
+                                    created_at=obj['LastModified'],
+                                    updated_at=obj['LastModified']
+                                ))
                         except Exception as e:
                             logger.error(f"파일 메타데이터 조회 중 오류 발생: {str(e)}")
                             continue

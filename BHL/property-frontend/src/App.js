@@ -6,6 +6,7 @@ import CallDetail from './pages/CallDetail';
 import PropertyCreate from './pages/PropertyCreate';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import { Navbar, Nav, Container } from 'react-bootstrap';
 import { FaHome } from 'react-icons/fa';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -21,7 +22,7 @@ function App() {
             주여사의 라움부동산 관리 시스템
           </Navbar.Brand>
           <Nav className="ms-auto">
-          <Nav.Link as={Link} to="/home" className="btn btn-outline-light">
+            <Nav.Link as={Link} to="/home" className="btn btn-outline-light">
               <span className="material-icons" style={{ fontSize: '20px', marginRight: '5px' }}>
                 home
               </span>
@@ -45,6 +46,12 @@ function App() {
               </span>
               매물 관리
             </Nav.Link>
+            <Nav.Link as={Link} to="/login" className="btn btn-outline-primary">
+              <span className="material-icons" style={{ fontSize: '20px', marginRight: '5px' }}>
+                login
+              </span>
+              로그인
+            </Nav.Link>
           </Nav>
         </Container>
       </Navbar>
@@ -55,7 +62,9 @@ function App() {
         <Route path="/calls" element={<CallList />} />
         <Route path="/calls/:id" element={<CallDetail />} />
         <Route path="/home" element={<Home />} />
-        <Route path="/" element={<Login />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/" element={<Home />} />
       </Routes>
     </Router>
   );

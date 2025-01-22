@@ -67,7 +67,8 @@ class Call(BaseModel):
     summary_title: Optional[str] = None
     summary_content: Optional[str] = None
     property_id: Optional[str] = None
-    call_memo: Optional[str] = None
+    call_memo: Optional[str] = None    
+    created_by: str
     extracted_property_info: Optional[ExtractedPropertyInfo] = None    
 
     # Pydantic v2에서는 model_config 또는 ConfigDict를 사용
@@ -99,7 +100,7 @@ class CallUpdate(BaseModel):
     property_id: Optional[str] = None
     call_memo: Optional[str] = None
     extracted_property_info: Optional[ExtractedPropertyInfo] = None
-
+    created_by: Optional[str] = None
 
 # property 정보
 class PropertyInfo(BaseModel):
@@ -134,6 +135,7 @@ class Property(BaseModel):
     created_at: datetime
     status: Optional[str] = None
     job_id: Optional[str] = None
+    created_by: str
     property_info: PropertyInfo
 
     # Pydantic v2에서는 model_config 또는 ConfigDict를 사용
@@ -153,7 +155,8 @@ class PropertyUpdate(BaseModel):
     status: Optional[str] = None
     job_id: Optional[str] = None
     property_info: Optional[PropertyInfo] = None
-    
+    created_by: Optional[str] = None
+
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         json_encoders={
@@ -161,3 +164,4 @@ class PropertyUpdate(BaseModel):
             datetime: lambda dt: dt.isoformat()
         }
     )
+    

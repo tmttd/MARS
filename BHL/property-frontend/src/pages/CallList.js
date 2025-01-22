@@ -43,9 +43,13 @@ const CallList = () => {
       }));
       setCalls(numberedData);
       setTotalPages(Math.ceil(totalCount / ITEMS_PER_PAGE));
-      setLoading(false);
     } catch (err) {
-      setError('데이터를 불러오는 중 오류가 발생했습니다.');
+      if (err.response?.status === 403) {
+        setError("로그인이 필요한 서비스입니다. 로그인 후 이용해주세요.");
+      } else {
+        setError(err.message || "통화 기록을 불러오는데 실패했습니다.");
+      }
+    } finally {
       setLoading(false);
     }
   };

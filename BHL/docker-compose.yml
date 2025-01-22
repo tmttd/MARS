@@ -353,6 +353,24 @@ services:
         reservations:
           memory: 100M
 
+  auth:
+    build: ./services/auth
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level warning
+    ports:
+      - "8006:8000"
+    volumes:
+      - ./services/auth:/app
+    environment:
+      - MONGODB_URL=mongodb://work-db:27017/
+      - DB_NAME=mars_work_db
+      - AUTH_SECRET_KEY=${AUTH_SECRET_KEY}
+      - AUTH_TOKEN_EXPIRE_MINUTES=${AUTH_TOKEN_EXPIRE_MINUTES}
+    networks:
+      - mars_network
+    depends_on:
+      work-db:
+        condition: service_healthy
+
 volumes:
   whisper_cache:
   converter_db:

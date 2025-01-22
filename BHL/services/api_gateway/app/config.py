@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     DATABASE_SERVICE_URL: str = os.getenv(
         "DATABASE_SERVICE_URL", "http://database:8000"
     )
+    AUTH_SERVICE_URL: str = os.getenv(
+        "AUTH_SERVICE_URL", "http://auth:8000"
+    )
 
     # 출력 디렉토리 경로 설정
     AUDIO_OUTPUT_DIR: str = "/app/audio_outputs"
