@@ -99,8 +99,8 @@ class CallUpdate(BaseModel):
     summary_content: Optional[str] = None
     property_id: Optional[str] = None
     call_memo: Optional[str] = None
-    extracted_property_info: Optional[ExtractedPropertyInfo] = None
     created_by: Optional[str] = None
+    extracted_property_info: Optional[ExtractedPropertyInfo] = None
 
 # property 정보
 class PropertyInfo(BaseModel):
@@ -135,8 +135,8 @@ class Property(BaseModel):
     created_at: datetime
     status: Optional[str] = None
     job_id: Optional[str] = None
-    created_by: str
-    property_info: PropertyInfo
+    created_by: Optional[str] = None
+    property_info: Optional[PropertyInfo] = None
 
     # Pydantic v2에서는 model_config 또는 ConfigDict를 사용
     model_config = ConfigDict(
