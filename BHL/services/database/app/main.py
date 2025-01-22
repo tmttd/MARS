@@ -55,7 +55,8 @@ async def list_calls(
     property_name: Optional[str] = Query(None),
     recording_date: Optional[datetime] = Query(None),
     before_date: Optional[datetime] = Query(None),
-    after_date: Optional[datetime] = Query(None)
+    after_date: Optional[datetime] = Query(None),
+    exclude_property_names: Optional[List[str]] = Query(None), # 제외할 property_name 목록
 ):
     """
     통화 기록 목록 조회
@@ -69,7 +70,19 @@ async def list_calls(
         if customer_name:
             query["customer_name"] = {"$regex": customer_name, "$options": "i"}
         if property_name:
-            query["extracted_property_info.property_name"] = {"$regex": property_name, "$options": "i"}
+            if property_name == '기타':
+                # 제외할 property_names 목록이 있는 경우
+                if exclude_property_names:
+                    regex_pattern = '|'.join(exclude_property_names)  # OR 조건으로 정규표현식 생성
+                    query["extracted_property_info.property_name"] = {
+                        "$not": {
+                            "$regex": regex_pattern,
+                            "$options": "i"  # 대소문자 구분 없이
+                        }
+                    }
+                    logger.info(f"Excluding property names with regex: {regex_pattern}")  # 로그 추가
+            else:   
+                query["extracted_property_info.property_name"] = {"$regex": property_name, "$options": "i"}
         if recording_date:
             query["recording_date"] = recording_date
         if before_date:
@@ -191,6 +204,7 @@ async def list_properties(
     tenant_contact: Optional[str] = None,
     district: Optional[str] = None,
     property_type: Optional[str] = None,
+    exclude_property_names: Optional[List[str]] = Query(None), # 제외할 property_name 목록
 ):
     """
     부동산 정보 목록 조회
@@ -198,12 +212,25 @@ async def list_properties(
     try:
         logger.info(
             f"Listing properties with parameters: limit={limit}, offset={offset}, "
-            f"property_name={property_name}, owner_contact={owner_contact}, tenant_contact={tenant_contact}, district={district}, property_type={property_type}"
+            f"property_name={property_name}, owner_contact={owner_contact}, tenant_contact={tenant_contact}, district={district}, property_type={property_type}, exclude_property_names={exclude_property_names}"
         )
 
         query = {}
         if property_name:
-            query["property_info.property_name"] = {"$regex": property_name, "$options": "i"}
+            if property_name == '기타':
+                # 제외할 property_names 목록이 있는 경우
+                if exclude_property_names:
+                    logger.info(f"Excluding property names: {exclude_property_names}")
+                    regex_pattern = '|'.join(exclude_property_names)  # OR 조건으로 정규표현식 생성
+                    query["property_info.property_name"] = {
+                        "$not": {
+                            "$regex": regex_pattern,
+                            "$options": "i"  # 대소문자 구분 없이
+                        }
+                    }
+                    logger.info(f"Excluding property names with regex: {regex_pattern}")  # 로그 추가
+            else:
+                query["property_info.property_name"] = {"$regex": property_name, "$options": "i"}
         if owner_contact:
             query["property_info.owner_info.owner_contact"] = {"$regex": owner_contact, "$options": "i"}
         if tenant_contact:

@@ -12,11 +12,11 @@ const PropertyListModal = ({ show, onHide, properties: initialProperties, onSele
   // 매물 종류별 Badge 색상 정의
   const propertyTypeColors = {
     아파트: 'primary',
-    오피스텔: 'dark',
-    재건축: 'success',
-    주상복합: 'warning',
+    오피스텔: 'primary',
+    재건축: 'primary',
+    주상복합: 'primary',
     상가: 'info',
-    사무실: 'light',
+    사무실: 'dark',
     기타: 'secondary'
   };
 
@@ -66,23 +66,18 @@ const PropertyListModal = ({ show, onHide, properties: initialProperties, onSele
           <Modal.Title>현재 매물 목록</Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          <Table hover bordered>
-            <thead style={{ 
-              position: 'sticky', 
-              top: 0, 
-              backgroundColor: 'white',
-              borderBottom: '2px solid #dee2e6'
-            }}>
+          <Table className='table-striped table-bordered'>
+            <thead>
               <tr>
                 <th className="text-center" style={{ fontWeight: 'bold' }}>번호</th>
+                <th className="text-center" style={{ fontWeight: 'bold' }}>소유주</th>
+                <th className="text-center" style={{ fontWeight: 'bold' }}>소유주 연락처</th>
                 <th className="text-center" style={{ fontWeight: 'bold' }}>매물종류</th>
                 <th className="text-center" style={{ fontWeight: 'bold' }}>거래종류</th>
                 <th className="text-center" style={{ fontWeight: 'bold' }}>단지명</th>
                 <th className="text-center" style={{ fontWeight: 'bold' }}>세부주소</th>
                 <th className="text-center" style={{ fontWeight: 'bold' }}>면적</th>
                 <th className="text-center" style={{ fontWeight: 'bold' }}>가격</th>
-                <th className="text-center" style={{ fontWeight: 'bold' }}>소유주</th>
-                <th className="text-center" style={{ fontWeight: 'bold' }}>소유주 연락처</th>
                 <th className="text-center" style={{ fontWeight: 'bold' }}>상태</th>
               </tr>
             </thead>
@@ -99,6 +94,8 @@ const PropertyListModal = ({ show, onHide, properties: initialProperties, onSele
                   }}
                 >
                   <td className="text-center">{property.property_number}</td>
+                  <td>{property.owner_name || '-'}</td>
+                  <td>{property.owner_contact || '-'}</td>
                   <td className="text-center">
                     {renderPropertyTypeBadge(property.property_type)}
                   </td>
@@ -107,8 +104,6 @@ const PropertyListModal = ({ show, onHide, properties: initialProperties, onSele
                   <td>{property.detail_address || '-'}</td>
                   <td className="text-center">{property.area ? `${property.area}m²` : '-'}</td>
                   <td className="text-end">{property.price ? `${formatPrice(property.price)}` : '가격 정보 없음'}</td>
-                  <td>{property.owner_name || '-'}</td>
-                  <td>{property.owner_contact || '-'}</td>
                   <td>{property.status || '-'}</td>
                 </tr>
               ))}

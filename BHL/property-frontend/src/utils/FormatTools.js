@@ -25,7 +25,7 @@ export const formatDateTime = (dateString) => {
     const formattedHours = hours % 12 || 12; // 12시간제로 변환
 
     // 최종 포맷팅
-    const formattedTime = `${formattedHours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')} ${ampm}`;
+    const formattedTime = `${ampm} ${formattedHours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     
     return `${formattedDate} ${formattedTime}`;
 };

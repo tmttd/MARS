@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { flattenData, unflattenPropertyData, unflattenCallData } from '../utils/FlattenData';
 import { formatPhoneNumber } from '../utils/FormatTools';
+import qs from 'qs';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8003';
 
@@ -15,22 +16,34 @@ export const propertyService = {
   getProperties: async (page = 1, limit = 10, filters = {}) => {
     try {
       console.log('[API] getProperties 요청:', { page, limit, filters });
-      // offset 계산
-      const offset = (page - 1) * limit;
 
-      // 필터 중 key=value 형태로 서버에 전달
-      // 예: { property_name: 'foo' } → /properties/?property_name=foo
-      const params = {
+      // 기타 필터 처리
+      let params = {
         limit,
-        offset,
-        ...filters,
+        offset: (page - 1) * limit,
       };
 
-      const response = await api.get('/properties/', { params });
-      // 서버가 { results, totalCount } 형태로 응답한다고 가정
+      if (filters.property_name === '기타' && filters.exclude_property_names) {
+        params = {
+          ...params,
+          property_name: '기타',
+          exclude_property_names: filters.exclude_property_names
+        };
+      } else {
+        params = {
+          ...params,
+          ...filters,
+        };
+      }
+
+      const response = await api.get('/properties/', {
+        params,
+        paramsSerializer: params => qs.stringify(params, { arrayFormat: 'repeat' })
+      });
+      console.log('[API] 요청 URL:', '/properties/', JSON.stringify(params, null, 2));
+
       const { results, totalCount } = response.data;
 
-      // flattenData 적용
       const flattenedResults = results.map(flattenData);
 
       // 연락처 포맷팅 적용
@@ -120,19 +133,39 @@ export const callService = {
   getCalls: async (page = 1, limit = 10, filters = {}) => {
     try {
       console.log('[API] getCalls 요청:', { page, limit, filters });
-      const params = {
+
+      // 기타 필터 처리
+      let params = {
         limit,
         offset: (page - 1) * limit,
-        ...filters  // 필터 조건 추가
       };
-      const response = await api.get('/calls/', { params });
-      // 응답 형식이 { results, totalCount }라고 가정
-      const { results: calls, totalCount } = response.data; 
+
+      if (filters.property_name === '기타' && filters.exclude_property_names) {
+        params = {
+          ...params,
+          property_name: '기타',
+          exclude_property_names: filters.exclude_property_names
+        };
+      } else {
+        params = {
+          ...params,
+          ...filters,
+        };
+      }
+
+      const response = await api.get('/calls/', {
+        params,
+        paramsSerializer: params => qs.stringify(params, { arrayFormat: 'repeat' })
+      });
+
+      console.log('[API] 요청 URL:', '/calls/', JSON.stringify(params, null, 2));
+
+      const { results: calls, totalCount } = response.data;
 
       console.log('calls', calls);
-      // 각 통화 기록의 flattenData 적용 및 customer_contact 포맷팅
+
       const flattenedCalls = calls.map(call => {
-        const flattenedCall = flattenData(call); // flattenData 적용
+        const flattenedCall = flattenData(call);
         if (flattenedCall.customer_contact) {
           flattenedCall.customer_contact = formatPhoneNumber(flattenedCall.customer_contact);
         }
@@ -142,10 +175,10 @@ export const callService = {
         if (flattenedCall.tenant_contact) {
           flattenedCall.tenant_contact = formatPhoneNumber(flattenedCall.tenant_contact);
         }
-        return flattenedCall; // flattenedCall 반환
+        return flattenedCall;
       });
 
-      console.log('[API] getCalls 응답:', { calls: flattenedCalls, totalCount });
+      console.log('[API] getCalls 응답:', { results: flattenedCalls, totalCount });
       return { calls: flattenedCalls, totalCount };
     } catch (error) {
       console.error('API Error details:', error.response || error);
