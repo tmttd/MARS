@@ -2,6 +2,15 @@
   background-color: #f8f9fa !important;
 }
 
+.status-filter-container {
+  display: flex;
+  align-items: center;
+}
+
+.status-filter-container .form-check {
+  margin-right: 15px;
+}
+
 .search-container {
   position: relative;
   display: flex;

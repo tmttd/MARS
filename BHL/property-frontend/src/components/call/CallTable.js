@@ -42,18 +42,18 @@ const CallTable = ({ calls, onUpdate, currentPage }) => {
   return (
     <div className="table-responsive">
       <Table striped bordered hover>
-        <thead>
+        <thead style={{ backgroundColor: '#f2f2f2', borderBottom: '2px solid #dee2e6' }}>
           <tr>
-            <th>번호</th>
-            <th style={{ minWidth: '80px' }}>통화일시</th>
-            <th style={{ minWidth: '80px' }}>성명</th>
-            <th>연락처</th>
-            <th style={{ minWidth: '50px' }}>종류</th>
-            <th style={{ minWidth: '40px' }}>거래 종류</th>
-            <th style={{ minWidth: '80px' }}>단지명</th>
-            <th style={{ minWidth: '50px' }}>위치</th>
-            <th style={{ minWidth: '180px' }}>통화주제</th>
-            <th>통화요약</th> 
+            <th style={{ maxWidth: '20px', fontWeight: 'bold', textAlign: 'center' }}>번호</th>
+            <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>통화일시</th>
+            <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>성명</th>
+            <th style={{ fontWeight: 'bold', textAlign: 'center' }}>연락처</th>
+            <th style={{ minWidth: '50px', fontWeight: 'bold', textAlign: 'center' }}>종류</th>
+            <th style={{ minWidth: '40px', fontWeight: 'bold', textAlign: 'center' }}>거래 종류</th>
+            <th style={{ minWidth: '50px', fontWeight: 'bold', textAlign: 'center' }}>위치</th>
+            <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>단지명</th>
+            <th style={{ minWidth: '180px', fontWeight: 'bold', textAlign: 'center' }}>통화주제</th>
+            <th style={{ fontWeight: 'bold', textAlign: 'center' }}>통화요약</th> 
             <th style={{ minWidth: '140px' }}></th>
           </tr>
         </thead>
@@ -66,12 +66,12 @@ const CallTable = ({ calls, onUpdate, currentPage }) => {
               <td>{call.customer_contact || '-'}</td>
               <td>{renderPropertyTypeBadge(call.property_type)}</td>
               <td>{call.transaction_type || '-'}</td>
-              <td>{call.property_name || '-'}</td>
               <td>
                 <span>
                   {call.district || ''} {call.legal_dong || ''}
                 </span>
               </td>
+              <td>{call.property_name || '-'}</td>
               <td>{call.summary_title || '-'}</td>
               <td>{call.summary_content || '-'}</td>
               <td className="text-center">

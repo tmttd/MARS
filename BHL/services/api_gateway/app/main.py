@@ -334,9 +334,11 @@ async def list_calls(
     property_name: Optional[str] = Query(None),
     recording_date: Optional[str] = Query(None),
     before_date: Optional[str] = Query(None),
-    after_date: Optional[str] = Query(None)
+    after_date: Optional[str] = Query(None),
+    exclude_property_names: Optional[List[str]] = Query(None)  # exclude_property_names 추가
 ):
     try:
+        # 모든 파라미터를 params에 포함
         params = {
             "limit": limit,
             "offset": offset,
@@ -346,11 +348,12 @@ async def list_calls(
             "recording_date": recording_date,
             "before_date": before_date,
             "after_date": after_date,
-            "created_by": request.state.user["username"]  # 미들웨어에서 설정된 사용자 정보 사용
+            "exclude_property_names": exclude_property_names  # 추가된 부분
         }
-        # 필터링된 쿼리 파라미터 제거
+        # None 값 필터링
         params = {k: v for k, v in params.items() if v is not None}
-        url = f"{DATABASE_SERVICE_URL}/calls/?limit={limit}&offset={offset}"
+
+        url = f"{DATABASE_SERVICE_URL}/calls/"
         return await proxy_request("GET", url, params=params)
     except Exception as e:
         logger.error(f"List Calls error: {e}")
@@ -395,25 +398,27 @@ async def delete_call(call_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ### Properties 엔드포인트 ###
-
-# ### 부동산 정보 조회 엔드포인트(전체 조회, 필터링 조회 가능) ###
 @app.get("/properties/", response_model=dict)
 async def list_properties(
     limit: Optional[int] = Query(10),
     offset: Optional[int] = Query(0),
     property_name: Optional[str] = Query(None),
     owner_contact: Optional[str] = Query(None),
-    # 필요한 필터 필드들 추가...
+    exclude_property_names: Optional[List[str]] = Query(None),
+    status: Optional[str] = Query(None)
+    # 필요한 다른 필터 필드들 추가...
 ):
     try:
         params = {
             "limit": limit,
             "offset": offset,
-            # 다른 필터가 존재하면 포함
             "property_name": property_name,
-            "owner_contact": owner_contact
+            "owner_contact": owner_contact,
+            "exclude_property_names": exclude_property_names,
+            "status": status
+            # 다른 필터가 존재하면 포함...
         }
-        # None인 항목 제거
+        # None인 항목 제거 (리스트는 None이 아니더라도 빈 배열일 수 있으니 주의)
         params = {k: v for k, v in params.items() if v is not None}
 
         url = f"{DATABASE_SERVICE_URL}/properties/"
