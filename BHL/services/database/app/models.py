@@ -2,7 +2,6 @@ from pydantic import BaseModel, Field, ConfigDict, FieldValidationInfo, field_va
 from typing import Optional
 from bson import ObjectId
 from datetime import datetime
-from typing import Union
 
 class PyObjectId(ObjectId):
     @classmethod

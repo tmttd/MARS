@@ -8,6 +8,7 @@ from .models import AudioConversion
 from .tasks import celery, convert_audio_task
 from .config import settings
 from .utils import parse_string_to_datetime
+from .config import settings
 
 UTC = timezone.utc
 # 로깅 설정
@@ -15,18 +16,20 @@ logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # 환경 변수
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
-MONGODB_DB = os.getenv("MONGODB_DB", "converter_db")
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/app/uploads")
-OUTPUT_DIR = os.getenv("OUTPUT_DIR", "/app/outputs")
+MONGODB_URI = settings.MONGODB_URI
+MONGODB_DB = settings.MONGODB_DB
+WORK_MONGODB_DB = settings.WORK_MONGODB_DB
+UPLOAD_DIR = settings.UPLOAD_DIR
+OUTPUT_DIR = settings.OUTPUT_DIR
+
 
 app = FastAPI(title="Audio Converter Service")
 
 # MongoDB 연결
 try:
-    client = MongoClient(MONGODB_URI)
-    db = client[MONGODB_DB]
-    work_client = MongoClient(settings.WORK_MONGODB_URI)
+    client = MongoClient(settings.MONGODB_URI)
+    db = client[settings.MONGODB_DB]
+    work_client = MongoClient(settings.MONGODB_URI)
     work_db = work_client[settings.WORK_MONGODB_DB]
     logger.info("MongoDB 연결 성공")
 except Exception as e:
@@ -176,7 +179,7 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
                     'input_path': input_path,
                     'output_dir': OUTPUT_DIR,
                     'db_connection_string': MONGODB_URI,
-                    'work_db_connection_string': settings.WORK_MONGODB_URI,
+                    'work_db_connection_string': settings.MONGODB_URI,
                     'work_db_name': settings.WORK_MONGODB_DB,
                     'user_name': user_name
                 },
