@@ -37,9 +37,9 @@ celery.conf.update(
 )
 
 @celery.task(name='convert_audio')
-def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_string: str, work_db_connection_string: str, work_db_name: str):
+def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_string: str, work_db_connection_string: str, work_db_name: str, user_name: str = None):
     try:
-        logger.info(f"작업 수신됨: task_id={celery.current_task.request.id}, job_id={job_id}")
+        logger.info(f"작업 수신됨: task_id={celery.current_task.request.id}, job_id={job_id}, user_name={user_name}", extra={"input_path": input_path})
         
         # MongoDB 연결 (로그용)
         client = MongoClient(db_connection_string)
@@ -60,7 +60,8 @@ def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_s
             "message": f"Converting audio file: {input_path}",
             "metadata": {
                 "created_at": now,
-                "updated_at": now
+                "updated_at": now,
+                "created_by": user_name
             }
         })
         
@@ -76,7 +77,8 @@ def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_s
                 "timestamp": now,
                 "message": error_msg,
                 "metadata": {
-                    "updated_at": now
+                    "updated_at": now,
+                    "created_by": user_name
                 }
             })
             raise FileNotFoundError(error_msg)
@@ -105,17 +107,6 @@ def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_s
         os.remove(input_path)
         logger.info(f"원본 파일 삭제 완료: {input_path}")
         
-        # 작업 데이터 업데이트
-        # work_db.jobs.update_one(
-        #     {"job_id": job_id},
-        #     {
-        #         "$set": {
-        #             "converter.input_file": input_path,
-        #             "converter.output_file": output_path
-        #         }
-        #     }
-        # )
-        
         # 작업 완료 로그
         now = datetime.now(UTC)
         db.logs.insert_one({
@@ -127,7 +118,8 @@ def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_s
             "timestamp": now,
             "message": f"Audio conversion completed: {output_path}",
             "metadata": {
-                "updated_at": now
+                "updated_at": now,
+                "created_by": user_name
             }
         })
         
@@ -136,7 +128,7 @@ def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_s
             async with AsyncClient() as client:
                 await client.post(
                     f"{settings.API_GATEWAY_URL}/webhook/conversion/{job_id}",
-                    json={"status": "completed"}
+                    json={"status": "completed", "user_name": user_name}
                 )
         
         asyncio.run(send_webhook())
@@ -161,7 +153,8 @@ def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_s
                 "message": f"Audio conversion failed: {str(e)}",
                 "metadata": {
                     "error": str(e),
-                    "updated_at": now
+                    "updated_at": now,
+                    "created_by": user_name
                 }
             })
         except Exception as inner_e:

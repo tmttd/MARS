@@ -1,6 +1,7 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Response, Query, Request, Body
+from fastapi import FastAPI, UploadFile, File, HTTPException, Response, Query, Request, Body, Depends, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from redis import Redis
 from datetime import datetime, UTC
 import httpx
@@ -9,7 +10,8 @@ import json
 import logging
 import os
 from .config import Settings
-from .models import ProcessingJob, StageStatus, UploadRequest
+from .models import ProcessingJob, StageStatus, UploadRequest, RegisterRequest, LoginRequest
+from .middleware import auth_middleware  # 미들웨어 임포트
 from typing import List, Dict, Any, Optional
 from pymongo import MongoClient
 from pydantic import BaseModel
@@ -28,20 +30,30 @@ app = FastAPI(title="Audio Processing API Gateway")
 # 환경 변수 설정
 DATABASE_SERVICE_URL = os.getenv("DATABASE_SERVICE_URL", "http://database:8000")
 
+
+
+
+# 인증 미들웨어 등록
+app.middleware("http")(auth_middleware)
+
 # CORS 설정 추가
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 프론트엔드가 실행되는 도메인
+    allow_origins=["http://localhost:3000"],  # 혹은 실제 배포 도메인
     allow_credentials=True,
-    allow_methods=["*"],  # 모든 HTTP 메서드 허용
-    allow_headers=["*"],  # 모든 헤더 허용
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Redis 연결
 redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
 
+# Auth 관련 설정
+security = HTTPBearer()
+
 @app.post("/Total_Processing")
-async def Total_Processing(file: UploadFile = File(...)):
+async def Total_Processing(file: UploadFile = File(...), user_name: str = Form(...)):
     try:
         job_id = str(uuid.uuid4())
         current_time = datetime.now(UTC)
@@ -68,9 +80,8 @@ async def Total_Processing(file: UploadFile = File(...)):
         # 오디오 변환 서비스로 파일 전송 (job_id 포함)
         async with httpx.AsyncClient() as client:
             files = {"file": (file.filename, file.file, file.content_type)}
-            params = {"job_id": job_id}  # job_id를 쿼리 파라미터로 전달
             response = await client.post(
-                f"{settings.CONVERTER_SERVICE_URL}/convert", files=files, params=params
+                f"{settings.CONVERTER_SERVICE_URL}/convert", files=files, params={"job_id": job_id, "user_name": user_name}
             )
 
             if response.status_code != 200:
@@ -315,6 +326,7 @@ async def proxy_request(method: str, url: str, **kwargs):
 
 @app.get("/calls/", response_model=dict)
 async def list_calls(
+    request: Request,
     limit: Optional[int] = Query(10),
     offset: Optional[int] = Query(0),
     customer_contact: Optional[str] = Query(None),
@@ -322,21 +334,27 @@ async def list_calls(
     property_name: Optional[str] = Query(None),
     recording_date: Optional[str] = Query(None),
     before_date: Optional[str] = Query(None),
-    after_date: Optional[str] = Query(None)
+    after_date: Optional[str] = Query(None),
+    exclude_property_names: Optional[List[str]] = Query(None)
 ):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
+        
         params = {
             "limit": limit,
+            "offset": offset,
             "customer_contact": customer_contact,
             "customer_name": customer_name,
             "property_name": property_name,
             "recording_date": recording_date,
             "before_date": before_date,
-            "after_date": after_date
+            "after_date": after_date,
+            "exclude_property_names": exclude_property_names,
+            "created_by": user_name  # 사용자 정보 추가
         }
-        # 필터링된 쿼리 파라미터 제거
         params = {k: v for k, v in params.items() if v is not None}
-        url = f"{DATABASE_SERVICE_URL}/calls/?limit={limit}&offset={offset}"
+        url = f"{DATABASE_SERVICE_URL}/calls/"
         return await proxy_request("GET", url, params=params)
     except Exception as e:
         logger.error(f"List Calls error: {e}")
@@ -346,6 +364,8 @@ async def list_calls(
 async def create_call(request: Request):
     try:
         data = await request.json()
+        # 미들웨어에서 설정된 사용자 정보 사용
+        data["created_by"] = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/calls/"
         return await proxy_request("POST", url, json=data)
     except Exception as e:
@@ -353,10 +373,13 @@ async def create_call(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/calls/{call_id}", response_model=dict)
-async def read_call(call_id: str):
+async def read_call(call_id: str, request: Request):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/calls/{call_id}"
-        return await proxy_request("GET", url)
+        params = {"created_by": user_name}
+        return await proxy_request("GET", url, params=params)
     except Exception as e:
         logger.error(f"Read Call error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -365,41 +388,52 @@ async def read_call(call_id: str):
 async def update_call(call_id: str, request: Request):
     try:
         data = await request.json()
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/calls/{call_id}"
-        return await proxy_request("PUT", url, json=data)
+        params = {"created_by": user_name}
+        return await proxy_request("PUT", url, json=data, params=params)
     except Exception as e:
         logger.error(f"Update Call error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/calls/{call_id}", response_model=dict)
-async def delete_call(call_id: str):
+@app.delete("/calls/{call_id}")
+async def delete_call(call_id: str, request: Request):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/calls/{call_id}"
-        return await proxy_request("DELETE", url)
+        params = {"created_by": user_name}
+        return await proxy_request("DELETE", url, params=params)
     except Exception as e:
         logger.error(f"Delete Call error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ### Properties 엔드포인트 ###
-
-# ### 부동산 정보 조회 엔드포인트(전체 조회, 필터링 조회 가능) ###
 @app.get("/properties/", response_model=dict)
 async def list_properties(
+    request: Request,
     limit: Optional[int] = Query(10),
     offset: Optional[int] = Query(0),
     property_name: Optional[str] = Query(None),
     owner_contact: Optional[str] = Query(None),
-    # 필요한 필터 필드들 추가...
+    exclude_property_names: Optional[List[str]] = Query(None),
+    status: Optional[str] = Query(None)
 ):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
+        
         params = {
             "limit": limit,
             "offset": offset,
-            # 다른 필터가 존재하면 포함
             "property_name": property_name,
-            "owner_contact": owner_contact
+            "owner_contact": owner_contact,
+            "exclude_property_names": exclude_property_names,
+            "status": status,
+            "created_by": user_name  # 사용자 정보 추가
         }
-        # None인 항목 제거
+        # None 값 필터링
         params = {k: v for k, v in params.items() if v is not None}
 
         url = f"{DATABASE_SERVICE_URL}/properties/"
@@ -412,6 +446,8 @@ async def list_properties(
 async def create_property(request: Request):
     try:
         data = await request.json()
+        # 미들웨어에서 설정된 사용자 정보 사용
+        data["created_by"] = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/properties/"
         return await proxy_request("POST", url, json=data)
     except Exception as e:
@@ -419,10 +455,13 @@ async def create_property(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/properties/{property_id}", response_model=dict)
-async def read_property(property_id: str):
+async def read_property(property_id: str, request: Request):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/properties/{property_id}"
-        return await proxy_request("GET", url)
+        params = {"created_by": user_name}
+        return await proxy_request("GET", url, params=params)
     except Exception as e:
         logger.error(f"Read Property error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -431,46 +470,35 @@ async def read_property(property_id: str):
 async def update_property(property_id: str, request: Request):
     try:
         data = await request.json()
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/properties/{property_id}"
-        return await proxy_request("PUT", url, json=data)
+        params = {"created_by": user_name}
+        return await proxy_request("PUT", url, json=data, params=params)
     except Exception as e:
         logger.error(f"Update Property error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/properties/{property_id}", response_model=dict)
-async def delete_property(property_id: str):
+@app.delete("/properties/{property_id}")
+async def delete_property(property_id: str, request: Request):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         url = f"{DATABASE_SERVICE_URL}/properties/{property_id}"
-        return await proxy_request("DELETE", url)
+        params = {"created_by": user_name}
+        return await proxy_request("DELETE", url, params=params)
     except Exception as e:
         logger.error(f"Delete Property error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-    
-
-# 오디오 파일 관련 라우팅
-@app.get("/audio/files")
-async def get_audio_files():
-    try:
-        # 오디오 파일 목록 조회
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{settings.S3_SERVICE_URL}/audio/files")
-            response.raise_for_status()
-            return response.json()
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"오디오 파일 목록 조회 중 오류 발생: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail="오디오 파일 목록을 가져오는 중 오류가 발생했습니다"
-        )
 
 @app.get("/audio/stream/{name}")
-async def get_audio_stream(name: str):
+async def get_audio_stream(name: str, request: Request):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         # 오디오 스트림 URL 조회
         async with httpx.AsyncClient() as client:
-            response = await client.get(f"{settings.S3_SERVICE_URL}/audio/stream/{name}")
+            response = await client.get(f"{settings.S3_SERVICE_URL}/audio/stream/{name}", params={"user_name": user_name})
             response.raise_for_status()
             return response.json()
     except HTTPException:
@@ -483,15 +511,18 @@ async def get_audio_stream(name: str):
         )
     
 @app.post("/audio/upload/")
-async def upload_file(request: UploadRequest):
+async def upload_file(upload_request: UploadRequest, request: Request):
     try:
+        # 미들웨어에서 설정된 사용자 정보 사용
+        user_name = request.state.user["username"]
         url = f"{settings.S3_SERVICE_URL}/audio/upload/"
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 url,
+                params={"user_name": user_name},
                 json={
-                    "filename": request.filename,
-                    "content_type": request.content_type
+                    "filename": upload_request.filename,
+                    "content_type": upload_request.content_type
                 }
             )
             response.raise_for_status()
@@ -499,3 +530,107 @@ async def upload_file(request: UploadRequest):
     except Exception as e:
         logger.error(f"파일 업로드 URL 생성 중 오류 발생: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# 인증이 필요하지 않은 엔드포인트들
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
+@app.post("/register")
+async def register(request: RegisterRequest):
+    try:
+        # 비밀번호 확인
+        if request.password != request.confirm_password:
+            raise HTTPException(
+                status_code=400,
+                detail="비밀번호가 일치하지 않습니다"
+            )
+            
+        # Auth 서비스로 전달할 데이터 준비
+        register_data = {
+            "username": request.username,
+            "email": request.email,
+            "password": request.password
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{settings.AUTH_SERVICE_URL}/register",
+                json=register_data,  # data 대신 json 사용
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                }
+            )
+            
+            if response.status_code >= 400:
+                error_detail = response.json().get("detail", "회원가입 실패")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=error_detail
+                )
+                
+            return response.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"회원가입 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail="회원가입 처리 중 오류가 발생했습니다")
+
+@app.post("/login")
+async def login(request: LoginRequest):
+    try:
+        logger.info(f"로그인 시도: {request.username}")  # 로그 추가
+        
+        # form-data 형식으로 변환
+        form_data = {
+            "username": request.username,
+            "password": request.password,
+            "grant_type": "password"
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{settings.AUTH_SERVICE_URL}/token",
+                data=form_data,
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Accept": "application/json"
+                }
+            )
+            
+            if response.status_code == 401:
+                raise HTTPException(
+                    status_code=401,
+                    detail="아이디 또는 비밀번호가 올바르지 않습니다"
+                )
+            
+            response.raise_for_status()
+            return response.json()
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"로그인 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail="로그인 처리 중 오류가 발생했습니다")
+
+@app.get("/users/me")
+async def get_current_user(request: Request):
+    try:
+        async with httpx.AsyncClient() as client:
+            # 요청의 Authorization 헤더를 그대로 전달
+            headers = {
+                "Authorization": request.headers.get("Authorization"),
+                "Accept": "application/json"
+            }
+            response = await client.get(
+                f"{settings.AUTH_SERVICE_URL}/users/me",
+                headers=headers
+            )
+            response.raise_for_status()
+            return response.json()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"사용자 정보 조회 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail="사용자 정보 조회 중 오류가 발생했습니다")

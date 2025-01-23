@@ -15,13 +15,14 @@ class S3Service:
         try:
             # URL 디코딩
             decoded_key = unquote(key)
-            
+            user_name = key.split("/")[0]
+
             # 임시 파일 경로 생성
             temp_file = f"/tmp/{os.path.basename(decoded_key)}"
             
             # 파일 다운로드
             self.s3.download_file(bucket, decoded_key, temp_file)
-            return temp_file
+            return temp_file, user_name
         except Exception as e:
             print(f"Error downloading file from S3: {e}")
             return None

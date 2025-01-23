@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from pymongo import MongoClient
 from datetime import datetime, timezone
 import os
@@ -77,7 +77,7 @@ async def get_conversion_status(job_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/convert")
-async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = None):
+async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = None, user_name: str = None):
     try:
         # job_id가 없으면 새로 생성
         if not job_id:
@@ -85,7 +85,7 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
             
         current_time = datetime.now(UTC)
         
-        logger.info(f"새 변환 작업 시작: {job_id}")
+        logger.info(f"새 변환 작업 시작: {job_id}, {file.filename}")
         
         # 파일 저장
         input_path = os.path.join(UPLOAD_DIR, f"{job_id}_{file.filename}")
@@ -94,14 +94,16 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
             buffer.write(content)
         
         logger.info(f"파일 저장됨: {input_path}")
+        logger.info(f"파일 경로: {file.filename}")
+        
 
         try:
-            # 파일명에서 확장자를 제거하고 분리
-            filename_without_ext = file.filename[:-4]
+            # 파일명에서 확장자를 제거하고 분리 (.m4a 확장자 처리)
+            filename_without_ext = file.filename[:-4] if file.filename.endswith('.m4a') else file.filename
             parts = filename_without_ext.split("_")
             
             logger.info(f"파일명: {file.filename}")
-
+            
             # 분리된 부분을 처리
             if len(parts) >= 3:
                 customer_name = parts[0]
@@ -143,7 +145,8 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
                     "file_name": file.filename,
                     "customer_name": customer_name,
                     "customer_contact": customer_contact,
-                    "recording_date": parse_string_to_datetime(recording_date)
+                    "recording_date": parse_string_to_datetime(recording_date),
+                    "created_by": user_name
                 }
             },
             upsert=True
@@ -159,7 +162,8 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
             "message": f"오디오 변환 시작: {input_path}",
             "metadata": {
                 "created_at": current_time,
-                "updated_at": current_time
+                "updated_at": current_time,
+                "created_by": user_name
             }
         })
         
@@ -173,7 +177,8 @@ async def convert_audio_endpoint(file: UploadFile = File(...), job_id: str = Non
                     'output_dir': OUTPUT_DIR,
                     'db_connection_string': MONGODB_URI,
                     'work_db_connection_string': settings.WORK_MONGODB_URI,
-                    'work_db_name': settings.WORK_MONGODB_DB
+                    'work_db_name': settings.WORK_MONGODB_DB,
+                    'user_name': user_name
                 },
                 queue='converter'
             )

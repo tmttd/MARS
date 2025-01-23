@@ -55,19 +55,6 @@ async def transcribe_audio_endpoint(job_id: str):
             
         current_time = datetime.now(UTC)
         
-        # # 작업 데이터 초기화/업데이트
-        # work_db.calls.update_one(
-        #     {"job_id": job_id},
-        #     {
-        #         "$set": {
-        #             "transcription": {
-        #                 "input_file": input_file
-        #             }
-        #         }
-        #     },
-        #     upsert=True
-        # )
-        
         # 로그 기록
         db.logs.insert_one({
             "job_id": job_id,

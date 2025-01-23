@@ -6,6 +6,7 @@ class AudioFile(BaseModel):
     name: str
     s3_key: str
     s3_bucket: str
+    user_name: str
     duration: float = 0
     format: str = "wav"
     sample_rate: int = 16000

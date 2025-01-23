@@ -71,29 +71,7 @@ async def health_check():
 @app.post("/summarize/{job_id}")
 async def summarize(job_id: str):
     try:
-        # # 입력 파일 경로 확인
-        # input_file = os.path.join(settings.UPLOAD_DIR, f"{job_id}.txt")
-        # if not os.path.exists(input_file):
-        #     logger.error(f"입력 파일을 찾을 수 없음: {input_file}")
-        #     raise HTTPException(status_code=404, detail="입력 파일을 찾을 수 없습니다")
-
-        # # 출력 디렉토리 확인 및 생성
-        # os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
-        
         current_time = datetime.now(UTC)
-        
-        # # 작업 데이터 초기화/업데이트
-        # work_db.calls.update_one(
-        #     {"job_id": job_id},
-        #     {
-        #         "$set": {
-        #             "summarization": {
-        #                 "input_file": input_file
-        #             }
-        #         }
-        #     },
-        #     upsert=True
-        # )
         
         # 로그 기록
         db.logs.insert_one({

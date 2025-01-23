@@ -55,7 +55,9 @@ async def list_calls(
     property_name: Optional[str] = Query(None),
     recording_date: Optional[datetime] = Query(None),
     before_date: Optional[datetime] = Query(None),
-    after_date: Optional[datetime] = Query(None)
+    after_date: Optional[datetime] = Query(None),
+    created_by: Optional[str] = Query(None),
+    exclude_property_names: Optional[List[str]] = Query(None), # 제외할 property_name 목록
 ):
     """
     통화 기록 목록 조회
@@ -69,7 +71,19 @@ async def list_calls(
         if customer_name:
             query["customer_name"] = {"$regex": customer_name, "$options": "i"}
         if property_name:
-            query["extracted_property_info.property_name"] = {"$regex": property_name, "$options": "i"}
+            if property_name == '기타':
+                # 제외할 property_names 목록이 있는 경우
+                if exclude_property_names:
+                    regex_pattern = '|'.join(exclude_property_names)  # OR 조건으로 정규표현식 생성
+                    query["extracted_property_info.property_name"] = {
+                        "$not": {
+                            "$regex": regex_pattern,
+                            "$options": "i"  # 대소문자 구분 없이
+                        }
+                    }
+                    logger.info(f"Excluding property names with regex: {regex_pattern}")  # 로그 추가
+            else:   
+                query["extracted_property_info.property_name"] = {"$regex": property_name, "$options": "i"}
         if recording_date:
             query["recording_date"] = recording_date
         if before_date:
@@ -78,7 +92,9 @@ async def list_calls(
         if after_date:
             query.setdefault("recording_date", {})
             query["recording_date"]["$gt"] = after_date
-
+        if created_by:
+            query["created_by"] = created_by
+        logger.info(f"Query: {query}")
         total_count = await db.calls.count_documents(query)
 
         calls = []
@@ -191,6 +207,9 @@ async def list_properties(
     tenant_contact: Optional[str] = None,
     district: Optional[str] = None,
     property_type: Optional[str] = None,
+    status: Optional[str] = None,
+    created_by: Optional[str] = None,
+    exclude_property_names: Optional[List[str]] = Query(None)
 ):
     """
     부동산 정보 목록 조회
@@ -198,12 +217,26 @@ async def list_properties(
     try:
         logger.info(
             f"Listing properties with parameters: limit={limit}, offset={offset}, "
-            f"property_name={property_name}, owner_contact={owner_contact}, tenant_contact={tenant_contact}, district={district}, property_type={property_type}"
+            f"property_name={property_name}, owner_contact={owner_contact}, tenant_contact={tenant_contact}, "
+            f"district={district}, property_type={property_type}, created_by={created_by}, exclude_property_names={exclude_property_names}"
         )
 
         query = {}
         if property_name:
-            query["property_info.property_name"] = {"$regex": property_name, "$options": "i"}
+            if property_name == '기타':
+                # 제외할 property_names 목록이 있는 경우
+                if exclude_property_names:
+                    logger.info(f"Excluding property names: {exclude_property_names}")
+                    regex_pattern = '|'.join(exclude_property_names)  # OR 조건으로 정규표현식 생성
+                    query["property_info.property_name"] = {
+                        "$not": {
+                            "$regex": regex_pattern,
+                            "$options": "i"  # 대소문자 구분 없이
+                        }
+                    }
+                    logger.info(f"Excluding property names with regex: {regex_pattern}")  # 로그 추가
+            else:
+                query["property_info.property_name"] = {"$regex": property_name, "$options": "i"}
         if owner_contact:
             query["property_info.owner_info.owner_contact"] = {"$regex": owner_contact, "$options": "i"}
         if tenant_contact:
@@ -212,20 +245,21 @@ async def list_properties(
             query["property_info.district"] = {"$regex": district, "$options": "i"}
         if property_type:
             query["property_info.property_type"] = {"$regex": property_type, "$options": "i"}
+        if status:
+            query["status"] = {"$regex": status, "$options": "i"}
+        if created_by:
+            query["created_by"] = created_by
 
         total_count = await db.properties.count_documents(query)
 
         properties = []
-        # 최신순 정렬 추가: created_at 또는 recording_date 필드를 기준으로 정렬
-        cursor = db.properties.find(query).sort("created_at", -1).skip(offset).limit(limit)  # -1은 내림차순
+        cursor = db.properties.find(query).sort("created_at", -1).skip(offset).limit(limit)
         async for doc in cursor:
-            # Pydantic 모델에 파싱
             prop_model = Property.model_validate(doc)
             properties.append(prop_model)
 
         logger.info(f"Retrieved {len(properties)} properties out of {total_count} total.")
 
-        # dict + jsonable_encoder로 변환
         return jsonable_encoder({
             "results": properties,
             "totalCount": total_count
@@ -248,11 +282,19 @@ async def create_property(property: PropertyUpdate):
         # 고유 식별자 생성
         property_data["property_id"] = str(uuid.uuid4())
 
-        # 한국 시간대 설정
+        # 한국 시간대 설정 및 created_at 설정
         KST = timezone(timedelta(hours=9))
-        property_data["created_at"] = datetime.now(KST)
-
-        # DB 저장
+        try:
+            property_data["created_at"] = datetime.now(KST)
+            logger.info(f"Setting created_at to: {property_data['created_at']}")
+        except Exception as e:
+            logger.error(f"Error setting created_at: {e}")
+            property_data["created_at"] = None
+        
+        # created_by 필드가 없는 경우 기본값 설정
+        if "created_by" not in property_data or not property_data["created_by"]:
+            property_data["created_by"] = "system"  # 기본값으로 "system" 설정
+            
         result = await db.properties.insert_one(property_data)
         created_property_doc = await db.properties.find_one({"property_id": property_data["property_id"]})
         logger.info(f"Created Property: {created_property_doc}")
@@ -279,13 +321,17 @@ async def create_property(property: PropertyUpdate):
 
 
 @app.get("/properties/{property_id}", response_model=Property)
-async def read_property(property_id: str):
+async def read_property(property_id: str, created_by: Optional[str] = None):
     """
     단일 부동산 정보 조회
     """
     try:
-        logger.info(f"Reading property with property_id: {property_id}")
-        doc = await db.properties.find_one({"property_id": property_id})
+        logger.info(f"Reading property with property_id: {property_id}, created_by: {created_by}")
+        query = {"property_id": property_id}
+        if created_by:
+            query["created_by"] = created_by
+            
+        doc = await db.properties.find_one(query)
         if doc is None:
             logger.warning(f"Property not found: {property_id}")
             raise HTTPException(status_code=404, detail="Property not found")
@@ -300,28 +346,31 @@ async def read_property(property_id: str):
 
 
 @app.put("/properties/{property_id}", response_model=Property)
-async def update_property(property_id: str, property_update: PropertyUpdate):
+async def update_property(property_id: str, property_update: PropertyUpdate, created_by: Optional[str] = None):
     """
     부동산 정보 업데이트
     """
     try:
         logger.info(f"Updating property with property_id: {property_id} and data: {property_update}")
+        
+        # 먼저 해당 property가 존재하고 사용자가 소유자인지 확인
+        query = {"property_id": property_id}
+        if created_by:
+            query["created_by"] = created_by
+            
+        existing_property = await db.properties.find_one(query)
+        if not existing_property:
+            raise HTTPException(status_code=404, detail="Property not found or you don't have permission to update it")
+            
         update_data = property_update.model_dump(exclude_unset=True)
-
         result = await db.properties.update_one(
-            {"property_id": property_id},
+            {"property_id": property_id, "created_by": created_by} if created_by else {"property_id": property_id},
             {"$set": update_data}
         )
 
-        if result.matched_count == 0:
+        if result.modified_count == 0 and result.matched_count == 0:
             logger.warning(f"Property not found for update: {property_id}")
             raise HTTPException(status_code=404, detail="Property not found")
-
-        if result.modified_count == 0:
-            logger.info(f"No changes made to property: {property_id}")
-            updated_property_doc = await db.properties.find_one({"property_id": property_id})
-            updated_prop_model = Property.model_validate(updated_property_doc)
-            return updated_prop_model
 
         updated_property_doc = await db.properties.find_one({"property_id": property_id})
         logger.info(f"Updated Property: {updated_property_doc}")
@@ -329,7 +378,6 @@ async def update_property(property_id: str, property_update: PropertyUpdate):
         if not updated_property_doc:
             raise HTTPException(status_code=404, detail="Property not found after update.")
 
-        # 최종 결과를 Pydantic 모델로 변환
         updated_prop_model = Property.model_validate(updated_property_doc)
         return updated_prop_model
 
@@ -341,16 +389,27 @@ async def update_property(property_id: str, property_update: PropertyUpdate):
 
 
 @app.delete("/properties/{property_id}")
-async def delete_property(property_id: str):
+async def delete_property(property_id: str, created_by: Optional[str] = None):
     """
     부동산 정보 삭제
     """
     try:
-        logger.info(f"Deleting property with property_id: {property_id}")
-        result = await db.properties.delete_one({"property_id": property_id})
+        logger.info(f"Deleting property with property_id: {property_id}, created_by: {created_by}")
+        
+        # 먼저 해당 property가 존재하고 사용자가 소유자인지 확인
+        query = {"property_id": property_id}
+        if created_by:
+            query["created_by"] = created_by
+            
+        existing_property = await db.properties.find_one(query)
+        if not existing_property:
+            raise HTTPException(status_code=404, detail="Property not found or you don't have permission to delete it")
+            
+        result = await db.properties.delete_one(query)
         if result.deleted_count == 0:
             logger.warning(f"Property not found for deletion: {property_id}")
             raise HTTPException(status_code=404, detail="Property not found")
+            
         logger.info(f"Deleted Property: {property_id}")
         return {"detail": "Property deleted"}
     except Exception as e:

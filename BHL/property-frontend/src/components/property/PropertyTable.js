@@ -4,6 +4,7 @@ import { Table, Button, Badge, Form } from 'react-bootstrap';
 import { propertyService } from '../../services/api';
 import { formatDate } from '../../utils/FormatTools';
 import PropertyInfoModal from './detail/PropertyInfoModal';
+import { statusOptions } from '../common/FormControls/FormField';
 
 const PropertyTable = ({ properties, onRefresh }) => {
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -35,14 +36,6 @@ const PropertyTable = ({ properties, onRefresh }) => {
       }
     }
   };
-
-  // 상태 옵션 정의
-  const statusOptions = [
-    '등록 대기',
-    '등록 완료',
-    '계약 완료',
-    '기간 만료',
-  ];
 
   // status 변경 처리 함수
   const handleStatusChange = async (propertyId, newStatus) => {
@@ -104,11 +97,11 @@ const PropertyTable = ({ properties, onRefresh }) => {
 
   const propertyTypeColors = {
     아파트: 'primary',
-    오피스텔: 'dark',
-    재건축: 'success',
-    주상복합: 'warning',
+    오피스텔: 'success',
+    재건축: 'primary',
+    주상복합: 'primary',
     상가: 'info',
-    사무실: 'light',
+    사무실: 'dark',
     기타: 'secondary'
   };
 
@@ -120,20 +113,21 @@ const PropertyTable = ({ properties, onRefresh }) => {
   return (
     <div className="table-responsive">
       <Table striped bordered hover>
-        <thead>
+        <thead style={{ backgroundColor: '#f2f2f2', borderBottom: '2px solid #dee2e6' }}>
           <tr>
-            <th>번호</th>
-            <th>등록일자</th>
-            <th>종류</th>
-            <th>거래 종류</th>
-            <th>주소</th>
-            <th>단지명</th>
-            <th>가격(만원)</th>
-            <th>소유주</th>
-            <th>연락처</th>
-            <th>메모</th>
-            <th style={{ minWidth: '100px' }}>작업상태</th>
-            <th></th>
+            <th style={{ maxWidth: '20px', fontWeight: 'bold', textAlign: 'center' }}>번호</th>
+            <th style={{ minWidth: '100px', fontWeight: 'bold', textAlign: 'center' }}>등록일자</th>
+            <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>소유주</th>
+            <th style={{ maxWidth: '40px', fontWeight: 'bold', textAlign: 'center' }}>연락처</th>
+            <th style={{ minWidth: '50px', fontWeight: 'bold', textAlign: 'center' }}>종류</th>
+            <th style={{ maxWidth: '40px', fontWeight: 'bold', textAlign: 'center' }}>거래 종류</th>
+            <th style={{ fontWeight: 'bold', textAlign: 'center' }}>주소</th>
+            <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>단지명</th>
+            <th style={{ minWidth: '100px', fontWeight: 'bold', textAlign: 'center' }}>보증금(만원)</th>
+            <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>가격(만원)</th>
+            <th style={{ maxWidth: '300px', fontWeight: 'bold', textAlign: 'center' }}>메모</th>
+            <th style={{ minWidth: '130px', fontWeight: 'bold', textAlign: 'center' }}>작업상태</th>
+            <th style={{ minWidth: '140px' }}></th>
           </tr>
         </thead>
         <tbody>
@@ -142,13 +136,14 @@ const PropertyTable = ({ properties, onRefresh }) => {
               {/* property_number가 있다면 property.property_number */}
               <td>{property.property_number || index + 1}</td>
               <td>{formatDate(property.created_at)}</td>
+              <td>{renderCell(property, 'owner_name')}</td>
+              <td>{renderCell(property, 'owner_contact')}</td>
               <td>{renderPropertyTypeBadge(property.property_type)}</td>
               <td>{renderCell(property, 'transaction_type')}</td>
               <td>{renderCell(property, 'address')}</td>
               <td>{renderCell(property, 'property_name')}</td>
+              <td>{renderCell(property, 'deposit')}</td>
               <td>{renderCell(property, 'price')}</td>
-              <td>{renderCell(property, 'owner_name')}</td>
-              <td>{renderCell(property, 'owner_contact')}</td>
               <td>{renderCell(property, 'memo')}</td>
               <td>{renderCell(property, 'status')}</td>
               <td className="text-center">
