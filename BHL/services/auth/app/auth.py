@@ -14,7 +14,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # MongoDB 연결
-client = MongoClient(settings.MONGODB_URL)
+client = MongoClient(settings.MONGODB_URI)
 db = client[settings.DB_NAME]
 users_collection = db.users
 

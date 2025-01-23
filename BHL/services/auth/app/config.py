@@ -4,7 +4,7 @@ import os
 
 class Settings(BaseSettings):
     # MongoDB 설정
-    MONGODB_URL: str = "mongodb://work-db:27017"
+    MONGODB_URI: str = os.getenv("MONGODB_URI")
     DB_NAME: str = "mars_work_db"
     
     # JWT 설정

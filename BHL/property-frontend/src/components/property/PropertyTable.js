@@ -125,7 +125,7 @@ const PropertyTable = ({ properties, onRefresh }) => {
             <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>단지명</th>
             <th style={{ minWidth: '100px', fontWeight: 'bold', textAlign: 'center' }}>보증금(만원)</th>
             <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>가격(만원)</th>
-            <th style={{ maxWidth: '300px', fontWeight: 'bold', textAlign: 'center' }}>메모</th>
+            <th style={{ maxWidth: '300px', fontWeight: 'bold', textAlign: 'center', wordWrap: 'break-word' }}>메모</th>
             <th style={{ minWidth: '130px', fontWeight: 'bold', textAlign: 'center' }}>작업상태</th>
             <th style={{ minWidth: '140px' }}></th>
           </tr>
