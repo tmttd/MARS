@@ -123,6 +123,7 @@ const PropertyTable = ({ properties, onRefresh }) => {
             <th style={{ maxWidth: '40px', fontWeight: 'bold', textAlign: 'center' }}>거래 종류</th>
             <th style={{ fontWeight: 'bold', textAlign: 'center' }}>주소</th>
             <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>단지명</th>
+            <th style={{ minWidth: '100px', fontWeight: 'bold', textAlign: 'center' }}>보증금(만원)</th>
             <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>가격(만원)</th>
             <th style={{ minWidth: '400px', fontWeight: 'bold', textAlign: 'center' }}>메모</th>
             <th style={{ minWidth: '130px', fontWeight: 'bold', textAlign: 'center' }}>작업상태</th>
@@ -141,6 +142,7 @@ const PropertyTable = ({ properties, onRefresh }) => {
               <td>{renderCell(property, 'transaction_type')}</td>
               <td>{renderCell(property, 'address')}</td>
               <td>{renderCell(property, 'property_name')}</td>
+              <td>{renderCell(property, 'deposit')}</td>
               <td>{renderCell(property, 'price')}</td>
               <td>{renderCell(property, 'memo')}</td>
               <td>{renderCell(property, 'status')}</td>
