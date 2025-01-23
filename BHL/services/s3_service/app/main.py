@@ -175,7 +175,7 @@ async def get_audio_stream(name: str, user_name: str = None):
         ) 
 
 @app.post("/audio/upload/", response_model=UploadUrlResponse)
-async def upload_audio(request: UploadUrlRequest):
+async def upload_audio(request: UploadUrlRequest, user_name: str = None):
     try:
         logger.info(f"Upload URL 요청: filename={request.filename}")
         
@@ -185,7 +185,7 @@ async def upload_audio(request: UploadUrlRequest):
                 'put_object',
                 Params={
                     'Bucket': settings.S3_BUCKET_NAME,
-                    'Key': request.filename,
+                    'Key': user_name + "/" + request.filename,
                     'ContentType': request.content_type
                 },
                 ExpiresIn=settings.PRESIGNED_URL_EXPIRATION
