@@ -1,3 +1,5 @@
+version: "3.9"
+
 networks:
   mars_network:
     driver: bridge
@@ -198,8 +200,9 @@ services:
   property-frontend:
     build:
       context: ./property-frontend
+      # ↓↓↓ 여기만 수정 ↓↓↓
       args:
-        - REACT_APP_API_URL=http://localhost:8003
+        - REACT_APP_API_URL=http://api_gateway:8000
     ports:
       - "3000:80"
     environment:
@@ -295,4 +298,3 @@ volumes:
       type: none
       device: ${PWD}/datas
       o: bind
-      
