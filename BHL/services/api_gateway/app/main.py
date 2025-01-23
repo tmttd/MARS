@@ -335,6 +335,7 @@ async def list_calls(
     recording_date: Optional[str] = Query(None),
     before_date: Optional[str] = Query(None),
     after_date: Optional[str] = Query(None),
+    created_by: Optional[str] = Query(None),  # 미들웨어에서 설정된 사용자 정보 사용
     exclude_property_names: Optional[List[str]] = Query(None)  # exclude_property_names 추가
 ):
     try:
@@ -348,7 +349,8 @@ async def list_calls(
             "recording_date": recording_date,
             "before_date": before_date,
             "after_date": after_date,
-            "exclude_property_names": exclude_property_names  # 추가된 부분
+            "exclude_property_names": exclude_property_names,  # 추가된 부분
+            "created_by": created_by  # 추가된 부분
         }
         # None 값 필터링
         params = {k: v for k, v in params.items() if v is not None}

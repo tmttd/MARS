@@ -68,7 +68,7 @@ class Call(BaseModel):
     summary_content: Optional[str] = None
     property_id: Optional[str] = None
     call_memo: Optional[str] = None    
-    created_by: str
+    created_by: Optional[str] = None
     extracted_property_info: Optional[ExtractedPropertyInfo] = None    
 
     # Pydantic v2에서는 model_config 또는 ConfigDict를 사용
