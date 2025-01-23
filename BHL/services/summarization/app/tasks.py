@@ -177,7 +177,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                 **Note**:
                 - Please write all responses in Korean.
                 - When mentioning 'pyeong', please convert 1 pyeong = approximately 3.306㎡.
-                - The unit of amount is based on 10,000 won. If necessary, you can omit or write '10,000 won' after the number, but please enter only integers for JSON values ​​(e.g. 25 million won → 250).
+                - The unit of amount is based on 10,000 won. If necessary, you can omit or write '10,000 won' after the number, but please enter only integers for JSON values ​​(e.g. 100 million won → 10000).
                 - If the same information is mentioned multiple times, use the most recent/specific information.
                 - Please null out any missing or unclear information.
                 - Please exclude unnecessary greetings, small talk, responses, etc. from the summary and include only the key content.
