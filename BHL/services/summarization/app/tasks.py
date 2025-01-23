@@ -144,7 +144,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                 **JSON Structure Details**:
                 {{
                 "summary_title": "통화 내용을 요약하는 20자 이내의 짧은 문구",
-                "summary_content": "Briefly summarize the following five pieces of information from the agent's perspective.:\n - Property type/location\n - Customer requirements (price, terms, schedule, etc.)\n - Additional information to check/prepare\n - Next steps (additional contact, document preparation, etc.)\n - Special notes or issues"
+                "summary_content": "Briefly summarize the following five pieces of information from the agent's perspective.:\n 1. Property type/location\n 2. Customer requirements (price, terms, schedule, etc.)\n 3. Additional information to check/prepare\n 4. Next steps (additional contact, document preparation, etc.)\n 5. Special notes or issues"
                 "extracted_property_info": {{
                     "property_name": "건물명",
                     "price": "매매가/임대가 (만원)",
