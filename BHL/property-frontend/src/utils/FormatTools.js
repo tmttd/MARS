@@ -32,9 +32,12 @@ export const formatDateTime = (dateString) => {
 
 // 등록일자 포맷팅 함수(2025-01-20T01:22:48.554Z -> 2025-01-20)
 export const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toISOString().split('T')[0];
-  };
+  const date = new Date(dateString);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // 월은 0부터 시작하므로 +1
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 // 가격 포맷팅 함수 (예: 억/만원)
 export const formatPrice = (priceValue) => {
