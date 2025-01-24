@@ -200,13 +200,12 @@ services:
   property-frontend:
     build:
       context: ./property-frontend
-      # ↓↓↓ 여기만 수정 ↓↓↓
-      args:
-        - REACT_APP_API_URL=http://api_gateway:8000
     ports:
       - "3000:80"
     environment:
       - NODE_ENV=production
+      - REACT_APP_API_URL=http://43.203.64.254:8003 
+      ## 로컬에서 테스트할 때는 http://localhost:8003
     depends_on:
       - api_gateway
     networks:

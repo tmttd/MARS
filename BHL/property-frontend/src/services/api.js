@@ -3,7 +3,11 @@ import { flattenData, unflattenPropertyData, unflattenCallData } from '../utils/
 import { formatPhoneNumber } from '../utils/FormatTools';
 import qs from 'qs';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8003';
+// 로컬에서 테스트할 때는 이 부분을 
+// const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8003';
+// 로 변경
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://43.203.64.254:8003';
+
 
 const api = axios.create({
   baseURL: API_BASE_URL,

@@ -34,7 +34,9 @@ app.middleware("http")(auth_middleware)
 # CORS 설정 추가
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # 혹은 실제 배포 도메인
+    allow_origins=["http://43.203.64.254:3000",
+                   "http://ec2-43-203-64-254.ap-northeast-2.compute.amazonaws.com:3000",
+                   "http://localhost:3000"],  # 혹은 실제 배포 도메인
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
