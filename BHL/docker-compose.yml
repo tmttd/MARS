@@ -93,7 +93,7 @@ services:
 
   transcription-worker:
     build: ./services/transcription
-    command: celery -A app.tasks worker --loglevel=info -Q transcription
+    command: celery -A app.tasks worker -B --loglevel=info -Q transcription
     deploy:
       resources:
         limits:
@@ -277,7 +277,7 @@ services:
     build:
       context: ./property-frontend
       args:
-        - REACT_APP_API_URL=http://localhost:8003
+        - REACT_APP_API_URL=http://nginx/api 
     ports:
       - "3000:80"
     environment:
@@ -370,6 +370,19 @@ services:
     depends_on:
       work-db:
         condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"    # 포트 번호 생략 가능!
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d  # 설정 파일 마운트
+    networks:
+      - mars_network
+    depends_on:
+      - property-frontend
+      - api_gateway
+      - auth
 
 volumes:
   whisper_cache:

@@ -26,7 +26,7 @@ except Exception as e:
     logger.error(f"MongoDB 연결 실패: {str(e)}")
     raise
 
-# 업로드 디렉토리 생성
+# 업로드 디렉토리 생성 
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
 @app.get("/health")
