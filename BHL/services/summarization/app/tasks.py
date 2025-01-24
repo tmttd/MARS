@@ -29,8 +29,21 @@ celery.conf.update(
     result_serializer='json',
     task_default_queue='summarization',
     task_routes={
-        'summarize_text': {'queue': 'summarization'}
-    }
+        'summarize_text': {'queue': 'summarization'},
+        'retry_incomplete_jobs': {'queue': 'summarization'}
+    },
+    worker_log_level='INFO',
+    worker_log_format='%(asctime)s - %(levelname)s - %(message)s',
+    worker_task_log_format='%(asctime)s - %(levelname)s - %(message)s',
+    # 주기적 작업(beat) 스케줄
+    beat_schedule={
+        # 매 1시간마다 실행
+        'retry-incomplete-jobs-every-hour': {
+            'task': 'retry_incomplete_jobs',
+            'schedule': 3600.0,  # 3600초 = 1시간
+        },
+    },
+    timezone='UTC'
 )
 
 @celery.task(name='summarize_text')
@@ -68,6 +81,9 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
             
         # OpenAI 클라이언트 초기화
         openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        
+        # # 테스트용 예외 발생
+        # raise Exception("test")
         
         # GPT를 사용한 텍스트 요약
         completion = openai_client.beta.chat.completions.parse(
@@ -131,7 +147,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
 
                 Your final response **must**:
                 1. Be in Korean.
-                2. Strictly follow the above Pydantic model’s JSON structure (use the same keys and nesting).
+                2. Strictly follow the above Pydantic model's JSON structure (use the same keys and nesting).
                 3. If any value is missing or uncertain, set it to `null` (i.e., `None` in Python terms).
                 4. Constrain `summary_title` to 20 characters or fewer.
                 5. Include the key points listed in the user prompt under `summary_content`.
@@ -235,17 +251,22 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         
         # 작업 완료 로그
         now = datetime.now(UTC)
-        db.logs.insert_one({
-            "job_id": job_id,
-            "service": "summarization",
-            "event": "summarization_completed",
-            "status": "completed",
-            "timestamp": now,
-            "message": "텍스트 요약 완료",
-            "metadata": {
-                "updated_at": now
-            }
-        })
+        db.logs.update_one(
+            {"job_id": job_id},
+            {
+                "$set": {
+                    "service": "summarization",
+                    "event": "summarization_completed",
+                    "status": "completed",
+                    "timestamp": now,
+                    "message": "텍스트 요약 완료",
+                    "metadata": {
+                        "updated_at": now
+                    }
+                }
+            },
+            upsert=True
+        )
             
         async def send_webhook():
             async with AsyncClient() as client:
@@ -267,18 +288,23 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         try:
             # 오류 로그 기록
             now = datetime.now(UTC)
-            db.logs.insert_one({
-                "job_id": job_id,
-                "service": "summarization",
-                "event": "error",
-                "status": "failed",
-                "timestamp": now,
-                "message": f"요약 실패: {str(e)}",
-                "metadata": {
-                    "error": str(e),
-                    "updated_at": now
-                }
-            })
+            db.logs.update_one(
+                {"job_id": job_id},
+                {
+                    "$set": {
+                        "service": "summarization",
+                        "event": "error",
+                        "status": "failed",
+                        "timestamp": now,
+                        "message": f"요약 실패: {str(e)}",
+                        "metadata": {
+                            "error": str(e),
+                            "updated_at": now
+                        }
+                    }
+                },
+                upsert=True
+            )
         except Exception as inner_e:
             logger.error(f"오류 상태 업데이트 실패: {str(inner_e)}")
         finally:
@@ -288,3 +314,58 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
     
 # task 함수를 변수에 할당하여 export
 summarize_text_task = celery.task(name='summarize_text', bind=True)(summarize_text)
+
+@celery.task(name='retry_incomplete_jobs')
+def retry_incomplete_jobs():
+    """
+    1시간마다 실행되어, db.logs에서 'failed' 상태인 job_id를 찾고,
+    아직 'completed' 로그가 없는 경우 다시 summarize_text 태스크를 재시도한다.
+    """
+    logger.info("===== 재시도 대상 작업 스캐닝 시작 =====")
+
+    try:
+        # 로그 DB 연결
+        client = MongoClient(settings.MONGODB_URI)
+        db = client[settings.MONGODB_DB]
+
+        # 작업 DB 연결
+        work_client = MongoClient(settings.WORK_MONGODB_URI)
+        work_db = work_client[settings.WORK_MONGODB_DB]
+
+        # 'failed' 상태인 job 목록 추출
+        failed_jobs = db.logs.find({"status": "failed"}).distinct("job_id")
+
+        if not failed_jobs:
+            logger.info("실패 상태의 작업이 없습니다.")
+            return
+
+        for job_id in failed_jobs:
+            # 혹시 이미 "completed" 로그가 존재한다면(재시도 전에 해결된 경우) 스킵
+            completed_log = db.logs.find_one({"job_id": job_id, "status": "completed"})
+            if completed_log:
+                logger.info(f"job_id={job_id} 는 이미 완료 로그가 있으므로 재시도하지 않음")
+                continue
+
+            # 재시도할 job의 입력값들을 work_db에서 조회
+            call_doc = work_db.calls.find_one({"job_id": str(job_id)})
+            if not call_doc:
+                logger.warning(f"work_db.calls에서 job_id={job_id} 관련 정보를 찾을 수 없어 재시도 불가")
+                continue
+
+            logger.info(f"job_id={job_id} 재시도 수행")
+            # summarize_text 태스크 재등록 (비동기)
+            summarize_text_task.apply_async(kwargs={
+                'job_id': job_id,
+                'db_connection_string': settings.MONGODB_URI,
+                'work_db_connection_string': settings.WORK_MONGODB_URI,
+                'work_db_name': settings.WORK_MONGODB_DB
+            })
+    except Exception as e:
+        logger.error(f"재시도 작업 처리 중 오류 발생: {str(e)}")
+    finally:
+        if 'client' in locals():
+            client.close()
+        if 'work_client' in locals():
+            work_client.close()
+
+    logger.info("===== 재시도 대상 작업 스캐닝 종료 =====")

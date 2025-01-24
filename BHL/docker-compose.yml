@@ -153,7 +153,7 @@ services:
 
   summarization-worker:
     build: ./services/summarization
-    command: celery -A app.tasks worker --loglevel=info -Q summarization
+    command: celery -A app.tasks worker -B --loglevel=info -Q summarization
     volumes:
       - ./services/summarization:/app
       - ./datas/transcription_outputs:/app/text_outputs
@@ -277,7 +277,7 @@ services:
     build:
       context: ./property-frontend
       args:
-        - REACT_APP_API_URL=http://nginx/api 
+        - REACT_APP_API_URL=http://nginx/api
     ports:
       - "3000:80"
     environment:
@@ -342,7 +342,13 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "python", "-c", "import sys; from app.main import ConsumerService; sys.exit(0 if ConsumerService().check_health() else 1)"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import sys; from app.main import ConsumerService; sys.exit(0 if ConsumerService().check_health() else 1)",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -374,9 +380,9 @@ services:
   nginx:
     image: nginx:alpine
     ports:
-      - "80:80"    # 포트 번호 생략 가능!
+      - "80:80" # 포트 번호 생략 가능!
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d  # 설정 파일 마운트
+      - ./nginx/conf.d:/etc/nginx/conf.d # 설정 파일 마운트
     networks:
       - mars_network
     depends_on:
@@ -395,4 +401,3 @@ volumes:
       type: none
       device: ${PWD}/datas
       o: bind
-      

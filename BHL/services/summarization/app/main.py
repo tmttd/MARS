@@ -74,18 +74,23 @@ async def summarize(job_id: str):
         current_time = datetime.now(UTC)
         
         # 로그 기록
-        db.logs.insert_one({
-            "job_id": job_id,
-            "service": "summarization",
-            "event": "processing_started",
-            "status": "processing",
-            "timestamp": current_time,
-            "message": "요약 작업 시작됨",
-            "metadata": {
-                "created_at": current_time,
-                "updated_at": current_time
-            }
-        })
+        db.logs.update_one(
+            {"job_id": job_id},
+            {
+                "$set": {
+                    "service": "summarization",
+                    "event": "processing_started",
+                    "status": "processing",
+                    "timestamp": current_time,
+                    "message": "요약 작업 시작됨",
+                    "metadata": {
+                        "created_at": current_time,
+                        "updated_at": current_time
+                    }
+                }
+            },
+            upsert=True
+        )
         
         # Celery 작업 시작
         summarize_text_task.apply_async(

@@ -173,7 +173,10 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
         # gpt-4o로 텍스트 보정하기
         # OpenAI 클라이언트 초기화
         openai_client = OpenAI(api_key=OPENAI_API_KEY)
-        raise Exception("test")
+        
+        # 테스트용 예외 발생
+        # raise Exception("test")
+        
         # GPT를 사용한 텍스트 요약
         completion = openai_client.chat.completions.create(
             model="gpt-4o",
