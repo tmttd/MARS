@@ -200,6 +200,8 @@ services:
   property-frontend:
     build:
       context: ./property-frontend
+      args:
+        - REACT_APP_API_URL=http://nginx/api 
     ports:
       - "3000:80"
     environment:
@@ -288,6 +290,19 @@ services:
       - AUTH_TOKEN_EXPIRE_MINUTES=${AUTH_TOKEN_EXPIRE_MINUTES}
     networks:
       - mars_network
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    networks:
+      - mars_network
+    depends_on:
+      - property-frontend
+      - api_gateway
+      - auth
 
 volumes:
   whisper_cache:
