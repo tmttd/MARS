@@ -126,7 +126,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                     city: Optional[str] = Field(None, description="시")
                     district: Optional[str] = Field(None, description="구")
                     legal_dong: Optional[str] = Field(None, description="동")
-                    detail_address: Optional[str] = Field(None, description="상세주소(동 호수 or 번지)")
+                    detail_address: Optional[str] = Field(None, description="아파트 동 호수 or 번지(ex. 1동 1305호 or 123-23)")
                     transaction_type: Optional[TransactionType] = Field(None, description="거래 종류")
                     property_type: Optional[PropertyType] = Field(None, description="매물 종류")
                     floor: Optional[int] = Field(None, description="층")
@@ -169,7 +169,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                     "city": "시",
                     "district": "구",
                     "legal_dong": "동",
-                    "detail_address": "상세주소(동 호수 or 번지)",
+                    "detail_address": "아파트 동 호수 or 번지(ex. 1동 1305호 or 123-23)",
                     "transaction_type": "거래 종류",
                     "property_type": "매물 종류",
                     "floor": "층",
