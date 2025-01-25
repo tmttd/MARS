@@ -94,8 +94,12 @@ function PropertyForm({
     setFormData({ ...property });
 
     try {
-      // Call 데이터 업데이트: property_id 설정
+      // 기존 call 데이터 조회
+      const existingCall = await callService.getCall(jobId);
+      
+      // Call 데이터 업데이트: 기존 데이터 유지하면서 property_id 추가
       const updatedCall = await callService.updateCall(jobId, { 
+        ...existingCall,        // 기존 call 데이터 유지
         property_id: property.property_id 
       });
       console.info("Call 데이터가 업데이트되었습니다.", updatedCall);
