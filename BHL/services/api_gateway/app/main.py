@@ -12,9 +12,7 @@ import os
 from .config import Settings
 from .models import ProcessingJob, StageStatus, UploadRequest, RegisterRequest, LoginRequest
 from .middleware import auth_middleware  # 미들웨어 임포트
-from typing import List, Dict, Any, Optional
-from pymongo import MongoClient
-from pydantic import BaseModel
+from typing import List, Optional
 
 # 로깅 설정
 logging.basicConfig(
@@ -30,16 +28,16 @@ app = FastAPI(title="Audio Processing API Gateway")
 # 환경 변수 설정
 DATABASE_SERVICE_URL = os.getenv("DATABASE_SERVICE_URL", "http://database:8000")
 
-
-
-
 # 인증 미들웨어 등록
 app.middleware("http")(auth_middleware)
 
 # CORS 설정 추가
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # 혹은 실제 배포 도메인
+    allow_origins=["http://43.203.64.254:3000",
+                   "http://43.203.64.254",
+                   "http://ec2-43-203-64-254.ap-northeast-2.compute.amazonaws.com:3000",
+                   "http://localhost:3000"],  # 혹은 실제 배포 도메인
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -220,12 +218,6 @@ async def transcription_webhook(job_id: str):
 
             transcript_data = response.json()
 
-            # # 텍스트 파일 경로 변환
-            # if "output_file" in transcript_data:
-            #     transcript_data["output_file"] = transcript_data["output_file"].replace(
-            #         "/app/text_outputs", settings.TEXT_OUTPUT_DIR
-            #     )
-
             # 요약 작업 시작
             summarize_response = await client.post(
                 f"{settings.SUMMARIZATION_SERVICE_URL}/summarize/{job_id}",
@@ -281,34 +273,6 @@ async def summarization_webhook(job_id: str):
     except Exception as e:
         logger.error(f"요약 웹훅 처리 중 오류 발생: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/job/{job_id}")
-async def get_job_status(job_id: str):
-    try:
-        # 작업 데이터베이스 연결
-        client = MongoClient(settings.WORK_MONGODB_URI)
-        work_db = client[settings.WORK_MONGODB_DB]
-
-        # 각 컬렉션에서 job_id로 조회
-        conversion = work_db.audio_conversions.find_one({"job_id": job_id}, {"_id": 0})
-        transcription = work_db.transcriptions.find_one({"job_id": job_id}, {"_id": 0})
-        summary = work_db.summaries.find_one({"job_id": job_id}, {"_id": 0})
-
-        # 결과 조합
-        result = {
-            "job_id": job_id,
-            "conversion": conversion,
-            "transcription": transcription,
-            "summary": summary,
-        }
-
-        return result
-
-    except Exception as e:
-        logger.error(f"작업 조회 중 오류 발생: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        client.close()
 
 # 공통 헤더 전달을 위한 유틸리티 함수
 async def proxy_request(method: str, url: str, **kwargs):

@@ -1,3 +1,5 @@
+version: "3.9"
+
 networks:
   mars_network:
     driver: bridge
@@ -13,9 +15,8 @@ services:
       - ./datas/audio_converted:/app/audio_outputs
       - ./services/converter:/app
     environment:
-      - MONGODB_URI=mongodb://converter-db:27017/
+      - MONGODB_URI=${MONGODB_URI}
       - MONGODB_DB=converter_db
-      - WORK_MONGODB_URI=mongodb://work-db:27017/
       - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
       - UPLOAD_DIR=/app/uploads
@@ -28,8 +29,6 @@ services:
     networks:
       - mars_network
     depends_on:
-      work-db:
-        condition: service_healthy
       redis:
         condition: service_started
 
@@ -41,9 +40,8 @@ services:
       - ./datas/audio_uploads:/app/uploads
       - ./datas/audio_converted:/app/audio_outputs
     environment:
-      - MONGODB_URI=mongodb://converter-db:27017/
+      - MONGODB_URI=${MONGODB_URI}
       - MONGODB_DB=converter_db
-      - WORK_MONGODB_URI=mongodb://work-db:27017/
       - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
       - UPLOAD_DIR=/app/uploads
@@ -56,8 +54,6 @@ services:
     networks:
       - mars_network
     depends_on:
-      - converter-db
-      - work-db
       - redis
 
   transcription:
@@ -70,9 +66,8 @@ services:
       - ./datas/audio_converted:/app/audio_outputs
       - ./datas/transcription_outputs:/app/text_outputs
     environment:
-      - MONGODB_URI=mongodb://transcription-db:27017/
+      - MONGODB_URI=${MONGODB_URI}
       - MONGODB_DB=transcription_db
-      - WORK_MONGODB_URI=mongodb://work-db:27017/
       - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
       - CONVERTER_SERVICE_URL=http://converter:8000
@@ -84,8 +79,6 @@ services:
     networks:
       - mars_network
     depends_on:
-      work-db:
-        condition: service_healthy
       redis:
         condition: service_started
       converter:
@@ -106,9 +99,8 @@ services:
       - ./datas/transcription_outputs:/app/text_outputs
       - ./datas/whisper_cache:/app/whisper_cache
     environment:
-      - MONGODB_URI=mongodb://transcription-db:27017/
+      - MONGODB_URI=${MONGODB_URI}
       - MONGODB_DB=transcription_db
-      - WORK_MONGODB_URI=mongodb://work-db:27017/
       - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
       - UPLOAD_DIR=/app/audio_outputs
@@ -119,8 +111,6 @@ services:
     networks:
       - mars_network
     depends_on:
-      - transcription-db
-      - work-db
       - redis
 
   summarization:
@@ -133,9 +123,8 @@ services:
     ports:
       - "8002:8000"
     environment:
-      - MONGODB_URI=mongodb://summarization-db:27017/
+      - MONGODB_URI=${MONGODB_URI}
       - MONGODB_DB=summarization_db
-      - WORK_MONGODB_URI=mongodb://work-db:27017/
       - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -146,8 +135,6 @@ services:
     networks:
       - mars_network
     depends_on:
-      work-db:
-        condition: service_healthy
       redis:
         condition: service_started
 
@@ -160,9 +147,8 @@ services:
       - ./datas/summarization_outputs:/app/summary_outputs
       - ./datas/summarization_cache:/app/cache
     environment:
-      - MONGODB_URI=mongodb://summarization-db:27017/
+      - MONGODB_URI=${MONGODB_URI}
       - MONGODB_DB=summarization_db
-      - WORK_MONGODB_URI=mongodb://work-db:27017/
       - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -173,67 +159,7 @@ services:
     networks:
       - mars_network
     depends_on:
-      - summarization-db
-      - work-db
       - redis
-
-  converter-db:
-    image: mongo:latest
-    command: mongod --quiet --logpath /dev/null
-    volumes:
-      - ./converter_db:/data/db
-    networks:
-      - mars_network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  transcription-db:
-    image: mongo:latest
-    command: mongod --quiet --logpath /dev/null
-    volumes:
-      - ./transcription_db:/data/db
-    networks:
-      - mars_network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  summarization-db:
-    image: mongo:latest
-    command: mongod --quiet --logpath /dev/null
-    volumes:
-      - ./summarization_db:/data/db
-    networks:
-      - mars_network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  work-db:
-    image: mongo:latest
-    command: mongod --quiet --logpath /dev/null
-    volumes:
-      - ./work_db:/data/db
-    networks:
-      - mars_network
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 2s
-      timeout: 5s
-      retries: 50
-      start_period: 5s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
   redis:
     image: redis:7.2
@@ -258,7 +184,7 @@ services:
       - ./datas/transcription_outputs:/app/text_outputs
       - ./datas/summarization_outputs:/app/summary_outputs
     environment:
-      - WORK_MONGODB_URI=mongodb://work-db:27017/
+      - MONGODB_URI=${MONGODB_URI}
       - WORK_MONGODB_DB=mars_work_db
       - DATABASE_SERVICE_URL=http://database:8000
       - REDIS_URL=redis://redis:6379/0
@@ -266,8 +192,6 @@ services:
     networks:
       - mars_network
     depends_on:
-      work-db:
-        condition: service_healthy
       redis:
         condition: service_started
       database:
@@ -282,9 +206,10 @@ services:
       - "3000:80"
     environment:
       - NODE_ENV=production
+      - REACT_APP_API_URL=http://43.203.64.254:8003 
+      ## 로컬에서 테스트할 때는 http://localhost:8003
     depends_on:
       - api_gateway
-      - work-db
     networks:
       - mars_network
 
@@ -295,13 +220,11 @@ services:
     volumes:
       - ./services/database:/app
     environment:
-      - MONGODB_URL=mongodb://work-db:27017
+      - MONGODB_URI=${MONGODB_URI}
       - WORK_MONGODB_DB=mars_work_db
       - PYTHONWARNINGS=ignore
     networks:
       - mars_network
-    depends_on:
-      - work-db
 
   s3_service:
     build: ./services/s3_service
@@ -367,15 +290,25 @@ services:
     volumes:
       - ./services/auth:/app
     environment:
-      - MONGODB_URL=mongodb://work-db:27017/
+      - MONGODB_URI=${MONGODB_URI}
       - DB_NAME=mars_work_db
       - AUTH_SECRET_KEY=${AUTH_SECRET_KEY}
       - AUTH_TOKEN_EXPIRE_MINUTES=${AUTH_TOKEN_EXPIRE_MINUTES}
     networks:
       - mars_network
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    networks:
+      - mars_network
     depends_on:
-      work-db:
-        condition: service_healthy
+      - property-frontend
+      - api_gateway
+      - auth
 
   nginx:
     image: nginx:alpine
@@ -392,9 +325,6 @@ services:
 
 volumes:
   whisper_cache:
-  converter_db:
-  transcription_db:
-  summarization_db:
   datas:
     driver: local
     driver_opts:

@@ -19,7 +19,7 @@ app = FastAPI(title=settings.PROJECT_NAME)
 try:
     client = MongoClient(settings.MONGODB_URI)
     db = client[settings.MONGODB_DB]
-    work_client = MongoClient(settings.WORK_MONGODB_URI)
+    work_client = MongoClient(settings.MONGODB_URI)
     work_db = work_client[settings.WORK_MONGODB_DB]
     logger.info("MongoDB 연결 성공")
 except Exception as e:
@@ -77,7 +77,7 @@ async def transcribe_audio_endpoint(job_id: str):
                     'input_path': input_file,
                     'output_dir': settings.OUTPUT_DIR,
                     'db_connection_string': settings.MONGODB_URI,
-                    'work_db_connection_string': settings.WORK_MONGODB_URI,
+                    'work_db_connection_string': settings.MONGODB_URI,
                     'work_db_name': settings.WORK_MONGODB_DB
                 },
                 queue='transcription'

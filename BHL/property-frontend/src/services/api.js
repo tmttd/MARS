@@ -3,7 +3,11 @@ import { flattenData, unflattenPropertyData, unflattenCallData } from '../utils/
 import { formatPhoneNumber } from '../utils/FormatTools';
 import qs from 'qs';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8003';
+// 로컬에서 테스트할 때는 이 부분을 
+// const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8003';
+// 로 변경
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://43.203.64.254:8003';
+
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -17,7 +21,6 @@ const api = axios.create({
 export const propertyService = {
   getProperties: async (page = 1, limit = 10, filters = {}) => {
     try {
-      console.log('[API] getProperties 요청:', { page, limit, filters });
 
       // 기타 필터 처리
       let params = {
@@ -42,7 +45,6 @@ export const propertyService = {
         params,
         paramsSerializer: params => qs.stringify(params, { arrayFormat: 'repeat' })
       });
-      console.log('[API] 요청 URL:', '/properties/', JSON.stringify(params, null, 2));
 
       const { results, totalCount } = response.data;
 
@@ -58,7 +60,6 @@ export const propertyService = {
         }
       });
 
-      console.log('[API] getProperties 응답:', { results: flattenedResults, totalCount });
       return { results: flattenedResults, totalCount };
     } catch (error) {
       console.error('API Error details:', error.response || error);
@@ -68,7 +69,6 @@ export const propertyService = {
 
   getProperty: async (propertyId) => {
     try {
-      console.log('[API] getProperty 요청:', { propertyId });
       const response = await api.get(`/properties/${propertyId}`);
       // flattenData 적용
       const flattenedData = flattenData(response.data);
@@ -79,7 +79,6 @@ export const propertyService = {
       if (flattenedData.tenant_contact) {
         flattenedData.tenant_contact = formatPhoneNumber(flattenedData.tenant_contact);
       }
-      console.log('[API] getProperty 응답:', flattenedData);
       return flattenedData;
     } catch (error) {
       console.error('Get Property Error:', error);
@@ -89,13 +88,8 @@ export const propertyService = {
 
   createProperty: async (data) => {
     try {
-      console.log('[API] createProperty 요청:', data);
       const structuredData = unflattenPropertyData(data);
-      
-      console.log('structuredData', structuredData);
-
       const response = await api.post('/properties/', structuredData);
-      console.log('[API] createProperty 응답:', response.data);
       return response.data;
     } catch (error) {
       console.error('Create Property Error:', error);
@@ -105,11 +99,8 @@ export const propertyService = {
 
   updateProperty: async (propertyId, data) => {
     try {
-      console.log('[API] updateProperty 요청:', { propertyId, data });
       const structuredData = unflattenPropertyData(data);
-      console.log('structuredData', structuredData);
       const response = await api.put(`/properties/${propertyId}`, structuredData);
-      console.log('[API] updateProperty 응답:', response.data);
       const flattenedData = flattenData(response.data);
       return flattenedData;
     } catch (error) {
@@ -120,9 +111,7 @@ export const propertyService = {
 
   deleteProperty: async (propertyId) => {
     try {
-      console.log('[API] deleteProperty 요청:', { propertyId });
       const response = await api.delete(`/properties/${propertyId}`);
-      console.log('[API] deleteProperty 응답:', response.data);
       return response.data;
     } catch (error) {
       console.error('Delete Property Error:', error);
@@ -134,8 +123,6 @@ export const propertyService = {
 export const callService = {
   getCalls: async (page = 1, limit = 10, filters = {}) => {
     try {
-      console.log('[API] getCalls 요청:', { page, limit, filters });
-
       // 기타 필터 처리
       let params = {
         limit,
@@ -160,11 +147,7 @@ export const callService = {
         paramsSerializer: params => qs.stringify(params, { arrayFormat: 'repeat' })
       });
 
-      console.log('[API] 요청 URL:', '/calls/', JSON.stringify(params, null, 2));
-
       const { results: calls, totalCount } = response.data;
-
-      console.log('calls', calls);
 
       const flattenedCalls = calls.map(call => {
         const flattenedCall = flattenData(call);
@@ -180,7 +163,6 @@ export const callService = {
         return flattenedCall;
       });
 
-      console.log('[API] getCalls 응답:', { results: flattenedCalls, totalCount });
       return { calls: flattenedCalls, totalCount };
     } catch (error) {
       console.error('API Error details:', error.response || error);
@@ -190,7 +172,6 @@ export const callService = {
 
   getCall: async (callId) => {
     try {
-      console.log('[API] getCall 요청:', { callId });
       const response = await api.get(`/calls/${callId}`);
       // flattenData 적용
       const flattenedData = flattenData(response.data);
@@ -203,7 +184,6 @@ export const callService = {
       if (flattenedData.tenant_contact) {
         flattenedData.tenant_contact = formatPhoneNumber(flattenedData.tenant_contact);
       }
-      console.log('[API] getCall 응답:', flattenedData);
       return flattenedData;
     } catch (error) {
       console.error('Get Call Error:', error);
@@ -213,9 +193,7 @@ export const callService = {
 
   createCall: async (data) => {
     try {
-      console.log('[API] createCall 요청:', data);
       const response = await api.post('/calls/', data);
-      console.log('[API] createCall 응답:', response.data);
       return response.data;
     } catch (error) {
       console.error('Create Call Error:', error);
@@ -225,10 +203,8 @@ export const callService = {
 
   updateCall: async (callId, data) => {
     try {
-      console.log('[API] updateCall 요청:', { callId, data });
       const unflattenedData = unflattenCallData(data);
       const response = await api.put(`/calls/${callId}`, unflattenedData);
-      console.log('[API] updateCall 응답:', response.data);
       return response.data;
     } catch (error) {
       console.error('Update Call Error:', error);
@@ -238,9 +214,7 @@ export const callService = {
 
   deleteCall: async (callId) => {
     try {
-      console.log('[API] deleteCall 요청:', { callId });
       const response = await api.delete(`/calls/${callId}`);
-      console.log('[API] deleteCall 응답:', response.data);
       return response.data;
     } catch (error) {
       console.error('Delete Call Error:', error);
@@ -290,9 +264,6 @@ export const uploadService = {
       if (!uploadResponse.ok) {
         throw new Error('Failed to upload file');
       }
-      
-      console.log('[API] uploadFile Presigned URL 응답:', urlResponse.data);
-      console.log('[API] uploadFile 완료');
       return { success: true };
       
     } catch (error) {
@@ -305,7 +276,6 @@ export const uploadService = {
 export const authService = {
   login: async (credentials) => {
     try {
-      console.log('Sending login credentials:', credentials);  // 로그 추가
       const response = await api.post('/login', {
         username: credentials.username,
         password: credentials.password
@@ -330,7 +300,6 @@ export const authService = {
 
   register: async (userData) => {
     try {
-      console.log('API register received data:', userData);  // 받은 데이터 확인
       
       // 전송할 데이터 구조 확인
       const registerData = {
@@ -339,8 +308,6 @@ export const authService = {
         password: userData.password,
         confirm_password: userData.confirm_password
       };
-      
-      console.log('API sending data:', registerData);  // 전송할 데이터 확인
       
       const response = await api.post('/register', registerData);
       return response.data;

@@ -9,7 +9,6 @@ import logging
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder  # ★ 추가: ObjectId 등을 문자열로 변환
-# ↑ fastapi.encoders.jsonable_encoder 사용
 
 logging.basicConfig(
     level=logging.INFO,
@@ -18,11 +17,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-MONGODB_URL = os.getenv("MONGODB_URL", "mongodb://work-db:27017")
+MONGODB_URI = os.getenv("MONGODB_URI")
 WORK_MONGODB_DB = os.getenv("WORK_MONGODB_DB", "mars_work_db")
 
-client = AsyncIOMotorClient(MONGODB_URL)
-db = client[WORK_MONGODB_DB]
+client = AsyncIOMotorClient(MONGODB_URI)
+work_db = client[WORK_MONGODB_DB]
 
 app = FastAPI(title="Database Service")
 
@@ -95,10 +94,10 @@ async def list_calls(
         if created_by:
             query["created_by"] = created_by
         logger.info(f"Query: {query}")
-        total_count = await db.calls.count_documents(query)
+        total_count = await work_db.calls.count_documents(query)
 
         calls = []
-        cursor = db.calls.find(query).sort("recording_date", -1).skip(offset).limit(limit)
+        cursor = work_db.calls.find(query).sort("recording_date", -1).skip(offset).limit(limit)
         async for call_doc in cursor:
             # Pydantic 모델로 파싱하여 ObjectId -> str 변환 가능
             call_model = Call.model_validate(call_doc)
@@ -124,7 +123,7 @@ async def read_call(call_id: str):
     """
     try:
         logger.info(f"Reading call with job_id: {call_id}")
-        call_doc = await db.calls.find_one({"job_id": call_id})
+        call_doc = await work_db.calls.find_one({"job_id": call_id})
         if call_doc is None:
             logger.warning(f"Call not found: {call_id}")
             raise HTTPException(status_code=404, detail="Call not found")
@@ -146,7 +145,7 @@ async def update_call(call_id: str, call_update: CallUpdate):
         logger.info(f"Updating call with job_id: {call_id} and data: {call_update}")
         update_data = call_update.model_dump(exclude_unset=True)
 
-        result = await db.calls.update_one(
+        result = await work_db.calls.update_one(
             {"job_id": call_id},
             {"$set": update_data}
         )
@@ -157,11 +156,11 @@ async def update_call(call_id: str, call_update: CallUpdate):
 
         if result.modified_count == 0:
             logger.info(f"No changes made to call: {call_id}")
-            updated_call_doc = await db.calls.find_one({"job_id": call_id})
+            updated_call_doc = await work_db.calls.find_one({"job_id": call_id})
             updated_call_model = Call.model_validate(updated_call_doc)
             return updated_call_model
 
-        updated_call_doc = await db.calls.find_one({"job_id": call_id})
+        updated_call_doc = await work_db.calls.find_one({"job_id": call_id})
         logger.info(f"Updated Call: {updated_call_model}")
 
         if not updated_call_doc:
@@ -184,7 +183,7 @@ async def delete_call(call_id: str):
     """
     try:
         logger.info(f"Deleting call with job_id: {call_id}")
-        result = await db.calls.delete_one({"job_id": call_id})
+        result = await work_db.calls.delete_one({"job_id": call_id})
         if result.deleted_count == 0:
             logger.warning(f"Call not found for deletion: {call_id}")
             raise HTTPException(status_code=404, detail="Call not found")
@@ -250,10 +249,10 @@ async def list_properties(
         if created_by:
             query["created_by"] = created_by
 
-        total_count = await db.properties.count_documents(query)
+        total_count = await work_db.properties.count_documents(query)
 
         properties = []
-        cursor = db.properties.find(query).sort("created_at", -1).skip(offset).limit(limit)
+        cursor = work_db.properties.find(query).sort("created_at", -1).skip(offset).limit(limit)
         async for doc in cursor:
             prop_model = Property.model_validate(doc)
             properties.append(prop_model)
@@ -295,8 +294,8 @@ async def create_property(property: PropertyUpdate):
         if "created_by" not in property_data or not property_data["created_by"]:
             property_data["created_by"] = "system"  # 기본값으로 "system" 설정
             
-        result = await db.properties.insert_one(property_data)
-        created_property_doc = await db.properties.find_one({"property_id": property_data["property_id"]})
+        result = await work_db.properties.insert_one(property_data)
+        created_property_doc = await work_db.properties.find_one({"property_id": property_data["property_id"]})
         logger.info(f"Created Property: {created_property_doc}")
 
         if not created_property_doc:
@@ -306,7 +305,7 @@ async def create_property(property: PropertyUpdate):
         job_id = property_data.get("job_id")
         if job_id:
             # 해당 job_id를 가진 모든 call 문서를 찾아 property_id 업데이트
-            update_result = await db.calls.update_many(
+            update_result = await work_db.calls.update_many(
                 {"job_id": job_id},
                 {"$set": {"property_id": property_data["property_id"]}}
             )
@@ -331,7 +330,7 @@ async def read_property(property_id: str, created_by: Optional[str] = None):
         if created_by:
             query["created_by"] = created_by
             
-        doc = await db.properties.find_one(query)
+        doc = await work_db.properties.find_one(query)
         if doc is None:
             logger.warning(f"Property not found: {property_id}")
             raise HTTPException(status_code=404, detail="Property not found")
@@ -358,12 +357,12 @@ async def update_property(property_id: str, property_update: PropertyUpdate, cre
         if created_by:
             query["created_by"] = created_by
             
-        existing_property = await db.properties.find_one(query)
+        existing_property = await work_db.properties.find_one(query)
         if not existing_property:
             raise HTTPException(status_code=404, detail="Property not found or you don't have permission to update it")
             
         update_data = property_update.model_dump(exclude_unset=True)
-        result = await db.properties.update_one(
+        result = await work_db.properties.update_one(
             {"property_id": property_id, "created_by": created_by} if created_by else {"property_id": property_id},
             {"$set": update_data}
         )
@@ -372,7 +371,7 @@ async def update_property(property_id: str, property_update: PropertyUpdate, cre
             logger.warning(f"Property not found for update: {property_id}")
             raise HTTPException(status_code=404, detail="Property not found")
 
-        updated_property_doc = await db.properties.find_one({"property_id": property_id})
+        updated_property_doc = await work_db.properties.find_one({"property_id": property_id})
         logger.info(f"Updated Property: {updated_property_doc}")
 
         if not updated_property_doc:
@@ -401,11 +400,11 @@ async def delete_property(property_id: str, created_by: Optional[str] = None):
         if created_by:
             query["created_by"] = created_by
             
-        existing_property = await db.properties.find_one(query)
+        existing_property = await work_db.properties.find_one(query)
         if not existing_property:
             raise HTTPException(status_code=404, detail="Property not found or you don't have permission to delete it")
             
-        result = await db.properties.delete_one(query)
+        result = await work_db.properties.delete_one(query)
         if result.deleted_count == 0:
             logger.warning(f"Property not found for deletion: {property_id}")
             raise HTTPException(status_code=404, detail="Property not found")
