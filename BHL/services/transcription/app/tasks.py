@@ -8,7 +8,7 @@ import asyncio
 import gc
 import json
 from pathlib import Path
-from .config import settings
+from .config import settings 
 import requests
 from huggingface_hub import InferenceClient
 from openai import OpenAI
@@ -22,15 +22,21 @@ UTC = timezone.utc
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Huggingface API 키 확인
+# 환경 변수에서 필요한 값 로드
 HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 if not HUGGINGFACE_API_KEY:
     raise ValueError("HUGGINGFACE_API_KEY 환경 변수가 설정되지 않았습니다")
 
-# OpenAI API 키 확인
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY 환경 변수가 설정되지 않았습니다")
+
+DB_CONNECTION_STRING = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
+WORK_DB_CONNECTION_STRING = os.getenv("WORK_MONGODB_URI", "mongodb://localhost:27017/")
+WORK_MONGODB_DB = os.getenv("WORK_MONGODB_DB", "mars_work_db")
+
+# API Gateway URL 예시(필요 시 수정)
+API_GATEWAY_URL = os.getenv("API_GATEWAY_URL", "http://localhost:8003")
 
 # Celery 설정
 celery = Celery('transcription')
@@ -42,11 +48,21 @@ celery.conf.update(
     result_serializer='json',
     task_default_queue='transcription',
     task_routes={
-        'transcribe_audio': {'queue': 'transcription'}
+        'transcribe_audio': {'queue': 'transcription'},
+        'retry_incomplete_jobs': {'queue': 'transcription'}
     },
     worker_log_level='INFO',
     worker_log_format='%(asctime)s - %(levelname)s - %(message)s',
-    worker_task_log_format='%(asctime)s - %(levelname)s - %(message)s'
+    worker_task_log_format='%(asctime)s - %(levelname)s - %(message)s',
+    # 주기적 작업(beat) 스케줄
+    beat_schedule={
+        # 매 1시간마다 실행
+        'retry-incomplete-jobs-every-hour': {
+            'task': 'retry_incomplete_jobs',
+            'schedule': 3600.0,  # 3600초 = 1시간
+        },
+    },
+    timezone='UTC'
 )
 
 @celery.task(name='transcribe_audio')
@@ -68,6 +84,8 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
             "job_id": job_id,
             "service": "transcription",
             "event": "processing_started",
+            "input_path": input_path,
+            "output_dir": output_dir,
             "status": "processing",
             "timestamp": now,
             "message": f"Transcribing audio file: {input_path}",
@@ -81,15 +99,13 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
         if not os.path.exists(input_path):
             error_msg = f"오디오 파일을 찾을 수 없습니다: {input_path}"
             now = datetime.now(UTC)
-            db.logs.insert_one({
-                "job_id": job_id,
-                "service": "transcription",
-                "event": "error",
-                "status": "failed",
-                "timestamp": now,
-                "message": error_msg,
-                "metadata": {
-                    "updated_at": now
+            db.logs.update_one(
+                {"job_id": job_id},
+                {
+                    "$set": {
+                        "status": "failed",
+                        "timestamp": now,
+                        "message": error_msg,
                 }
             })
             raise FileNotFoundError(error_msg)
@@ -158,6 +174,9 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
         # OpenAI 클라이언트 초기화
         openai_client = OpenAI(api_key=OPENAI_API_KEY)
         
+        # 테스트용 예외 발생
+        # raise Exception("test")
+        
         # GPT를 사용한 텍스트 요약
         completion = openai_client.chat.completions.create(
             model="gpt-4o",
@@ -171,7 +190,6 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
                 - 원문에 기재된 표현, 단어, 어조를 최대한 그대로 유지해주세요.
                 - 원문이 아무리 길어도 일부만 처리하지 말고 원문 전체를 최대한 출력해주세요.
                 - 확실한 오류가 아니라면, 의심되는 부분도 가능한 한 원문 그대로 둡니다.
-                - 데이터가 아무리 짧더라도 최선을 다해 처리해서 반환하세요. 추가 정보 요청은 절대 하지 마세요.
                 
                 2. 오류/불필요한 반복(환각) 최소 수정
                 - 철자 오류가 섞인 반복(예: “청담동동동”처럼 철자가 엉켜서 반복된 경우)만 명백히 수정하거나 제거하세요.
@@ -189,8 +207,6 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
                 6) 청구
                 7) 청담 자이
                 8) 홍실
-                9) 진흥
-                10) 래미안 로이뷰
 
                 - 만약 실제로는 다른 단어이거나, 리스트에 속하지 않는 이름으로 확실하게 보이면 그대로 두세요.
 
@@ -204,20 +220,21 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
                 - 문장의 가독성을 높이기 위해 최소한의 쉼표, 마침표 등 문장부호를 추가해 주세요.
                 - 불필요한 어미나 접속어는 그대로 두고, 문장 구조 자체는 가능한 그대로 유지합니다.
 
-                6. 삭제·수정 기준 재차 강조
+                6. 화자 구분(발신자 vs 수신자)
+                - 화자가 분명한 경우, 각 발화 앞에 “발신자:” 혹은 “수신자:” 형태로 라벨만 달아주세요.
+                - 원문의 말투나 단어는 그대로 두고, 추가로 문장을 수정하거나 재배열하지 않습니다.
+
+                7. 삭제·수정 기준 재차 강조
                 - 확실하게 잘못된 부분(예: 잡음, 철자 오류 반복, 문맥상 무의미한 반복, 명백한 오타)만 최소한으로 손봐주세요.
                 - 그 외에는 무조건 원문을 그대로 보존하여 출력해 주세요.
                 - 애매하면 수정하지 말고 그대로 두세요.
 
-                7. 문장 구분 후 줄바꿈 추가
-                - 문장 구분 후 줄바꿈을 추가해 주세요.
-
                 8. 최종 출력물 형태
                 - 최종 출력물은 다음과 같은 형태가 되어야 합니다:
 
-                (원문 내용, 문장1)
-                (원문 내용, 문장2)
-                (원문 내용, 문장3)
+                발신자: (원문 내용, 필요 시 최소한의 문장부호 추가)
+                수신자: (원문 내용, 필요 시 최소한의 문장부호 추가)
+                발신자: (원문 내용, 필요 시 최소한의 문장부호 추가)
                 …
 
                 위의 지침을 바탕으로, 가능한 한 원문의 모든 내용을 그대로 살리되, 확실히 불필요한 반복이나 명백한 철자 오류, 리스트에 포함된 부동산 이름 교정 정도만 수행해 주세요.
@@ -250,15 +267,13 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
 
         # 작업 완료 로그
         now = datetime.now(UTC)
-        db.logs.insert_one({
-            "job_id": job_id,
-            "service": "transcription",
-            "event": "transcription_completed",
-            "status": "completed",
-            "timestamp": now,
-            "message": f"Transcription completed: {refined_transcribed_text}",
-            "metadata": {
-                "updated_at": now
+        db.logs.update_one(
+            {"job_id": job_id},
+            {
+                "$set": {
+                    "status": "completed",
+                    "timestamp": now,
+                    "message": f"Transcription completed: {refined_transcribed_text}"
             }
         })
         
@@ -283,18 +298,20 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
         try:
             # 오류 로그 기록
             now = datetime.now(UTC)
-            db.logs.insert_one({
-                "job_id": job_id,
-                "service": "transcription",
-                "event": "error",
-                "status": "failed",
-                "timestamp": now,
-                "message": f"Transcription failed: {str(e)}",
-                "metadata": {
-                    "error": str(e),
-                    "updated_at": now
+            db.logs.update_one(
+                {"job_id": job_id},
+                {
+                    "$set": {
+                        "input_path": input_path,
+                        "output_dir": output_dir,
+                        "service": "transcription",
+                        "event": "error",
+                        "status": "failed",
+                        "timestamp": now,
+                        "message": f"Transcription failed: {str(e)}"
+                    }
                 }
-            })
+            )
         except Exception as inner_e:
             logger.error(f"오류 상태 업데이트 실패: {str(inner_e)}")
         finally:
@@ -304,3 +321,67 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
 
 # task 함수를 변수에 할당하여 export
 transcribe_audio_task = celery.task(name='transcribe_audio', bind=True)(transcribe_audio)
+
+
+@celery.task(name='retry_incomplete_jobs')
+def retry_incomplete_jobs():
+    """
+    1시간마다 실행되어, db.logs에서 'failed' 상태인 job_id를 찾고,
+    아직 'completed' 로그가 없는 경우 다시 transcribe_audio 태스크를 재시도한다.
+    """
+    logger.info("===== 재시도 대상 작업 스캐닝 시작 =====")
+
+    try:
+        # 로그 DB 연결
+        client = MongoClient(DB_CONNECTION_STRING)
+        db = client.transcription_db
+
+        # 작업 DB 연결
+        work_client = MongoClient(WORK_DB_CONNECTION_STRING)
+        work_db = work_client[WORK_MONGODB_DB]
+
+        # 'failed' 상태인 job 목록 추출
+        failed_jobs = db.logs.find({"status": "failed"}).distinct("job_id")
+
+        if not failed_jobs:
+            logger.info("실패 상태의 작업이 없습니다.")
+            return
+
+        for job_id in failed_jobs:
+            # 혹시 이미 "completed" 로그가 존재한다면(재시도 전에 해결된 경우) 스킵
+            completed_log = db.logs.find_one({"job_id": job_id, "status": "completed"})
+            if completed_log:
+                logger.info(f"job_id={job_id} 는 이미 완료 로그가 있으므로 재시도하지 않음")
+                continue
+
+            # 재시도할 job의 입력값들(파일 경로 등)을 work_db에서 조회
+            call_doc = work_db.calls.find_one({"job_id": str(job_id)})
+            if not call_doc:
+                logger.warning(f"work_db.calls에서 job_id={job_id} 관련 정보를 찾을 수 없어 재시도 불가")
+                continue
+
+            input_path = db.logs.find_one({"job_id": job_id, "status": "failed"})["input_path"]
+            output_dir = db.logs.find_one({"job_id": job_id, "status": "failed"})["output_dir"]
+            if not input_path or not output_dir:
+                logger.warning(f"job_id={job_id} 의 input_path/output_dir 정보가 불충분하여 재시도 불가")
+                continue
+
+            logger.info(f"job_id={job_id} 재시도 수행")
+            # transcribe_audio 태스크 재등록 (비동기)
+            transcribe_audio_task.apply_async(args=[
+                job_id,
+                input_path,
+                output_dir,
+                DB_CONNECTION_STRING,
+                WORK_DB_CONNECTION_STRING,
+                WORK_MONGODB_DB
+            ])
+    except Exception as e:
+        logger.error(f"재시도 작업 처리 중 오류 발생: {str(e)}")
+    finally:
+        if 'client' in locals():
+            client.close()
+        if 'work_client' in locals():
+            work_client.close()
+
+    logger.info("===== 재시도 대상 작업 스캐닝 종료 =====")
