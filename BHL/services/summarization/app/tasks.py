@@ -51,7 +51,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
     try:
         # MongoDB 연결 (로그용)
         client = MongoClient(db_connection_string)
-        db = client.summarization_db
+        db = client[settings.MONGODB_DB]
         
         # 작업 데이터베이스 연결
         work_client = MongoClient(work_db_connection_string)
@@ -327,10 +327,7 @@ def retry_incomplete_jobs():
         # 로그 DB 연결
         client = MongoClient(settings.MONGODB_URI)
         db = client[settings.MONGODB_DB]
-
-        # 작업 DB 연결
-        work_client = MongoClient(settings.WORK_MONGODB_URI)
-        work_db = work_client[settings.WORK_MONGODB_DB]
+        work_db = client[settings.WORK_MONGODB_DB]
 
         # 'failed' 상태인 job 목록 추출
         failed_jobs = db.logs.find({"status": "failed"}).distinct("job_id")
@@ -352,12 +349,34 @@ def retry_incomplete_jobs():
                 logger.warning(f"work_db.calls에서 job_id={job_id} 관련 정보를 찾을 수 없어 재시도 불가")
                 continue
 
+            # text 필드 유효성 검사 추가
+            if 'text' not in call_doc or not call_doc['text']:
+                logger.warning(f"job_id={job_id}의 text 필드가 없거나 비어있어 재시도 불가")
+                now = datetime.utcnow()
+                db.logs.update_one(
+                    {"job_id": job_id, "status": "failed"},
+                    {
+                        "$set": {
+                            "service": "summarization",
+                            "event": "error",
+                            "status": "invalid_input",
+                            "timestamp": now,
+                            "message": "요약 실패: 입력 텍스트가 없거나 비어있음",
+                            "metadata": {
+                                "error": "text field is missing or empty",
+                                "updated_at": now
+                            }
+                        }
+                    }
+                )
+                continue
+
             logger.info(f"job_id={job_id} 재시도 수행")
             # summarize_text 태스크 재등록 (비동기)
             summarize_text_task.apply_async(kwargs={
                 'job_id': job_id,
                 'db_connection_string': settings.MONGODB_URI,
-                'work_db_connection_string': settings.WORK_MONGODB_URI,
+                'work_db_connection_string': settings.MONGODB_URI,
                 'work_db_name': settings.WORK_MONGODB_DB
             })
     except Exception as e:
@@ -365,7 +384,5 @@ def retry_incomplete_jobs():
     finally:
         if 'client' in locals():
             client.close()
-        if 'work_client' in locals():
-            work_client.close()
 
     logger.info("===== 재시도 대상 작업 스캐닝 종료 =====")

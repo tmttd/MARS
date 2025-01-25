@@ -310,19 +310,6 @@ services:
       - api_gateway
       - auth
 
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80" # 포트 번호 생략 가능!
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d # 설정 파일 마운트
-    networks:
-      - mars_network
-    depends_on:
-      - property-frontend
-      - api_gateway
-      - auth
-
 volumes:
   whisper_cache:
   datas:

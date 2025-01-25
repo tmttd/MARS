@@ -31,10 +31,6 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY 환경 변수가 설정되지 않았습니다")
 
-DB_CONNECTION_STRING = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
-WORK_DB_CONNECTION_STRING = os.getenv("WORK_MONGODB_URI", "mongodb://localhost:27017/")
-WORK_MONGODB_DB = os.getenv("WORK_MONGODB_DB", "mars_work_db")
-
 # API Gateway URL 예시(필요 시 수정)
 API_GATEWAY_URL = os.getenv("API_GATEWAY_URL", "http://localhost:8003")
 
@@ -190,6 +186,7 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
                 - 원문에 기재된 표현, 단어, 어조를 최대한 그대로 유지해주세요.
                 - 원문이 아무리 길어도 일부만 처리하지 말고 원문 전체를 최대한 출력해주세요.
                 - 확실한 오류가 아니라면, 의심되는 부분도 가능한 한 원문 그대로 둡니다.
+                - 데이터가 아무리 짧더라도 최선을 다해 처리해서 반환하세요. 추가 정보 요청은 절대 하지 마세요.
                 
                 2. 오류/불필요한 반복(환각) 최소 수정
                 - 철자 오류가 섞인 반복(예: “청담동동동”처럼 철자가 엉켜서 반복된 경우)만 명백히 수정하거나 제거하세요.
@@ -207,6 +204,9 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
                 6) 청구
                 7) 청담 자이
                 8) 홍실
+                9) 진흥
+                10) 래미안 로이뷰
+                
 
                 - 만약 실제로는 다른 단어이거나, 리스트에 속하지 않는 이름으로 확실하게 보이면 그대로 두세요.
 
@@ -220,21 +220,12 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
                 - 문장의 가독성을 높이기 위해 최소한의 쉼표, 마침표 등 문장부호를 추가해 주세요.
                 - 불필요한 어미나 접속어는 그대로 두고, 문장 구조 자체는 가능한 그대로 유지합니다.
 
-                6. 화자 구분(발신자 vs 수신자)
-                - 화자가 분명한 경우, 각 발화 앞에 “발신자:” 혹은 “수신자:” 형태로 라벨만 달아주세요.
-                - 원문의 말투나 단어는 그대로 두고, 추가로 문장을 수정하거나 재배열하지 않습니다.
-
-                7. 삭제·수정 기준 재차 강조
-                - 확실하게 잘못된 부분(예: 잡음, 철자 오류 반복, 문맥상 무의미한 반복, 명백한 오타)만 최소한으로 손봐주세요.
-                - 그 외에는 무조건 원문을 그대로 보존하여 출력해 주세요.
-                - 애매하면 수정하지 말고 그대로 두세요.
-
-                8. 최종 출력물 형태
+                7. 최종 출력물 형태
                 - 최종 출력물은 다음과 같은 형태가 되어야 합니다:
 
-                발신자: (원문 내용, 필요 시 최소한의 문장부호 추가)
-                수신자: (원문 내용, 필요 시 최소한의 문장부호 추가)
-                발신자: (원문 내용, 필요 시 최소한의 문장부호 추가)
+                (원문 내용 문장1)
+                (원문 내용 문장2)
+                (원문 내용 문장3)
                 …
 
                 위의 지침을 바탕으로, 가능한 한 원문의 모든 내용을 그대로 살리되, 확실히 불필요한 반복이나 명백한 철자 오류, 리스트에 포함된 부동산 이름 교정 정도만 수행해 주세요.
@@ -333,12 +324,9 @@ def retry_incomplete_jobs():
 
     try:
         # 로그 DB 연결
-        client = MongoClient(DB_CONNECTION_STRING)
+        client = MongoClient(settings.MONGODB_URI)
         db = client.transcription_db
-
-        # 작업 DB 연결
-        work_client = MongoClient(WORK_DB_CONNECTION_STRING)
-        work_db = work_client[WORK_MONGODB_DB]
+        work_db = client[settings.WORK_MONGODB_DB]
 
         # 'failed' 상태인 job 목록 추출
         failed_jobs = db.logs.find({"status": "failed"}).distinct("job_id")
@@ -372,16 +360,14 @@ def retry_incomplete_jobs():
                 job_id,
                 input_path,
                 output_dir,
-                DB_CONNECTION_STRING,
-                WORK_DB_CONNECTION_STRING,
-                WORK_MONGODB_DB
+                settings.MONGODB_URI,
+                settings.MONGODB_URI,
+                settings.WORK_MONGODB_DB
             ])
     except Exception as e:
         logger.error(f"재시도 작업 처리 중 오류 발생: {str(e)}")
     finally:
         if 'client' in locals():
             client.close()
-        if 'work_client' in locals():
-            work_client.close()
 
     logger.info("===== 재시도 대상 작업 스캐닝 종료 =====")
