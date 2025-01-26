@@ -47,16 +47,16 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.get("/calls/", response_model=dict)
 async def list_calls(
-    limit: Optional[int] = Query(10),
-    offset: Optional[int] = Query(0),
+    limit: Optional[int] = Query(10, ge=1),
+    offset: Optional[int] = Query(0, ge=0),
     customer_contact: Optional[str] = Query(None),
     customer_name: Optional[str] = Query(None),
     property_name: Optional[str] = Query(None),
-    recording_date: Optional[datetime] = Query(None),
+    recording_date: Optional[datetime] = Query(None),  # datetime 타입으로 유지
     before_date: Optional[datetime] = Query(None),
     after_date: Optional[datetime] = Query(None),
     created_by: Optional[str] = Query(None),
-    exclude_property_names: Optional[List[str]] = Query(None), # 제외할 property_name 목록
+    exclude_property_names: Optional[List[str]] = Query(None),  # 제외할 property_name 목록
 ):
     """
     통화 기록 목록 조회
@@ -65,42 +65,60 @@ async def list_calls(
         logger.info(f"Listing calls with parameters: {locals()}")
 
         query = {}
+
+        # 필터링 조건 추가
         if customer_contact:
             query["customer_contact"] = {"$regex": customer_contact, "$options": "i"}
         if customer_name:
             query["customer_name"] = {"$regex": customer_name, "$options": "i"}
         if property_name:
-            if property_name == '기타':
-                # 제외할 property_names 목록이 있는 경우
-                if exclude_property_names:
-                    regex_pattern = '|'.join(exclude_property_names)  # OR 조건으로 정규표현식 생성
-                    query["extracted_property_info.property_name"] = {
-                        "$not": {
-                            "$regex": regex_pattern,
-                            "$options": "i"  # 대소문자 구분 없이
-                        }
+            if property_name == '기타' and exclude_property_names:
+                regex_pattern = '|'.join(exclude_property_names)
+                query["extracted_property_info.property_name"] = {
+                    "$not": {
+                        "$regex": regex_pattern,
+                        "$options": "i"
                     }
-                    logger.info(f"Excluding property names with regex: {regex_pattern}")  # 로그 추가
-            else:   
+                }
+                logger.info(f"Excluding property names with regex: {regex_pattern}")
+            else:
                 query["extracted_property_info.property_name"] = {"$regex": property_name, "$options": "i"}
-        if recording_date:
-            query["recording_date"] = recording_date
-        if before_date:
-            query.setdefault("recording_date", {})
-            query["recording_date"]["$lt"] = before_date
-        if after_date:
-            query.setdefault("recording_date", {})
-            query["recording_date"]["$gt"] = after_date
         if created_by:
             query["created_by"] = created_by
-        logger.info(f"Query: {query}")
+
+        # recording_date 필터링 (날짜 범위 설정)
+        if recording_date:
+            # 클라이언트가 시간 부분을 00:00:00으로 설정했다고 가정
+            start_datetime = recording_date
+            end_datetime = start_datetime + timedelta(days=1)
+            query["recording_date"] = {
+                "$gte": start_datetime,
+                "$lt": end_datetime
+            }
+            logger.info(f"Recording date range: {start_datetime} to {end_datetime}")
+
+        # before_date 필터링
+        if before_date:
+            if "recording_date" not in query:
+                query["recording_date"] = {}
+            query["recording_date"]["$lt"] = before_date
+            logger.info(f"Before date: {before_date}")
+
+        # after_date 필터링
+        if after_date:
+            if "recording_date" not in query:
+                query["recording_date"] = {}
+            query["recording_date"]["$gt"] = after_date
+            logger.info(f"After date: {after_date}")
+
+        logger.info(f"Final Query: {query}")
         total_count = await work_db.calls.count_documents(query)
 
         calls = []
         cursor = work_db.calls.find(query).sort("recording_date", -1).skip(offset).limit(limit)
         async for call_doc in cursor:
             # Pydantic 모델로 파싱하여 ObjectId -> str 변환 가능
-            call_model = Call.model_validate(call_doc)
+            call_model = Call(**call_doc)
             calls.append(call_model)
 
         logger.info(f"Retrieved {len(calls)} calls out of {total_count} total.")

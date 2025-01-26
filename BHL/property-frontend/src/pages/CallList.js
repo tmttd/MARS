@@ -7,7 +7,10 @@ import CallTable from '../components/call/CallTable';
 import FilterButton from '../components/common/FilterButton';
 import { filterForms } from '../components/common/FormControls/FormField';
 import { callService, uploadService } from '../services/api';
+import { formatPhoneNumber, formatToISODatetime } from '../utils/FormatTools';
 import '../styles/PropertyList.css'; // 스타일 이름 그대로 사용
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 
 const CallList = () => {
   // -----------------------
@@ -21,7 +24,6 @@ const CallList = () => {
   const [page, setPage] = useState(initialPage);
 
   // 검색 조건
-  // 기본값을 ''(전체)로 하여, 첫 로드 시 '전체'가 활성화되도록 함
   const [tempSearchTerm, setTempSearchTerm] = useState('');
   const [searchTerm, setSearchTerm] = useState(''); // ''이면 "전체"
   const [searchType, setSearchType] = useState('property_name');
@@ -41,6 +43,9 @@ const CallList = () => {
   // 첫 마운트 구분용
   const isInitialMount = useRef(true);
 
+  // 날짜 검색을 위한 상태 추가
+  const [recordingDate, setRecordingDate] = useState(null);
+
   // -----------------------
   // 2) 서버 호출 함수
   // -----------------------
@@ -55,6 +60,10 @@ const CallList = () => {
       }
       if (searchTerm === '기타' && excludeNames.length > 0) {
         filters.exclude_property_names = excludeNames;
+      }
+      // 날짜 필터 추가
+      if (recordingDate) {
+        filters.recording_date = formatToISODatetime(recordingDate);
       }
 
       // 서버로부터 { calls, totalCount } 구조를 받는다고 가정
@@ -112,7 +121,7 @@ const CallList = () => {
       fetchCalls(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, searchType, excludeNames]);
+  }, [searchTerm, searchType, excludeNames, recordingDate]);
 
   // -----------------------
   // 6) 페이지네이션 핸들러
@@ -191,6 +200,17 @@ const CallList = () => {
   // -----------------------
   // 10) 렌더링
   // -----------------------
+
+  // 페이지 그룹 설정
+  const PAGE_GROUP_SIZE = 10;
+
+  // 현재 그룹 계산
+  const currentGroup = Math.floor((page - 1) / PAGE_GROUP_SIZE);
+
+  // 현재 그룹의 시작 페이지와 끝 페이지 계산
+  const startPage = currentGroup * PAGE_GROUP_SIZE + 1;
+  const endPage = Math.min(startPage + PAGE_GROUP_SIZE - 1, totalPages);
+
   return (
     <Container fluid className="py-4 bg-light min-vh-100">
       <Card className="shadow-sm mb-4">
@@ -230,32 +250,51 @@ const CallList = () => {
                 onChange={(e) => setSearchType(e.target.value)}
                 className="shadow-sm border-0"
               >
-                <option value="customer_contact">
-                  연락처
-                </option>
-                <option value="customer_name">
-                  성명
-                </option>
-                <option value="property_name">
-                  단지명
-                </option>
+                <option value="customer_contact">연락처</option>
+                <option value="customer_name">성명</option>
+                <option value="property_name">단지명</option>
+                <option value="recording_date">통화일시</option>
               </Form.Select>
             </Col>
             <Col md={3}>
               <div className="search-container" style={{ position: 'relative' }}>
                 <FaSearch className="search-icon" />
-                <Form.Control
-                  type="text"
-                  placeholder={
-                    searchType === 'customer_contact' ? '연락처 검색'
-                    : searchType === 'customer_name' ? '성명 검색'
-                    : '단지명 검색'
-                  }
-                  value={tempSearchTerm}
-                  onChange={(e) => setTempSearchTerm(e.target.value)}
-                  onKeyDown={(e) => { if(e.key === 'Enter') handleSearch(); }}
-                  className="search-input shadow-sm border-0"
-                />
+                {searchType === 'recording_date' ? (
+                  <DatePicker
+                    selected={recordingDate}
+                    onChange={(date) => {
+                      setRecordingDate(date);
+                      // 날짜 선택 시 바로 검색 실행
+                      setSearchTerm(formatToISODatetime(date));
+                    }}
+                    dateFormat="yyyy-MM-dd"
+                    placeholderText="녹음일자 선택"
+                    className="form-control search-input shadow-sm border-0"
+                  />
+                ) : (
+                  <Form.Control
+                    type="text"
+                    placeholder={
+                      searchType === 'customer_contact' ? '연락처 검색'
+                      : searchType === 'customer_name' ? '성명 검색'
+                      : '단지명 검색'
+                    }
+                    value={tempSearchTerm}
+                    onChange={(e) => setTempSearchTerm(e.target.value)}
+                    onKeyDown={(e) => { 
+                      if(e.key === 'Enter') {
+                        if (searchType === 'customer_contact') {
+                          const formattedNumber = formatPhoneNumber(tempSearchTerm);
+                          setSearchTerm(formattedNumber || tempSearchTerm);
+                        } else {
+                          setSearchTerm(tempSearchTerm);
+                        }
+                        handleSearch();
+                      }
+                    }}
+                    className="search-input shadow-sm border-0"
+                  />
+                )}
                 {tempSearchTerm && (
                   <button
                     className="clear-button"
@@ -279,7 +318,15 @@ const CallList = () => {
                 <Button 
                   variant="secondary" 
                   size="sm" 
-                  onClick={handleSearch}
+                  onClick={() => {
+                    if (searchType === 'customer_contact') {
+                      const formattedNumber = formatPhoneNumber(tempSearchTerm);
+                      setSearchTerm(formattedNumber || tempSearchTerm);
+                    } else {
+                      setSearchTerm(tempSearchTerm);
+                    }
+                    handleSearch();
+                  }}
                   style={{
                     position: 'absolute',
                     right: '0',
@@ -323,12 +370,25 @@ const CallList = () => {
           {/* 페이지네이션 */}
           <div className="d-flex justify-content-center mt-4">
             <Pagination>
-              <Pagination.Prev
-                disabled={page === 1}
-                onClick={() => handlePageChange(page - 1)}
-              />
-              {[...Array(totalPages)].map((_, idx) => {
-                const pageNum = idx + 1;
+              {/* 처음으로 이동 */}
+              {startPage > 1 && (
+                <Pagination.First
+                  onClick={() => handlePageChange(1)}
+                  title="처음 페이지로 이동"
+                />
+              )}
+
+              {/* 이전 그룹으로 이동 */}
+              {currentGroup > 0 && (
+                <Pagination.Prev
+                  onClick={() => handlePageChange(startPage - 1)}
+                  title="이전 그룹으로 이동"
+                />
+              )}
+
+              {/* 페이지 번호 */}
+              {[...Array(endPage - startPage + 1)].map((_, idx) => {
+                const pageNum = startPage + idx;
                 return (
                   <Pagination.Item
                     key={pageNum}
@@ -339,10 +399,22 @@ const CallList = () => {
                   </Pagination.Item>
                 );
               })}
-              <Pagination.Next
-                disabled={page === totalPages}
-                onClick={() => handlePageChange(page + 1)}
-              />
+
+              {/* 다음 그룹으로 이동 */}
+              {endPage < totalPages && (
+                <Pagination.Next
+                  onClick={() => handlePageChange(endPage + 1)}
+                  title="다음 그룹으로 이동"
+                />
+              )}
+
+              {/* 마지막으로 이동 */}
+              {endPage < totalPages && (
+                <Pagination.Last
+                  onClick={() => handlePageChange(totalPages)}
+                  title="마지막 페이지로 이동"
+                />
+              )}
             </Pagination>
           </div>
         </Card.Body>

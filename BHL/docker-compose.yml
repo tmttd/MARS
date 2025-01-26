@@ -206,8 +206,8 @@ services:
       - "3000:80"
     environment:
       - NODE_ENV=production
-      - REACT_APP_API_URL=http://43.203.64.254:8003 
-      ## 로컬에서 테스트할 때는 http://localhost:8003
+      - REACT_APP_API_URL=http://43.203.64.254:8003
+      ## 로컬에서 테스트할 때는 http://localhost:8003 
     depends_on:
       - api_gateway
     networks:

@@ -1,6 +1,12 @@
 // 연락처 포맷팅 함수
 export const formatPhoneNumber = (phoneNumber) => {
+    // null, undefined, 빈 문자열 체크
+    if (!phoneNumber) return null;
+    
     const cleaned = phoneNumber.replace(/\D/g, '');
+    // 숫자가 없는 경우도 처리
+    if (!cleaned) return null;
+    
     if (cleaned.startsWith('010')) {
       return cleaned.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
     } else if (cleaned.startsWith('02')) {
@@ -8,7 +14,7 @@ export const formatPhoneNumber = (phoneNumber) => {
     } else {
       return cleaned.replace(/(\d{3})(\d{3,4})(\d{4})/, '$1-$2-$3');
     }
-  };
+};
 
 // 통화일시 포맷팅 함수(2025-01-20T01:22:48.554Z -> 2025-01-20 오전 10:22:48)
 export const formatDateTime = (dateString) => {
@@ -28,6 +34,23 @@ export const formatDateTime = (dateString) => {
     const formattedTime = `${ampm} ${formattedHours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     
     return `${formattedDate} ${formattedTime}`;
+};
+
+export const formatToISODatetime = (date) => {
+  if (!date) return null;
+  
+  // date가 문자열로 들어온 경우 Date 객체로 변환
+  const dateObj = date instanceof Date ? date : new Date(date);
+  
+  // 유효한 날짜인지 확인
+  if (isNaN(dateObj.getTime())) return null;
+  
+  // KST 00:00:00 -> UTC 15:00:00 (전날)
+  const utcDate = new Date(dateObj);
+  utcDate.setHours(0, 0, 0, 0);
+  utcDate.setHours(utcDate.getHours() - 9);
+  
+  return dateObj.toISOString();
 };
 
 // 등록일자 포맷팅 함수(2025-01-20T01:22:48.554Z -> 2025-01-20)

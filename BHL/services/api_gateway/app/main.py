@@ -34,10 +34,11 @@ app.middleware("http")(auth_middleware)
 # CORS 설정 추가
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://43.203.64.254:3000",
-                   "http://43.203.64.254",
-                   "http://ec2-43-203-64-254.ap-northeast-2.compute.amazonaws.com:3000",
-                   "http://localhost:3000"],  # 혹은 실제 배포 도메인
+    allow_origins=["http://43.203.64.254:3000", # 퍼블릭 IP 중 프론트엔드 포트 3000
+                   "http://43.203.64.254", # 퍼블릭 IP
+                   "http://ec2-43-203-64-254.ap-northeast-2.compute.amazonaws.com:3000", # 퍼블릭 DNS
+                   "http://www.budongsan.solutions", # 배포 도메인
+                   "http://localhost:3000"],  # 로컬 테스트용
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

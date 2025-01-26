@@ -1,3 +1,5 @@
+import { formatPhoneNumber } from './FormatTools';
+
 export const flattenData = (data) => {
     if (!data) return {};
   
@@ -69,11 +71,11 @@ export const unflattenPropertyData = (flatData) => {
       tenant_property_memo: safeValue(tenant_property_memo),   
       owner_info: {
         owner_name: safeValue(owner_name),
-        owner_contact: safeValue(owner_contact)
+        owner_contact: formatPhoneNumber(safeValue(owner_contact))
       },
       tenant_info: {
         tenant_name: safeValue(tenant_name),
-        tenant_contact: safeValue(tenant_contact)
+        tenant_contact: formatPhoneNumber(safeValue(tenant_contact))
       }
     },
   };

@@ -119,7 +119,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
 
                 # 매물 정보
                 class Properties(BaseModel):
-                    property_name: Optional[str] = Field(None, description="단지명")
+                    property_name: Optional[str] = Field(None, description="아파트명 또는 건물 이름 등")
                     price: Optional[int] = Field(None, description="매매가 or 월세 (만원)")
                     deposit: Optional[int] = Field(None, description="(전세, 월세인 경우) 보증금 (만원)")
                     loan_info: Optional[str] = Field(None, description="대출 관련 정보")
@@ -130,7 +130,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                     transaction_type: Optional[TransactionType] = Field(None, description="거래 종류")
                     property_type: Optional[PropertyType] = Field(None, description="매물 종류")
                     floor: Optional[int] = Field(None, description="층")
-                    area: Optional[int] = Field(None, description="면적")
+                    area: Optional[int] = Field(None, description="면적(평)")
                     premium: Optional[int] = Field(None, description="(상가인 경우) 권리금 (만원)")
                     owner_property_memo: Optional[str] = Field(None, description="현재 매물에 대한 소유주 관련 메모")
                     tenant_property_memo: Optional[str] = Field(None, description="현재 매물에 대한 세입자 관련 메모")
@@ -162,7 +162,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                 "summary_title": "통화 내용을 요약하는 20자 이내의 짧은 문구",
                 "summary_content": "Briefly summarize the following five pieces of information from the agent's perspective.:\n 1. Property type/location\n 2. Customer requirements (price, terms, schedule, etc.)\n 3. Additional information to check/prepare\n 4. Next steps (additional contact, document preparation, etc.)\n 5. Special notes or issues"
                 "extracted_property_info": {{
-                    "property_name": "건물명",
+                    "property_name": "아파트명 또는 건물 이름 등",
                     "price": "매매가/임대가 (만원)",
                     "deposit": "(전세, 월세인 경우) 보증금 (만원)",
                     "loan_info": "대출 관련 정보",
@@ -173,7 +173,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                     "transaction_type": "거래 종류",
                     "property_type": "매물 종류",
                     "floor": "층",
-                    "area": "면적",
+                    "area": "면적(평)",
                     "premium": "권리금 (상가인 경우, 만원)",
                     "owner_property_memo": "현재 매물에 대한 소유주 관련 메모",
                     "tenant_property_memo": "현재 매물에 대한 세입자 관련 메모",
@@ -192,9 +192,8 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
 
                 **Note**:
                 - Please write all responses in Korean.
-                - When mentioning 'pyeong', please convert 1 pyeong = approximately 3.306㎡.
-                - The unit of amount is based on 10,000 won. If necessary, you can omit or write '10,000 won' after the number, but please enter only integers for JSON values ​​(e.g. 100 million won → 10000).
-                - If the same information is mentioned multiple times, use the most recent/specific information.
+                - The unit of amount is based on 10,000 won. If necessary, you should omit '10,000 won' after the number, but please enter only integers for JSON values ​​(e.g. 1억원 → 10000 / 1000만원 → 1000 / 1억 5천 → 15000).
+                - If the same information is mentioned multiple times, use the most specific information.
                 - Please null out any missing or unclear information.
                 - Please exclude unnecessary greetings, small talk, responses, etc. from the summary and include only the key content.
                 - Please use ISO 8601 format (e.g., "2025-01-14") for all date fields.
@@ -226,6 +225,27 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
             # 로깅 또는 에러 핸들링
             logger.error(f"full_address 생성 중 오류 발생: {e}")
             extraction['extracted_property_info']['full_address'] = ''
+            
+            # 소유주, 세입자 연락처 포맷팅
+            cleaned_owner_contact = ''.join(filter(str.isdigit, str(extraction.get('owner_info', {}).get('owner_contact', ''))))
+            if cleaned_owner_contact.startswith('010') and len(cleaned_owner_contact) == 11:
+                extraction['extracted_property_info']['owner_info']['owner_contact'] = f"{cleaned_owner_contact[:3]}-{cleaned_owner_contact[3:7]}-{cleaned_owner_contact[7:]}"
+            elif cleaned_owner_contact.startswith('02') and (len(cleaned_owner_contact) == 9 or len(cleaned_owner_contact) == 10):
+                extraction['extracted_property_info']['owner_info']['owner_contact'] = f"02-{cleaned_owner_contact[2:-4]}-{cleaned_owner_contact[-4:]}"
+            elif len(cleaned_owner_contact) == 10 or len(cleaned_owner_contact) == 11:
+                extraction['extracted_property_info']['owner_info']['owner_contact'] = f"{cleaned_owner_contact[:3]}-{cleaned_owner_contact[3:-4]}-{cleaned_owner_contact[-4:]}"
+            else:
+                extraction['extracted_property_info']['owner_info']['owner_contact'] = ''
+            
+            cleaned_tenant_contact = ''.join(filter(str.isdigit, str(extraction.get('tenant_info', {}).get('tenant_contact', ''))))
+            if cleaned_tenant_contact.startswith('010') and len(cleaned_tenant_contact) == 11:
+                extraction['extracted_property_info']['tenant_info']['tenant_contact'] = f"{cleaned_tenant_contact[:3]}-{cleaned_tenant_contact[3:7]}-{cleaned_tenant_contact[7:]}"
+            elif cleaned_tenant_contact.startswith('02') and (len(cleaned_tenant_contact) == 9 or len(cleaned_tenant_contact) == 10):
+                extraction['extracted_property_info']['tenant_info']['tenant_contact'] = f"02-{cleaned_tenant_contact[2:-4]}-{cleaned_tenant_contact[-4:]}"
+            elif len(cleaned_tenant_contact) == 10 or len(cleaned_tenant_contact) == 11:
+                extraction['extracted_property_info']['tenant_info']['tenant_contact'] = f"{cleaned_tenant_contact[:3]}-{cleaned_tenant_contact[3:-4]}-{cleaned_tenant_contact[-4:]}"
+            else:
+                extraction['extracted_property_info']['tenant_info']['tenant_contact'] = ''
         
         # # 출력 파일 경로 설정
         # output_file = os.path.join(settings.OUTPUT_DIR, f"{job_id}.json")

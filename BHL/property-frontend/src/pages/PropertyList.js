@@ -5,10 +5,10 @@ import { FaSearch, FaBuilding, FaPlus, FaTimes } from 'react-icons/fa';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import PropertyTable from '../components/property/PropertyTable';
 import FilterButton from '../components/common/FilterButton';
-import { statusOptions } from '../components/common/FormControls/FormField';
-import { filterForms } from '../components/common/FormControls/FormField';
+import { statusOptions, filterForms } from '../components/common/FormControls/FormField';
 import { propertyService } from '../services/api';
 import '../styles/PropertyList.css';
+import { formatPhoneNumber } from '../utils/FormatTools';
 
 const PropertyList = () => {
   // -----------------------
@@ -69,7 +69,7 @@ const PropertyList = () => {
       setLoading(false);
     } catch (err) {
       console.error(err);
-      setError(err.message);
+      setError(err.message || "매물 정보를 불러오는 데 실패했습니다.");
       setLoading(false);
     }
   };
@@ -144,7 +144,6 @@ const PropertyList = () => {
       setStatusFilter('');
     } else {
       // '전체' 외 다른 항목이면 해당 상태로 설정
-      // 이미 그 상태가 선택되어 있을 때는 해제(토글)하고 싶다면 아래 코드 함께 적용
       if (statusFilter === status) {
         setStatusFilter('');
       } else {
@@ -186,51 +185,63 @@ const PropertyList = () => {
   // -----------------------
   // 10) 렌더링
   // -----------------------
+
+  // 페이지 그룹 설정
+  const PAGE_GROUP_SIZE = 10;
+
+  // 현재 그룹 계산
+  const currentGroup = Math.floor((page - 1) / PAGE_GROUP_SIZE);
+
+  // 현재 그룹의 시작 페이지와 끝 페이지 계산
+  const startPage = currentGroup * PAGE_GROUP_SIZE + 1;
+  const endPage = Math.min(startPage + PAGE_GROUP_SIZE - 1, totalPages);
+
   return (
     <Container fluid className="py-4 bg-light min-vh-100">
       <Card className="shadow-sm mb-4">
         <Card.Body>
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          {/* 왼쪽: h1 */}
-          <div>
-            <h1 className="text-primary mb-0" style={{ fontSize: '1.5rem' }}>
-              <FaBuilding className="me-2" />
-              부동산 매물 장부
-            </h1>
-          </div>
+          {/* 상단의 타이틀, 상태 필터, 신규 매물 등록 버튼 */}
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            {/* 왼쪽: 타이틀 */}
+            <div>
+              <h1 className="text-primary mb-0" style={{ fontSize: '1.5rem' }}>
+                <FaBuilding className="me-2" />
+                부동산 매물 장부
+              </h1>
+            </div>
 
-          {/* 가운데: 작업 상태 라디오 버튼 */}
-          <div className="d-flex align-items-center">
-            <span className="me-3 fw-bold">작업 상태:</span>
-            {statusOptions.map((status, index) => (
-              <Form.Check
-                key={index}
-                type="radio"
-                id={`status-${index}`}
-                name="status-filter"
-                label={status}
-                checked={
-                  // '전체'인 경우 checked는 statusFilter가 ''일 때
-                  status === '전체' ? statusFilter === '' : statusFilter === status
-                }
-                onChange={() => handleStatusFilterChange(status)}
-                className="me-3"
-              />
-            ))}
-          </div>
+            {/* 가운데: 작업 상태 라디오 버튼 */}
+            <div className="d-flex align-items-center">
+              <span className="me-3 fw-bold">작업 상태:</span>
+              {statusOptions.map((status, index) => (
+                <Form.Check
+                  key={index}
+                  type="radio"
+                  id={`status-${index}`}
+                  name="status-filter"
+                  label={status}
+                  checked={
+                    // '전체'인 경우 checked는 statusFilter가 ''일 때
+                    status === '전체' ? statusFilter === '' : statusFilter === status
+                  }
+                  onChange={() => handleStatusFilterChange(status)}
+                  className="me-3"
+                />
+              ))}
+            </div>
 
-          {/* 오른쪽: 버튼 */}
-          <div>
-            <Button
-              variant="primary"
-              className="d-flex align-items-center"
-              onClick={handlePropertyCreate}
-            >
-              <FaPlus className="me-2" />
-              신규 매물 등록
-            </Button>
+            {/* 오른쪽: 신규 매물 등록 버튼 */}
+            <div>
+              <Button
+                variant="primary"
+                className="d-flex align-items-center"
+                onClick={handlePropertyCreate}
+              >
+                <FaPlus className="me-2" />
+                신규 매물 등록
+              </Button>
+            </div>
           </div>
-        </div>
 
           {/* 검색 및 필터 버튼 영역 */}
           <Row className="g-3 mb-4">
@@ -256,7 +267,17 @@ const PropertyList = () => {
                   placeholder={searchType === 'property_name' ? '단지명 검색' : '연락처 검색'}
                   value={tempSearchTerm}
                   onChange={(e) => setTempSearchTerm(e.target.value)}
-                  onKeyDown={(e) => { if(e.key === 'Enter') handleSearch(); }}
+                  onKeyDown={(e) => { 
+                    if(e.key === 'Enter') {
+                      if (searchType === 'owner_contact') {
+                        const formattedNumber = formatPhoneNumber(tempSearchTerm);
+                        setSearchTerm(formattedNumber || tempSearchTerm);
+                      } else {
+                        setSearchTerm(tempSearchTerm);
+                      }
+                      handleSearch();
+                    }
+                  }}
                   className="search-input shadow-sm border-0"
                 />
                 {tempSearchTerm && (
@@ -282,7 +303,15 @@ const PropertyList = () => {
                 <Button 
                   variant="secondary" 
                   size="sm" 
-                  onClick={handleSearch}
+                  onClick={() => {
+                    if (searchType === 'owner_contact') {
+                      const formattedNumber = formatPhoneNumber(tempSearchTerm);
+                      setSearchTerm(formattedNumber || tempSearchTerm);
+                    } else {
+                      setSearchTerm(tempSearchTerm);
+                    }
+                    handleSearch();
+                  }}
                   style={{
                     position: 'absolute',
                     right: '0',
@@ -325,9 +354,25 @@ const PropertyList = () => {
           {/* 페이지네이션 */}
           <div className="d-flex justify-content-center mt-4">
             <Pagination>
-              <Pagination.Prev disabled={page === 1} onClick={() => handlePageChange(page - 1)} />
-              {[...Array(totalPages)].map((_, idx) => {
-                const pageNum = idx + 1;
+              {/* 처음으로 이동 */}
+              {startPage > 1 && (
+                <Pagination.First
+                  onClick={() => handlePageChange(1)}
+                  title="처음 페이지로 이동"
+                />
+              )}
+
+              {/* 이전 그룹으로 이동 */}
+              {currentGroup > 0 && (
+                <Pagination.Prev
+                  onClick={() => handlePageChange(startPage - 1)}
+                  title="이전 그룹으로 이동"
+                />
+              )}
+
+              {/* 페이지 번호 */}
+              {[...Array(endPage - startPage + 1)].map((_, idx) => {
+                const pageNum = startPage + idx;
                 return (
                   <Pagination.Item
                     key={pageNum}
@@ -338,10 +383,22 @@ const PropertyList = () => {
                   </Pagination.Item>
                 );
               })}
-              <Pagination.Next
-                disabled={page === totalPages}
-                onClick={() => handlePageChange(page + 1)}
-              />
+
+              {/* 다음 그룹으로 이동 */}
+              {endPage < totalPages && (
+                <Pagination.Next
+                  onClick={() => handlePageChange(endPage + 1)}
+                  title="다음 그룹으로 이동"
+                />
+              )}
+
+              {/* 마지막으로 이동 */}
+              {endPage < totalPages && (
+                <Pagination.Last
+                  onClick={() => handlePageChange(totalPages)}
+                  title="마지막 페이지로 이동"
+                />
+              )}
             </Pagination>
           </div>
         </Card.Body>

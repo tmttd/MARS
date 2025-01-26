@@ -22,11 +22,11 @@ const CallTable = ({ calls, onUpdate, currentPage }) => {
 
   const propertyTypeColors = {
     아파트: 'primary',
-    오피스텔: 'dark',
-    재건축: 'success',
-    주상복합: 'warning',
+    오피스텔: 'success',
+    재건축: 'primary',
+    주상복합: 'primary',
     상가: 'info',
-    사무실: 'light',
+    사무실: 'dark',
     기타: 'secondary'
   };
 
