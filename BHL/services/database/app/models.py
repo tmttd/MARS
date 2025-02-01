@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict, FieldValidationInfo, field_validator
-from typing import Optional
+from typing import Optional, List
 from bson import ObjectId
 from datetime import datetime
 
@@ -133,7 +133,7 @@ class Property(BaseModel):
     property_id: str
     created_at: Optional[datetime] = None
     status: Optional[str] = None
-    job_id: Optional[str] = None
+    job_ids: Optional[List[str]] = Field(default_factory=list)
     created_by: Optional[str] = None
     property_info: Optional[PropertyInfo] = None
 
@@ -152,7 +152,7 @@ class PropertyUpdate(BaseModel):
     property_id: Optional[str] = None
     created_at: Optional[datetime] = None
     status: Optional[str] = None
-    job_id: Optional[str] = None
+    job_ids: Optional[List[str]] = Field(default_factory=list)
     property_info: Optional[PropertyInfo] = None
     created_by: Optional[str] = None
 

@@ -57,16 +57,20 @@ function PropertyForm({
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // job_id를 formData에 추가
-      const updatedFormData = { ...formData, job_id: jobId }; // jobId를 prop으로 받아온 경우
-
+      // 기존 job_ids 배열이 있으면 복사, 없으면 빈 배열 생성 후 jobId 추가 (중복 없이)
+      let updatedJobIds = formData.job_ids ? [...formData.job_ids] : [];
+      if (!updatedJobIds.includes(jobId)) {
+        updatedJobIds.push(jobId);
+      }
+      const updatedFormData = { ...formData, job_ids: updatedJobIds };
+  
       if (updatedFormData.property_id) {
         console.log('SubmitData', updatedFormData);
         await propertyService.updateProperty(updatedFormData.property_id, updatedFormData);
         alert('저장되었습니다.');
       } else {
         console.log('CreateData', updatedFormData);
-        await propertyService.createProperty(updatedFormData); // 수정된 formData 사용
+        await propertyService.createProperty(updatedFormData);
         alert('저장되었습니다.');
       }
       if (onSubmitSuccess) {
@@ -92,28 +96,29 @@ function PropertyForm({
   const handleSelectedProperty = async (property) => {
     setSelectedProperty({ ...property });
     setFormData({ ...property });
-
+  
     try {
       // 기존 call 데이터 조회
       const existingCall = await callService.getCall(jobId);
       
       // Call 데이터 업데이트: 기존 데이터 유지하면서 property_id 추가
       const updatedCall = await callService.updateCall(jobId, { 
-        ...existingCall,        // 기존 call 데이터 유지
+        ...existingCall,
         property_id: property.property_id 
       });
       console.info("Call 데이터가 업데이트되었습니다.", updatedCall);
   
-      // Property 데이터 업데이트: job_id 포함
+      // Property 데이터 업데이트: 기존 job_ids 배열이 있으면 jobId 추가, 없으면 새 배열 생성
       const updatedProperty = await propertyService.updateProperty(
         property.property_id,
         {
           ...property,
-          job_id: jobId
+          job_ids: property.job_ids
+            ? (property.job_ids.includes(jobId) ? property.job_ids : [...property.job_ids, jobId])
+            : [jobId]
         }
       );
       console.info("Property 데이터가 업데이트되었습니다.", updatedProperty);
-      // 업데이트된 property 데이터를 로컬 상태에 반영
       setFormData(updatedProperty);
     } catch (error) {
       console.error("업데이트 중 오류 발생:", error);

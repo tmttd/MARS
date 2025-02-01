@@ -42,14 +42,15 @@ export const unflattenPropertyData = (flatData) => {
     // tenant_info 안의 필드 //
     tenant_name, tenant_contact,
     // 최상위 필드 //
-    property_id, job_id, created_at, status
+    property_id, job_ids, created_at, status
   } = flatData;
 
   return {
     property_id: safeValue(property_id),
     created_at: safeValue(created_at),
     status: safeValue(status),
-    job_id: safeValue(job_id),
+    // job_ids가 배열이면 그대로 사용, 단일 값이면 배열로 감싸고, 없으면 빈 배열로 반환
+    job_ids: Array.isArray(job_ids) ? job_ids : (job_ids ? [job_ids] : []),
     property_info: {
       property_name: safeValue(property_name),
       price: safeValue(price),

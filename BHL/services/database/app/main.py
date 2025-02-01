@@ -347,15 +347,14 @@ async def create_property(property: PropertyUpdate):
         if not created_property_doc:
             raise HTTPException(status_code=500, detail="생성된 문서를 찾을 수 없습니다.")
 
-        # job_id 추출 및 관련 call 문서 업데이트
-        job_id = property_data.get("job_id")
-        if job_id:
-            # 해당 job_id를 가진 모든 call 문서를 찾아 property_id 업데이트
+        # job_ids 추출 및 관련 call 문서 업데이트 (job_ids가 배열임)
+        job_ids = property_data.get("job_ids")
+        if job_ids:
             update_result = await work_db.calls.update_many(
-                {"job_id": job_id},
+                {"job_id": {"$in": job_ids}},
                 {"$set": {"property_id": property_data["property_id"]}}
             )
-            logger.info(f"Updated {update_result.modified_count} call(s) with property_id {property_data['property_id']} for job_id {job_id}")
+            logger.info(f"Updated {update_result.modified_count} call(s) with property_id {property_data['property_id']} for job_ids {job_ids}")
 
         # PropertyUpdate로 변환 (ObjectId 직렬화 방지)
         return PropertyUpdate.model_validate(created_property_doc)
