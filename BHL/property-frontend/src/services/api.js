@@ -3,11 +3,11 @@ import { flattenData, unflattenPropertyData, unflattenCallData } from '../utils/
 import { formatPhoneNumber } from '../utils/FormatTools';
 import qs from 'qs';
 
-// 로컬 테스트용
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8003';
+// // 로컬 테스트용
+// const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8003';
 
-// // 배포용
-// const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://43.203.64.254:8003';
+// 배포용
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://43.203.64.254:8003';
 
 
 const api = axios.create({
