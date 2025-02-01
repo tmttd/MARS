@@ -266,7 +266,7 @@ function PropertyForm({
                       label="소유주 메모"
                       value={formData?.owner_property_memo || ''}
                       onChange={(e) => handleFieldChange('owner_property_memo', e.target.value)}
-                      minHeight="100px"
+                      minHeight="60px"
                       isScrollable
                       disabled={isDisabled}
                       type="textarea"
@@ -301,7 +301,7 @@ function PropertyForm({
                       label="세입자 메모"
                       value={formData?.tenant_property_memo || ''}
                       onChange={(e) => handleFieldChange('tenant_property_memo', e.target.value)}
-                      minHeight="100px"
+                      minHeight="60px"
                       isScrollable
                       disabled={isDisabled}
                       type="textarea"

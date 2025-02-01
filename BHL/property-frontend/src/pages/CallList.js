@@ -268,7 +268,7 @@ const CallList = () => {
                       setSearchTerm(formatToISODatetime(date));
                     }}
                     dateFormat="yyyy-MM-dd"
-                    placeholderText="녹음일자 선택"
+                    placeholderText="날짜 선택"
                     className="form-control search-input shadow-sm border-0"
                   />
                 ) : (

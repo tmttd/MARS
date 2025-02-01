@@ -38,19 +38,16 @@ export const formatDateTime = (dateString) => {
 
 export const formatToISODatetime = (date) => {
   if (!date) return null;
-  
-  // date가 문자열로 들어온 경우 Date 객체로 변환
+
   const dateObj = date instanceof Date ? date : new Date(date);
-  
-  // 유효한 날짜인지 확인
   if (isNaN(dateObj.getTime())) return null;
-  
-  // KST 00:00:00 -> UTC 15:00:00 (전날)
-  const utcDate = new Date(dateObj);
-  utcDate.setHours(0, 0, 0, 0);
-  utcDate.setHours(utcDate.getHours() - 9);
-  
-  return dateObj.toISOString();
+
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+
+  // 타임존 보정 없이 KST의 자정(00:00:00)을 문자열로 반환
+  return `${year}-${month}-${day}T00:00:00`;
 };
 
 // 등록일자 포맷팅 함수(2025-01-20T01:22:48.554Z -> 2025-01-20)
