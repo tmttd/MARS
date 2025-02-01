@@ -96,18 +96,13 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                 class PropertyType(str, Enum):
                     APARTMENT = "아파트"
                     OFFICETEL = "오피스텔"
-                    REBUILDING = "재건축"
-                    COMPOSITE = "주상복합"
                     COMMERCIAL = "상가"
-                    OFFICE = "사무실"
                     OTHER = "기타"
 
                 class TransactionType(str, Enum):
                     SALE = "매매"
                     RENT = "전세"
                     MONTHLY_RENT = "월세"
-                    LEASE = "임대"
-                    OTHER = "기타"
 
                 class OwnerInfo(BaseModel):
                     owner_name: Optional[str] = None
@@ -129,14 +124,11 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                     detail_address: Optional[str] = Field(None, description="아파트 동 호수 or 번지(ex. 1동 1305호 or 123-23)")
                     transaction_type: Optional[TransactionType] = Field(None, description="거래 종류")
                     property_type: Optional[PropertyType] = Field(None, description="매물 종류")
-                    floor: Optional[int] = Field(None, description="층")
                     area: Optional[int] = Field(None, description="면적(평)")
-                    premium: Optional[int] = Field(None, description="(상가인 경우) 권리금 (만원)")
                     owner_property_memo: Optional[str] = Field(None, description="현재 매물에 대한 소유주 관련 메모")
                     tenant_property_memo: Optional[str] = Field(None, description="현재 매물에 대한 세입자 관련 메모")
                     owner_info: Optional[OwnerInfo] = Field(None, description="집주인 정보")
                     tenant_info: Optional[TenantInfo] = Field(None, description="세입자 정보")
-                    memo: Optional[str] = Field(None, description="매물에 관한 메모")
                     moving_date: Optional[str] = Field(None, description="입주가능일")
 
                 class PropertyExtraction(BaseModel):
@@ -172,9 +164,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                     "detail_address": "아파트 동 호수 or 번지(ex. 1동 1305호 or 123-23)",
                     "transaction_type": "거래 종류",
                     "property_type": "매물 종류",
-                    "floor": "층",
                     "area": "면적(평)",
-                    "premium": "권리금 (상가인 경우, 만원)",
                     "owner_property_memo": "현재 매물에 대한 소유주 관련 메모",
                     "tenant_property_memo": "현재 매물에 대한 세입자 관련 메모",
                     "owner_info": {{
@@ -185,7 +175,6 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                     "tenant_name": "세입자 이름",
                     "tenant_contact": "세입자 연락처",
                     }},
-                    "memo": "매물에 관한 메모",
                     "moving_date": "입주가능일"
                 }}
                 }}
@@ -211,41 +200,92 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         
         # full_address 생성
         try:
-            extracted_info = extraction.get('extracted_property_info', {})
-            if not isinstance(extracted_info, dict):
-                raise ValueError("extracted_property_info는 딕셔너리여야 합니다.")
+            # extracted_property_info가 None인 경우 빈 딕셔너리로 초기화
+            if extraction.get('extracted_property_info') is None or not isinstance(extraction.get('extracted_property_info'), dict):
+                extraction['extracted_property_info'] = {}
 
+            extracted_info = extraction['extracted_property_info']
             address_fields = ['city', 'district', 'legal_dong', 'detail_address']
-            full_address_parts = [
-                str(extracted_info.get(field, '') or '') for field in address_fields
-            ]
-
+            full_address_parts = [str(extracted_info.get(field, '') or '') for field in address_fields]
             extraction['extracted_property_info']['full_address'] = ' '.join(full_address_parts).strip()
         except Exception as e:
-            # 로깅 또는 에러 핸들링
             logger.error(f"full_address 생성 중 오류 발생: {e}")
+            # extracted_property_info가 없는 경우에도 안전하게 빈 딕셔너리 할당
+            if extraction.get('extracted_property_info') is None:
+                extraction['extracted_property_info'] = {}
             extraction['extracted_property_info']['full_address'] = ''
+
+        # ★ job 문서에서 customer_name, customer_contact 사용하여 owner_info 업데이트 ★
+        customer_name = job.get("customer_name", "")
+        customer_contact = job.get("customer_contact", "")
+
+        try:
+            # 1) extraction['extracted_property_info']가 None인 경우 미리 빈 딕셔너리로 만들기
+            if not extraction.get('extracted_property_info'):
+                extraction['extracted_property_info'] = {}
+
+            extracted_info = extraction['extracted_property_info']
             
-            # 소유주, 세입자 연락처 포맷팅
-            cleaned_owner_contact = ''.join(filter(str.isdigit, str(extraction.get('owner_info', {}).get('owner_contact', ''))))
-            if cleaned_owner_contact.startswith('010') and len(cleaned_owner_contact) == 11:
-                extraction['extracted_property_info']['owner_info']['owner_contact'] = f"{cleaned_owner_contact[:3]}-{cleaned_owner_contact[3:7]}-{cleaned_owner_contact[7:]}"
-            elif cleaned_owner_contact.startswith('02') and (len(cleaned_owner_contact) == 9 or len(cleaned_owner_contact) == 10):
-                extraction['extracted_property_info']['owner_info']['owner_contact'] = f"02-{cleaned_owner_contact[2:-4]}-{cleaned_owner_contact[-4:]}"
-            elif len(cleaned_owner_contact) == 10 or len(cleaned_owner_contact) == 11:
-                extraction['extracted_property_info']['owner_info']['owner_contact'] = f"{cleaned_owner_contact[:3]}-{cleaned_owner_contact[3:-4]}-{cleaned_owner_contact[-4:]}"
-            else:
-                extraction['extracted_property_info']['owner_info']['owner_contact'] = ''
-            
-            cleaned_tenant_contact = ''.join(filter(str.isdigit, str(extraction.get('tenant_info', {}).get('tenant_contact', ''))))
-            if cleaned_tenant_contact.startswith('010') and len(cleaned_tenant_contact) == 11:
-                extraction['extracted_property_info']['tenant_info']['tenant_contact'] = f"{cleaned_tenant_contact[:3]}-{cleaned_tenant_contact[3:7]}-{cleaned_tenant_contact[7:]}"
-            elif cleaned_tenant_contact.startswith('02') and (len(cleaned_tenant_contact) == 9 or len(cleaned_tenant_contact) == 10):
-                extraction['extracted_property_info']['tenant_info']['tenant_contact'] = f"02-{cleaned_tenant_contact[2:-4]}-{cleaned_tenant_contact[-4:]}"
-            elif len(cleaned_tenant_contact) == 10 or len(cleaned_tenant_contact) == 11:
-                extraction['extracted_property_info']['tenant_info']['tenant_contact'] = f"{cleaned_tenant_contact[:3]}-{cleaned_tenant_contact[3:-4]}-{cleaned_tenant_contact[-4:]}"
-            else:
-                extraction['extracted_property_info']['tenant_info']['tenant_contact'] = ''
+            # 2) owner_info가 None이거나 키 자체가 없으면 빈 딕셔너리 할당
+            if not extracted_info.get('owner_info'):
+                extracted_info['owner_info'] = {}
+
+            # 3) tenant_info도 필요하다면 마찬가지로 처리
+            if not extracted_info.get('tenant_info'):
+                extracted_info['tenant_info'] = {}
+
+            # 이제 dictionary 구조가 확실히 만들어졌으므로 값 할당 가능
+            address_fields = ['city', 'district', 'legal_dong', 'detail_address']
+            full_address_parts = [str(extracted_info.get(field, '') or '') for field in address_fields]
+            extracted_info['full_address'] = ' '.join(full_address_parts).strip()
+
+        except Exception as e:
+            logger.error(f"full_address 생성 중 오류 발생: {e}")
+            # 혹은 필요하다면 여기서도 extracted_property_info 초기화
+            if not extraction.get('extracted_property_info'):
+                extraction['extracted_property_info'] = {}
+            extraction['extracted_property_info']['full_address'] = ''
+
+        # -------------------------------------------------------
+        # 이제 job 문서의 customer_name, customer_contact 사용
+        customer_name = job.get("customer_name", "")
+        customer_contact = job.get("customer_contact", "")
+
+        # 다시 한 번 안전하게 초기화(혹시 위에서 에러로 건너뛴 경우 등)
+        if not extraction.get('extracted_property_info'):
+            extraction['extracted_property_info'] = {}
+        if not extraction['extracted_property_info'].get('owner_info'):
+            extraction['extracted_property_info']['owner_info'] = {}
+
+        extraction['extracted_property_info']['owner_info']['owner_name'] = customer_name
+
+        # 연락처 숫자만 추출 후 포맷팅
+        cleaned_owner_contact = ''.join(filter(str.isdigit, str(customer_contact)))
+        if cleaned_owner_contact.startswith('010') and len(cleaned_owner_contact) == 11:
+            formatted_owner_contact = f"{cleaned_owner_contact[:3]}-{cleaned_owner_contact[3:7]}-{cleaned_owner_contact[7:]}"
+        elif cleaned_owner_contact.startswith('02') and (len(cleaned_owner_contact) in (9, 10)):
+            formatted_owner_contact = f"02-{cleaned_owner_contact[2:-4]}-{cleaned_owner_contact[-4:]}"
+        elif len(cleaned_owner_contact) in (10, 11):
+            formatted_owner_contact = f"{cleaned_owner_contact[:3]}-{cleaned_owner_contact[3:-4]}-{cleaned_owner_contact[-4:]}"
+        else:
+            formatted_owner_contact = ""
+
+        extraction['extracted_property_info']['owner_info']['owner_contact'] = formatted_owner_contact
+
+        # tenant_contact 포맷팅 로직 추가 (GPT 결과를 그대로 쓰는 예시)
+        # GPT가 추출해 준 tenant_contact 값을 가져와 동일한 방식으로 숫자만 남긴 뒤 하이픈 삽입
+
+        cleaned_tenant_contact = ''.join(filter(str.isdigit, str(extraction['extracted_property_info']['tenant_info'].get('tenant_contact', ''))))
+        if cleaned_tenant_contact.startswith('010') and len(cleaned_tenant_contact) == 11:
+            formatted_tenant_contact = f"{cleaned_tenant_contact[:3]}-{cleaned_tenant_contact[3:7]}-{cleaned_tenant_contact[7:]}"
+        elif cleaned_tenant_contact.startswith('02') and len(cleaned_tenant_contact) in (9, 10):
+            formatted_tenant_contact = f"02-{cleaned_tenant_contact[2:-4]}-{cleaned_tenant_contact[-4:]}"
+        elif len(cleaned_tenant_contact) in (10, 11):
+            formatted_tenant_contact = f"{cleaned_tenant_contact[:3]}-{cleaned_tenant_contact[3:-4]}-{cleaned_tenant_contact[-4:]}"
+        else:
+            formatted_tenant_contact = ""
+
+        extraction['extracted_property_info']['tenant_info']['tenant_contact'] = formatted_tenant_contact
         
         # # 출력 파일 경로 설정
         # output_file = os.path.join(settings.OUTPUT_DIR, f"{job_id}.json")
