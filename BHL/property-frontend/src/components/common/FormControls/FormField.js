@@ -26,7 +26,7 @@ export const formFields = [
     { id: 'property_name', label: '단지명', placeholder: '예: 삼성래미안', colSize: 5, type: 'text' },
     { id: 'floor', label: '층', placeholder: '숫자로 입력', colSize: 2, type: 'text', unittext: '층' },
     { id: 'detail_address', label: '상세주소', placeholder: '예: 1동 1305호', colSize: 8, type: 'text' },
-    { id: 'area', label: '면적', placeholder: '숫자로 입력', colSize: 2, type: 'text', unittext: 'm²' },
+    { id: 'area', label: '면적', placeholder: '숫자로 입력', colSize: 2, type: 'text', unittext: '평' },
     { id: 'loan_available', label: '대출 관련 정보', placeholder: '', colSize: 9, type: 'text' },
     { id: 'moving_date', label: '입주 가능일', placeholder: '클릭', colSize: 3, type: 'date' },
     {
