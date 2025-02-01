@@ -13,10 +13,7 @@ const PropertyListModal = ({ show, onHide, properties: initialProperties, onSele
   const propertyTypeColors = {
     아파트: 'primary',
     오피스텔: 'primary',
-    재건축: 'primary',
-    주상복합: 'primary',
     상가: 'info',
-    사무실: 'dark',
     기타: 'secondary'
   };
 

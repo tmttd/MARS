@@ -41,10 +41,10 @@ class ExtractedPropertyInfo(BaseModel):
     full_address: Optional[str] = None
     transaction_type: Optional[str] = None
     property_type: Optional[str] = None
+    memo: Optional[str] = None
     floor: Optional[int] = None
     area: Optional[int] = None
     premium: Optional[int] = None
-    memo: Optional[str] = None
     owner_property_memo: Optional[str] = None
     tenant_property_memo: Optional[str] = None
     owner_info: Optional[OwnerInfo] = None
@@ -114,10 +114,10 @@ class PropertyInfo(BaseModel):
     full_address: Optional[str] = None
     transaction_type: Optional[str] = None
     property_type: Optional[str] = None
+    memo: Optional[str] = None
     floor: Optional[int] = None
     area: Optional[int] = None
     premium: Optional[int] = None
-    memo: Optional[str] = None 
     moving_date: Optional[datetime] = None
     owner_property_memo: Optional[str] = None
     tenant_property_memo: Optional[str] = None
@@ -136,6 +136,7 @@ class Property(BaseModel):
     job_ids: Optional[List[str]] = Field(default_factory=list)
     created_by: Optional[str] = None
     property_info: Optional[PropertyInfo] = None
+    summary_content: Optional[str] = None
 
     # Pydantic v2에서는 model_config 또는 ConfigDict를 사용
     model_config = ConfigDict(
@@ -154,6 +155,7 @@ class PropertyUpdate(BaseModel):
     status: Optional[str] = None
     job_ids: Optional[List[str]] = Field(default_factory=list)
     property_info: Optional[PropertyInfo] = None
+    summary_content: Optional[str] = None
     created_by: Optional[str] = None
 
     model_config = ConfigDict(

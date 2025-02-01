@@ -20,6 +20,8 @@ function PropertyForm({
 }) {
   const [formData, setFormData] = useState(propertyData);
   const [isDisabled, setIsDisabled] = useState(initialDisabled);
+  // 저장(submit) 진행 중인지 여부를 나타내는 상태 추가
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   
   // 상태 분리: 매물 목록과 선택된 매물
@@ -56,29 +58,48 @@ function PropertyForm({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    // 중복 클릭 방지: 이미 저장 중이면 실행하지 않음
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
-      // 기존 job_ids 배열이 있으면 복사, 없으면 빈 배열 생성 후 jobId 추가 (중복 없이)
+      // 기존 job_ids 배열 복사 또는 생성 후 jobId 추가 (중복 없이)
       let updatedJobIds = formData.job_ids ? [...formData.job_ids] : [];
-      if (!updatedJobIds.includes(jobId)) {
+      if (jobId && !updatedJobIds.includes(jobId)) {
         updatedJobIds.push(jobId);
       }
       const updatedFormData = { ...formData, job_ids: updatedJobIds };
   
+      let savedProperty;
       if (updatedFormData.property_id) {
         console.log('SubmitData', updatedFormData);
-        await propertyService.updateProperty(updatedFormData.property_id, updatedFormData);
+        // 업데이트 후 반환되는 데이터(이미 flatten된 데이터)를 변수에 할당
+        savedProperty = await propertyService.updateProperty(
+          updatedFormData.property_id,
+          updatedFormData
+        );
         alert('저장되었습니다.');
       } else {
         console.log('CreateData', updatedFormData);
-        await propertyService.createProperty(updatedFormData);
+        // 생성 후 반환되는 데이터를 변수에 할당
+        savedProperty = await propertyService.createProperty(updatedFormData);
         alert('저장되었습니다.');
       }
+  
+      // 저장된 부동산의 property_id가 존재하면 최신 데이터를 백엔드로부터 다시 가져온 후 상태 업데이트
+      if (savedProperty && savedProperty.property_id) {
+        const freshData = await propertyService.getProperty(savedProperty.property_id);
+        setFormData(freshData);
+      }
+  
       if (onSubmitSuccess) {
         onSubmitSuccess();
       }
     } catch (error) {
       console.error('Property save error:', error);
       alert('저장 중 오류가 발생했습니다.');
+    } finally {
+      // 저장 작업이 끝나면 다시 버튼 활성화
+      setIsSubmitting(false);
     }
   };
   
@@ -244,7 +265,7 @@ function PropertyForm({
               </Col>
             ))}
           
-          <Row className="mt-4">
+            <Row className="mt-4">
               <Col md={6}>
                 <h5><strong>소유주 정보</strong></h5>
                 <Row>
@@ -317,9 +338,11 @@ function PropertyForm({
             </Row>
           </Row>
 
+          {/* bottomButton에 isSubmitting 상태를 disabled prop으로 전달 */}
           {bottomButton && React.cloneElement(bottomButton, {
             onClick: handleSubmit,
-            type: 'submit'
+            type: 'submit',
+            disabled: isSubmitting
           })}
 
           <PropertyListModal

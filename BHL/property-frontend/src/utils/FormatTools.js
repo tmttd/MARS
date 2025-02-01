@@ -50,11 +50,12 @@ export const formatToISODatetime = (date) => {
   return `${year}-${month}-${day}T00:00:00`;
 };
 
-// 등록일자 포맷팅 함수(2025-01-20T01:22:48.554Z -> 2025-01-20)
 export const formatDate = (dateString) => {
   const date = new Date(dateString);
+  // UTC 기준 시간에 9시간을 더하여 KST로 변환
+  date.setHours(date.getHours() + 9);
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0'); // 월은 0부터 시작하므로 +1
+  const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };

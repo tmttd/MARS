@@ -98,10 +98,7 @@ const PropertyTable = ({ properties, onRefresh }) => {
   const propertyTypeColors = {
     아파트: 'primary',
     오피스텔: 'success',
-    재건축: 'primary',
-    주상복합: 'primary',
     상가: 'info',
-    사무실: 'dark',
     기타: 'secondary'
   };
 
@@ -144,7 +141,7 @@ const PropertyTable = ({ properties, onRefresh }) => {
               <td>{renderCell(property, 'property_name')}</td>
               <td>{renderCell(property, 'deposit')}</td>
               <td>{renderCell(property, 'price')}</td>
-              <td>{renderCell(property, 'memo')}</td>
+              <td>{renderCell(property, 'summary_content')}</td>
               <td>{renderCell(property, 'status')}</td>
               <td className="text-center">
                 <Button

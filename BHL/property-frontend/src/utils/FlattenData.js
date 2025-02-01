@@ -35,20 +35,21 @@ export const unflattenPropertyData = (flatData) => {
   const {
     // property_info 안의 필드 //
     property_name, price, deposit, city, district, legal_dong, detail_address,
-    full_address, loan_info, transaction_type, property_type, floor, area,
-    premium, memo, moving_date, owner_property_memo, tenant_property_memo,
+    full_address, loan_info, transaction_type, property_type, area,
+    moving_date, owner_property_memo, tenant_property_memo,
     // owner_info 안의 필드 //
     owner_name, owner_contact,
     // tenant_info 안의 필드 //
     tenant_name, tenant_contact,
     // 최상위 필드 //
-    property_id, job_ids, created_at, status
+    property_id, job_ids, created_at, summary_content, status
   } = flatData;
 
   return {
     property_id: safeValue(property_id),
     created_at: safeValue(created_at),
     status: safeValue(status),
+    summary_content: safeValue(summary_content),
     // job_ids가 배열이면 그대로 사용, 단일 값이면 배열로 감싸고, 없으면 빈 배열로 반환
     job_ids: Array.isArray(job_ids) ? job_ids : (job_ids ? [job_ids] : []),
     property_info: {
@@ -63,10 +64,7 @@ export const unflattenPropertyData = (flatData) => {
       full_address: safeValue(full_address),
       transaction_type: safeValue(transaction_type),
       property_type: safeValue(property_type),
-      floor: safeValue(floor),
       area: safeValue(area),
-      premium: safeValue(premium),
-      memo: safeValue(memo),
       moving_date: safeValue(moving_date),
       owner_property_memo: safeValue(owner_property_memo),    
       tenant_property_memo: safeValue(tenant_property_memo),   
@@ -89,7 +87,7 @@ export const unflattenCallData = (flatData) => {
     // extracted_property_info 안의 필드 //
     property_name, price, deposit, city, district, legal_dong, detail_address,
     full_address, loan_info, transaction_type, property_type, floor, area,
-    premium, memo, moving_date, owner_property_memo, tenant_property_memo,
+    premium, moving_date, owner_property_memo, tenant_property_memo,
     // owner_info 안의 필드 //
     owner_name, owner_contact,
     // tenant_info 안의 필드 //
@@ -122,10 +120,7 @@ export const unflattenCallData = (flatData) => {
       full_address: safeValue(full_address),
       transaction_type: safeValue(transaction_type),
       property_type: safeValue(property_type),
-      floor: safeValue(floor),
       area: safeValue(area),
-      premium: safeValue(premium),
-      memo: safeValue(memo),
       moving_date: safeValue(moving_date),
       owner_property_memo: safeValue(owner_property_memo),    
       tenant_property_memo: safeValue(tenant_property_memo),   
