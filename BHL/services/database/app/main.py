@@ -198,18 +198,46 @@ async def update_call(call_id: str, call_update: CallUpdate):
 async def delete_call(call_id: str):
     """
     통화 기록 삭제
+    - 통화 기록 삭제 시, 해당 문서의 property_id와 job_id를 이용하여
+      연관된 property 문서에서 call_job_ids 배열 내 해당 job_id를 제거합니다.
     """
     try:
         logger.info(f"Deleting call with job_id: {call_id}")
-        result = await work_db.calls.delete_one({"job_id": call_id})
-        if result.deleted_count == 0:
+        
+        # 삭제할 call 문서를 먼저 조회하여 연관 정보(property_id, job_id)를 가져옴
+        call_doc = await work_db.calls.find_one({"job_id": call_id})
+        if not call_doc:
             logger.warning(f"Call not found for deletion: {call_id}")
             raise HTTPException(status_code=404, detail="Call not found")
+        
+        property_id = call_doc.get("property_id")
+        call_job_id = call_doc.get("job_id")  # 보통 call_id와 동일하지만 명시적으로 사용
+
+        # call 문서 삭제
+        result = await work_db.calls.delete_one({"job_id": call_id})
+        if result.deleted_count == 0:
+            logger.warning(f"Call not deleted: {call_id}")
+            raise HTTPException(status_code=404, detail="Call not deleted")
+
+        # 만약 해당 call 문서가 property_id를 가지고 있다면,
+        # property 문서에서 call_job_ids 배열 내 해당 job_id를 제거합니다.
+        if property_id and call_job_id:
+            update_result = await work_db.properties.update_one(
+                {"property_id": property_id},
+                {"$pull": {"call_job_ids": call_job_id}}
+            )
+            logger.info(
+                f"Updated property {property_id}: removed call_job_id {call_job_id} "
+                f"from call_job_ids (modified count: {update_result.modified_count})"
+            )
+
         logger.info(f"Deleted Call: {call_id}")
         return {"detail": "Call deleted"}
+
     except Exception as e:
-        logger.exception(f"Delete call error for job_id {call_id}:")
+        logger.exception(f"Delete call error for job_id {call_id}: {e}")
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
+
 
 # ---------------------------------------------------------------------
 # 2. Properties
@@ -379,7 +407,11 @@ async def update_property(property_id: str, property_update: PropertyUpdate, cre
         if not existing_property:
             raise HTTPException(status_code=404, detail="Property not found or you don't have permission to update it")
             
+        # 업데이트할 데이터 생성 (이미 존재하는 created_at 필드는 제외)
         update_data = property_update.model_dump(exclude_unset=True)
+        if "created_at" in update_data:
+            update_data.pop("created_at")
+        
         result = await work_db.properties.update_one(
             {"property_id": property_id, "created_by": created_by} if created_by else {"property_id": property_id},
             {"$set": update_data}
@@ -409,19 +441,49 @@ async def update_property(property_id: str, property_update: PropertyUpdate, cre
 async def delete_property(property_id: str, created_by: Optional[str] = None):
     """
     부동산 정보 삭제
+    - property 삭제 시, 해당 property 문서의 job_id(있을 경우)를 이용하여
+      calls 컬렉션에서 해당 property_id와 일치하는 call 문서의 property_id 필드를 제거합니다.
     """
     try:
         logger.info(f"Deleting property with property_id: {property_id}, created_by: {created_by}")
         
-        # 먼저 해당 property가 존재하고 사용자가 소유자인지 확인
         query = {"property_id": property_id}
         if created_by:
             query["created_by"] = created_by
             
+        # 삭제할 property 문서 조회
         existing_property = await work_db.properties.find_one(query)
         if not existing_property:
-            raise HTTPException(status_code=404, detail="Property not found or you don't have permission to delete it")
+            raise HTTPException(
+                status_code=404, 
+                detail="Property not found or you don't have permission to delete it"
+            )
             
+        # property 문서에 저장된 job_id(있다면) 가져오기
+        property_job_id = existing_property.get("job_id")
+        
+        # property와 연관된 call 문서 업데이트
+        # property 문서의 job_id가 있다면, 조건에 job_id도 포함하여 업데이트합니다.
+        if property_job_id:
+            update_result = await work_db.calls.update_many(
+                {"job_id": property_job_id, "property_id": property_id},
+                {"$unset": {"property_id": ""}}
+            )
+            logger.info(
+                f"Updated {update_result.modified_count} call(s): removed property_id {property_id} "
+                f"using job_id {property_job_id}."
+            )
+        else:
+            # job_id 정보가 없으면 property_id만 조건으로 업데이트
+            update_result = await work_db.calls.update_many(
+                {"property_id": property_id},
+                {"$unset": {"property_id": ""}}
+            )
+            logger.info(
+                f"Updated {update_result.modified_count} call(s): removed property_id {property_id}."
+            )
+        
+        # property 문서 삭제
         result = await work_db.properties.delete_one(query)
         if result.deleted_count == 0:
             logger.warning(f"Property not found for deletion: {property_id}")
@@ -429,6 +491,8 @@ async def delete_property(property_id: str, created_by: Optional[str] = None):
             
         logger.info(f"Deleted Property: {property_id}")
         return {"detail": "Property deleted"}
+    
     except Exception as e:
-        logger.exception(f"Delete property error for property_id {property_id}:")
+        logger.exception(f"Delete property error for property_id {property_id}: {e}")
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
+
