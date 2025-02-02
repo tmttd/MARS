@@ -87,9 +87,9 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         
         # GPT를 사용한 텍스트 요약
         completion = openai_client.beta.chat.completions.parse(
-            model="gpt-4o",
+            model="o1-mini",
             messages=[
-                {"role": "system", "content": """You are an AI assistant specialized in real estate. Your goal is to provide quick yet comprehensive summaries of phone calls between a real estate agent and their client. This summary must help the agent identify key action items, property details, and next steps. 
+                {"role": "user", "content": """You are an AI assistant specialized in real estate. Your goal is to provide quick yet comprehensive summaries of phone calls between a real estate agent and their client. This summary must help the agent identify key action items, property details, and next steps. 
                 Additionally, you must parse the given conversation transcript and convert the relevant information into a structured JSON format **exactly matching** the following Pydantic model:
 
                 ---
@@ -143,9 +143,10 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                 3. If any value is missing or uncertain, set it to `null` (i.e., `None` in Python terms).
                 4. Constrain `summary_title` to 20 characters or fewer.
                 5. Include the key points listed in the user prompt under `summary_content`.
-                6. Convert any measurements (e.g., 평) to square meters (㎡) if applicable, and handle monetary units in 만원.
-                7. Resolve duplicate or conflicting information by using the most recent or most specific mention.
-                8. Use ISO 8601 format (e.g., "2025-01-14") for all date fields.
+                6. Only use 평 measuring area.
+                7. Handle monetary units in 만원.
+                8. Resolve duplicate or conflicting information by using the most recent or most specific mention.
+                9. Use ISO 8601 format (e.g., "2025-01-14") for all date fields.
                 """},
                 {"role": "user", "content": f"""Below is a transcript of a phone call between a real estate agent and a client. Analyze this transcript and write it into a JSON structure that fits the given Pydantic model.
 
@@ -190,13 +191,24 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                 **call transcript**:
                 {text_to_summarize}
                 """}
-            ],
-            response_format=PropertyExtraction
+            ]
         )
-        
-        extraction = completion.choices[0].message.parsed.model_dump()
-        
-        logger.info(f"extraction: {extraction}")
+
+        response_text = completion.choices[0].message.content; logger.info(f"response_text: {response_text}")
+        # Markdown 코드 블록 제거: 맨 앞의 "```json"과 맨 뒤의 "```"를 삭제
+        if response_text.strip().startswith("```json"):
+            cleaned = response_text.strip()[len("```json"):].strip()
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3].strip()
+        else:
+            cleaned = response_text.strip()
+        extraction = {}
+        try:
+            extraction = json.loads(cleaned)
+        except json.JSONDecodeError as e:
+            logger.error("JSON 파싱 오류: %s", e)
+            extraction = {}
+        if not isinstance(extraction, dict): extraction = {}
         
         # full_address 생성
         try:

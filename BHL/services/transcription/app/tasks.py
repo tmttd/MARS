@@ -175,7 +175,7 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
         
         # GPT를 사용한 텍스트 요약
         completion = openai_client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": f"""
                 당신은 다음 전화 통화 녹취록(STT 출력)을 처리할 것입니다. 
