@@ -1,7 +1,7 @@
 // BHL/property-frontend/src/components/property/PropertyForm.js
 
 import React, { useState, useEffect } from 'react';
-import { Card, Form, Row, Col, Button } from 'react-bootstrap';
+import { Card, Form, Row, Col, Button, Modal } from 'react-bootstrap';
 import { FaBuilding } from 'react-icons/fa';
 import LabeledFormGroup from '../common/FormControls/LabeledFormGroup';
 import { propertyService, callService } from '../../services/api';
@@ -24,6 +24,10 @@ function PropertyForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   
+  // 에러 모달 상태
+  const [errorModalOpen, setErrorModalOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
   // 상태 분리: 매물 목록과 선택된 매물
   const [propertyList, setPropertyList] = useState([]);
   const [selectedProperty, setSelectedProperty] = useState(null);
@@ -96,7 +100,13 @@ function PropertyForm({
       }
     } catch (error) {
       console.error('Property save error:', error);
-      alert('저장 중 오류가 발생했습니다.');
+      // error.response.data.detail이 있다면 해당 메시지를 사용하고, 없으면 일반적인 메시지 사용
+      const msg =
+        error.response && error.response.data && error.response.data.detail
+          ? error.response.data.detail
+          : '저장 중 오류가 발생했습니다.';
+      setErrorMessage(msg);
+      setErrorModalOpen(true);
     } finally {
       // 저장 작업이 끝나면 다시 버튼 활성화
       setIsSubmitting(false);
@@ -211,149 +221,166 @@ function PropertyForm({
   };
 
   return (
-    <Card style={{ height: '100%' }}>
-      <Card.Body>
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <h4 className="m-0 d-flex align-items-center">
-            <FaBuilding className="me-2 text-primary" />
-            {title}
-          </h4>
-          
-          {/* 상태 드롭다운 추가 */}
-          <div className="d-flex align-items-center gap-3">
-            <div className="d-flex align-items-center">
-              <span className="me-2 fw-bold">작업 상태:</span>
-              <Form.Select
-                size="sm"
-                value={formData?.status || ''}
-                onChange={(e) => handleStatusChange(e.target.value)}
-                style={{
-                  fontWeight: 'bold',
-                  fontSize: '0.9rem',
-                  width: 'auto',
-                  minWidth: '100px'
-                }}
-              >
-                <option value="">선택</option>
-                {statusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </Form.Select>
+    <>
+      <Card style={{ height: '100%' }}>
+        <Card.Body>
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <h4 className="m-0 d-flex align-items-center">
+              <FaBuilding className="me-2 text-primary" />
+              {title}
+            </h4>
+            
+            {/* 상태 드롭다운 추가 */}
+            <div className="d-flex align-items-center gap-3">
+              <div className="d-flex align-items-center">
+                <span className="me-2 fw-bold">작업 상태:</span>
+                <Form.Select
+                  size="sm"
+                  value={formData?.status || ''}
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  style={{
+                    fontWeight: 'bold',
+                    fontSize: '0.9rem',
+                    width: 'auto',
+                    minWidth: '100px'
+                  }}
+                >
+                  <option value="">선택</option>
+                  {statusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </Form.Select>
+              </div>
+              {renderRightButton()}
             </div>
-            {renderRightButton()}
           </div>
-        </div>
 
-        <Form>
-          <Row className="g-3">
-            {formFields.map((field) => (
-              <Col md={field.colSize} key={field.id}>
-                <LabeledFormGroup
-                  label={field.label}
-                  value={formData?.[field.id] || ''}
-                  onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                  placeholder={isDisabled ? '' : field.placeholder}
-                  minHeight={field.minHeight}
-                  isScrollable={field.isScrollable}
-                  disabled={isDisabled}
-                  type={field.type}
-                  options={field.options}
-                  unittext={field.unittext}
-                />
-              </Col>
-            ))}
-          
-            <Row className="mt-4">
-              <Col md={6}>
-                <h5><strong>소유주 정보</strong></h5>
-                <Row>
-                  <Col md={11} className="mb-3">
-                    <LabeledFormGroup
-                      label="성함"
-                      value={formData?.owner_name || ''}
-                      onChange={(e) => handleFieldChange('owner_name', e.target.value)}
-                      disabled={isDisabled}
-                      type="text"
-                    />
-                  </Col>
-                  <Col md={11} className="mb-3">
-                    <LabeledFormGroup
-                      label="연락처"
-                      value={formData?.owner_contact || ''}
-                      onChange={(e) => handleFieldChange('owner_contact', e.target.value)}
-                      disabled={isDisabled}
-                      type="text"
-                    />
-                  </Col>
-                  <Col md={11} className="mb-3">
-                    <LabeledFormGroup
-                      label="소유주 메모"
-                      value={formData?.owner_property_memo || ''}
-                      onChange={(e) => handleFieldChange('owner_property_memo', e.target.value)}
-                      minHeight="60px"
-                      isScrollable
-                      disabled={isDisabled}
-                      type="textarea"
-                    />
-                  </Col>
-                </Row>
-              </Col>
+          <Form onSubmit={handleSubmit}>
+            <Row className="g-3">
+              {formFields.map((field) => (
+                <Col md={field.colSize} key={field.id}>
+                  <LabeledFormGroup
+                    label={field.label}
+                    value={formData?.[field.id] || ''}
+                    onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                    placeholder={isDisabled ? '' : field.placeholder}
+                    minHeight={field.minHeight}
+                    isScrollable={field.isScrollable}
+                    disabled={isDisabled}
+                    type={field.type}
+                    options={field.options}
+                    unittext={field.unittext}
+                  />
+                </Col>
+              ))}
+            
+              <Row className="mt-4">
+                <Col md={6}>
+                  <h5><strong>소유주 정보</strong></h5>
+                  <Row>
+                    <Col md={11} className="mb-3">
+                      <LabeledFormGroup
+                        label="성함"
+                        value={formData?.owner_name || ''}
+                        onChange={(e) => handleFieldChange('owner_name', e.target.value)}
+                        disabled={isDisabled}
+                        type="text"
+                      />
+                    </Col>
+                    <Col md={11} className="mb-3">
+                      <LabeledFormGroup
+                        label="연락처"
+                        value={formData?.owner_contact || ''}
+                        onChange={(e) => handleFieldChange('owner_contact', e.target.value)}
+                        disabled={isDisabled}
+                        type="text"
+                      />
+                    </Col>
+                    <Col md={11} className="mb-3">
+                      <LabeledFormGroup
+                        label="소유주 메모"
+                        value={formData?.owner_property_memo || ''}
+                        onChange={(e) => handleFieldChange('owner_property_memo', e.target.value)}
+                        minHeight="60px"
+                        isScrollable
+                        disabled={isDisabled}
+                        type="textarea"
+                      />
+                    </Col>
+                  </Row>
+                </Col>
 
-              <Col md={6}>
-                <h5><strong>세입자 정보</strong></h5>
-                <Row>
-                  <Col md={11} className="mb-3">
-                    <LabeledFormGroup
-                      label="성함"
-                      value={formData?.tenant_name || ''}
-                      onChange={(e) => handleFieldChange('tenant_name', e.target.value)}
-                      disabled={isDisabled}
-                      type="text"
-                    />
-                  </Col>
-                  <Col md={11} className="mb-3">
-                    <LabeledFormGroup
-                      label="연락처"
-                      value={formData?.tenant_contact || ''}
-                      onChange={(e) => handleFieldChange('tenant_contact', e.target.value)}
-                      disabled={isDisabled}
-                      type="text"
-                    />
-                  </Col>
-                  <Col md={11} className="mb-3">
-                    <LabeledFormGroup
-                      label="세입자 메모"
-                      value={formData?.tenant_property_memo || ''}
-                      onChange={(e) => handleFieldChange('tenant_property_memo', e.target.value)}
-                      minHeight="60px"
-                      isScrollable
-                      disabled={isDisabled}
-                      type="textarea"
-                    />
-                  </Col>
-                </Row>
-              </Col>
+                <Col md={6}>
+                  <h5><strong>세입자 정보</strong></h5>
+                  <Row>
+                    <Col md={11} className="mb-3">
+                      <LabeledFormGroup
+                        label="성함"
+                        value={formData?.tenant_name || ''}
+                        onChange={(e) => handleFieldChange('tenant_name', e.target.value)}
+                        disabled={isDisabled}
+                        type="text"
+                      />
+                    </Col>
+                    <Col md={11} className="mb-3">
+                      <LabeledFormGroup
+                        label="연락처"
+                        value={formData?.tenant_contact || ''}
+                        onChange={(e) => handleFieldChange('tenant_contact', e.target.value)}
+                        disabled={isDisabled}
+                        type="text"
+                      />
+                    </Col>
+                    <Col md={11} className="mb-3">
+                      <LabeledFormGroup
+                        label="세입자 메모"
+                        value={formData?.tenant_property_memo || ''}
+                        onChange={(e) => handleFieldChange('tenant_property_memo', e.target.value)}
+                        minHeight="60px"
+                        isScrollable
+                        disabled={isDisabled}
+                        type="textarea"
+                      />
+                    </Col>
+                  </Row>
+                </Col>
+              </Row>
             </Row>
-          </Row>
 
-          {/* bottomButton에 isSubmitting 상태를 disabled prop으로 전달 */}
-          {bottomButton && React.cloneElement(bottomButton, {
-            onClick: handleSubmit,
-            type: 'submit',
-            disabled: isSubmitting
-          })}
+            {/* bottomButton에 isSubmitting 상태를 disabled prop으로 전달 */}
+            {bottomButton && React.cloneElement(bottomButton, {
+              onClick: handleSubmit,
+              type: 'submit',
+              disabled: isSubmitting
+            })}
 
-          <PropertyListModal
-            show={showModal}
-            onHide={() => setShowModal(false)}
-            properties={propertyList}
-            onSelect={handleSelectedProperty}
-          />
-        </Form>
-      </Card.Body>
-    </Card>
+            <PropertyListModal
+              show={showModal}
+              onHide={() => setShowModal(false)}
+              properties={propertyList}
+              onSelect={handleSelectedProperty}
+            />
+          </Form>
+        </Card.Body>
+      </Card>
+
+      {/* 에러 모달 */}
+      <Modal show={errorModalOpen} onHide={() => setErrorModalOpen(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>오류 발생</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {errorMessage || '상세주소가 중복되었습니다. 확인 후 다시 등록하세요.'}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="primary" onClick={() => setErrorModalOpen(false)}>
+            확인
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </>
   );
 }
 

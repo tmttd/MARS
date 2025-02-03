@@ -8,7 +8,8 @@ from datetime import datetime, timezone, timedelta
 import logging
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder  # ★ 추가: ObjectId 등을 문자열로 변환
+from fastapi.encoders import jsonable_encoder  # ObjectId 등을 문자열로 변환
+from pymongo.errors import DuplicateKeyError  # 추가: 유니크 인덱스 에러 처리
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,6 +25,19 @@ client = AsyncIOMotorClient(MONGODB_URI)
 work_db = client[WORK_MONGODB_DB]
 
 app = FastAPI(title="Database Service")
+
+@app.on_event("startup")
+async def create_indexes():
+    """
+    애플리케이션 시작 시 properties 컬렉션에 detail_address 필드에 대해 유니크 인덱스를 생성합니다.
+    (기존 데이터에 중복이 없다면 정상적으로 생성됩니다.)
+    """
+    try:
+        # detail_address 필드에 유니크 인덱스 생성
+        await work_db.properties.create_index("property_info.detail_address", unique=True)
+        logger.info("Unique index on property_info.detail_address created successfully.")
+    except Exception as e:
+        logger.exception("Error creating unique index on property_info.detail_address:")
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -88,7 +102,6 @@ async def list_calls(
 
         # recording_date 필터링 (날짜 범위 설정)
         if recording_date:
-            # 클라이언트가 시간 부분을 00:00:00으로 설정했다고 가정
             start_datetime = recording_date
             end_datetime = start_datetime + timedelta(days=1)
             query["recording_date"] = {
@@ -97,14 +110,12 @@ async def list_calls(
             }
             logger.info(f"Recording date range: {start_datetime} to {end_datetime}")
 
-        # before_date 필터링
         if before_date:
             if "recording_date" not in query:
                 query["recording_date"] = {}
             query["recording_date"]["$lt"] = before_date
             logger.info(f"Before date: {before_date}")
 
-        # after_date 필터링
         if after_date:
             if "recording_date" not in query:
                 query["recording_date"] = {}
@@ -117,13 +128,11 @@ async def list_calls(
         calls = []
         cursor = work_db.calls.find(query).sort("recording_date", -1).skip(offset).limit(limit)
         async for call_doc in cursor:
-            # Pydantic 모델로 파싱하여 ObjectId -> str 변환 가능
             call_model = Call(**call_doc)
             calls.append(call_model)
 
         logger.info(f"Retrieved {len(calls)} calls out of {total_count} total.")
 
-        # dict로 감싼 뒤 jsonable_encoder를 사용해 직렬화
         return jsonable_encoder({
             "results": calls,
             "totalCount": total_count
@@ -132,7 +141,6 @@ async def list_calls(
     except Exception as e:
         logger.exception("List calls error:")
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
-
 
 @app.get("/calls/{call_id}", response_model=Call)
 async def read_call(call_id: str):
@@ -152,7 +160,6 @@ async def read_call(call_id: str):
     except Exception as e:
         logger.exception(f"Read call error for job_id {call_id}:")
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
-
 
 @app.put("/calls/{call_id}", response_model=Call)
 async def update_call(call_id: str, call_update: CallUpdate):
@@ -179,7 +186,7 @@ async def update_call(call_id: str, call_update: CallUpdate):
             return updated_call_model
 
         updated_call_doc = await work_db.calls.find_one({"job_id": call_id})
-        logger.info(f"Updated Call: {updated_call_model}")
+        logger.info(f"Updated Call: {updated_call_doc}")
 
         if not updated_call_doc:
             raise HTTPException(status_code=404, detail="Call not found after update.")
@@ -193,34 +200,26 @@ async def update_call(call_id: str, call_update: CallUpdate):
         logger.exception(f"Update call error for job_id {call_id}: {e}")
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
 
-
 @app.delete("/calls/{call_id}")
 async def delete_call(call_id: str):
     """
     통화 기록 삭제
-    - 통화 기록 삭제 시, 해당 문서의 property_id와 job_id를 이용하여
-      연관된 property 문서에서 call_job_ids 배열 내 해당 job_id를 제거합니다.
     """
     try:
         logger.info(f"Deleting call with job_id: {call_id}")
-        
-        # 삭제할 call 문서를 먼저 조회하여 연관 정보(property_id, job_id)를 가져옴
         call_doc = await work_db.calls.find_one({"job_id": call_id})
         if not call_doc:
             logger.warning(f"Call not found for deletion: {call_id}")
             raise HTTPException(status_code=404, detail="Call not found")
         
         property_id = call_doc.get("property_id")
-        call_job_id = call_doc.get("job_id")  # 보통 call_id와 동일하지만 명시적으로 사용
+        call_job_id = call_doc.get("job_id")
 
-        # call 문서 삭제
         result = await work_db.calls.delete_one({"job_id": call_id})
         if result.deleted_count == 0:
             logger.warning(f"Call not deleted: {call_id}")
             raise HTTPException(status_code=404, detail="Call not deleted")
 
-        # 만약 해당 call 문서가 property_id를 가지고 있다면,
-        # property 문서에서 call_job_ids 배열 내 해당 job_id를 제거합니다.
         if property_id and call_job_id:
             update_result = await work_db.properties.update_one(
                 {"property_id": property_id},
@@ -228,7 +227,7 @@ async def delete_call(call_id: str):
             )
             logger.info(
                 f"Updated property {property_id}: removed call_job_id {call_job_id} "
-                f"from call_job_ids (modified count: {update_result.modified_count})"
+                f"(modified count: {update_result.modified_count})"
             )
 
         logger.info(f"Deleted Call: {call_id}")
@@ -237,7 +236,6 @@ async def delete_call(call_id: str):
     except Exception as e:
         logger.exception(f"Delete call error for job_id {call_id}: {e}")
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
-
 
 # ---------------------------------------------------------------------
 # 2. Properties
@@ -269,17 +267,16 @@ async def list_properties(
         query = {}
         if property_name:
             if property_name == '기타':
-                # 제외할 property_names 목록이 있는 경우
                 if exclude_property_names:
                     logger.info(f"Excluding property names: {exclude_property_names}")
-                    regex_pattern = '|'.join(exclude_property_names)  # OR 조건으로 정규표현식 생성
+                    regex_pattern = '|'.join(exclude_property_names)
                     query["property_info.property_name"] = {
                         "$not": {
                             "$regex": regex_pattern,
-                            "$options": "i"  # 대소문자 구분 없이
+                            "$options": "i"
                         }
                     }
-                    logger.info(f"Excluding property names with regex: {regex_pattern}")  # 로그 추가
+                    logger.info(f"Excluding property names with regex: {regex_pattern}")
             else:
                 query["property_info.property_name"] = {"$regex": property_name, "$options": "i"}
         if owner_contact:
@@ -314,7 +311,6 @@ async def list_properties(
         logger.exception("List properties error:")
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
 
-
 @app.post("/properties/", response_model=PropertyUpdate)
 async def create_property(property: PropertyUpdate):
     """
@@ -335,11 +331,11 @@ async def create_property(property: PropertyUpdate):
         except Exception as e:
             logger.error(f"Error setting created_at: {e}")
             property_data["created_at"] = None
-        
-        # created_by 필드가 없는 경우 기본값 설정
+
         if "created_by" not in property_data or not property_data["created_by"]:
-            property_data["created_by"] = "system"  # 기본값으로 "system" 설정
+            property_data["created_by"] = "system"
             
+        # properties 컬렉션에 insert 시도 (detail_address가 유니크 인덱스에 걸릴 수 있음)
         result = await work_db.properties.insert_one(property_data)
         created_property_doc = await work_db.properties.find_one({"property_id": property_data["property_id"]})
         logger.info(f"Created Property: {created_property_doc}")
@@ -347,7 +343,6 @@ async def create_property(property: PropertyUpdate):
         if not created_property_doc:
             raise HTTPException(status_code=500, detail="생성된 문서를 찾을 수 없습니다.")
 
-        # job_ids 추출 및 관련 call 문서 업데이트 (job_ids가 배열임)
         job_ids = property_data.get("job_ids")
         if job_ids:
             update_result = await work_db.calls.update_many(
@@ -356,13 +351,15 @@ async def create_property(property: PropertyUpdate):
             )
             logger.info(f"Updated {update_result.modified_count} call(s) with property_id {property_data['property_id']} for job_ids {job_ids}")
 
-        # PropertyUpdate로 변환 (ObjectId 직렬화 방지)
         return PropertyUpdate.model_validate(created_property_doc)
 
+    except DuplicateKeyError as dke:
+        logger.exception("Duplicate detail_address error:")
+        # 프론트엔드 handlesubmit 또는 api.js에서 이 에러 메시지를 표시하도록 합니다.
+        raise HTTPException(status_code=409, detail="상세주소가 중복되었습니다. 확인 후 다시 등록하세요.")
     except Exception as e:
         logger.exception("Create property error:")
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
-
 
 @app.get("/properties/{property_id}", response_model=Property)
 async def read_property(property_id: str, created_by: Optional[str] = None):
@@ -388,7 +385,6 @@ async def read_property(property_id: str, created_by: Optional[str] = None):
         logger.exception(f"Read property error for property_id {property_id}:")
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
 
-
 @app.put("/properties/{property_id}", response_model=Property)
 async def update_property(property_id: str, property_update: PropertyUpdate, created_by: Optional[str] = None):
     """
@@ -397,7 +393,6 @@ async def update_property(property_id: str, property_update: PropertyUpdate, cre
     try:
         logger.info(f"Updating property with property_id: {property_id} and data: {property_update}")
         
-        # 먼저 해당 property가 존재하고 사용자가 소유자인지 확인
         query = {"property_id": property_id}
         if created_by:
             query["created_by"] = created_by
@@ -406,7 +401,6 @@ async def update_property(property_id: str, property_update: PropertyUpdate, cre
         if not existing_property:
             raise HTTPException(status_code=404, detail="Property not found or you don't have permission to update it")
             
-        # 업데이트할 데이터 생성 (이미 존재하는 created_at 필드는 제외)
         update_data = property_update.model_dump(exclude_unset=True)
         if "created_at" in update_data:
             update_data.pop("created_at")
@@ -435,13 +429,10 @@ async def update_property(property_id: str, property_update: PropertyUpdate, cre
         logger.exception(f"Update property error for property_id {property_id}: {e}")
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
 
-
 @app.delete("/properties/{property_id}")
 async def delete_property(property_id: str, created_by: Optional[str] = None):
     """
     부동산 정보 삭제
-    - property 삭제 시, 해당 property 문서의 job_id(있을 경우)를 이용하여
-      calls 컬렉션에서 해당 property_id와 일치하는 call 문서의 property_id 필드를 제거합니다.
     """
     try:
         logger.info(f"Deleting property with property_id: {property_id}, created_by: {created_by}")
@@ -450,7 +441,6 @@ async def delete_property(property_id: str, created_by: Optional[str] = None):
         if created_by:
             query["created_by"] = created_by
             
-        # 삭제할 property 문서 조회
         existing_property = await work_db.properties.find_one(query)
         if not existing_property:
             raise HTTPException(
@@ -458,11 +448,8 @@ async def delete_property(property_id: str, created_by: Optional[str] = None):
                 detail="Property not found or you don't have permission to delete it"
             )
             
-        # property 문서에 저장된 job_id(있다면) 가져오기
         property_job_id = existing_property.get("job_id")
         
-        # property와 연관된 call 문서 업데이트
-        # property 문서의 job_id가 있다면, 조건에 job_id도 포함하여 업데이트합니다.
         if property_job_id:
             update_result = await work_db.calls.update_many(
                 {"job_id": property_job_id, "property_id": property_id},
@@ -473,7 +460,6 @@ async def delete_property(property_id: str, created_by: Optional[str] = None):
                 f"using job_id {property_job_id}."
             )
         else:
-            # job_id 정보가 없으면 property_id만 조건으로 업데이트
             update_result = await work_db.calls.update_many(
                 {"property_id": property_id},
                 {"$unset": {"property_id": ""}}
@@ -482,7 +468,6 @@ async def delete_property(property_id: str, created_by: Optional[str] = None):
                 f"Updated {update_result.modified_count} call(s): removed property_id {property_id}."
             )
         
-        # property 문서 삭제
         result = await work_db.properties.delete_one(query)
         if result.deleted_count == 0:
             logger.warning(f"Property not found for deletion: {property_id}")
@@ -494,4 +479,3 @@ async def delete_property(property_id: str, created_by: Optional[str] = None):
     except Exception as e:
         logger.exception(f"Delete property error for property_id {property_id}: {e}")
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
-
