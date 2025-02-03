@@ -6,7 +6,7 @@ import { FaBuilding } from 'react-icons/fa';
 import LabeledFormGroup from '../common/FormControls/LabeledFormGroup';
 import { propertyService, callService } from '../../services/api';
 import PropertyListModal from './PropertyListModal';
-
+import ErrorModal from '../common/ErrorModal';
 function PropertyForm({
   propertyData,
   formFields,
@@ -100,12 +100,7 @@ function PropertyForm({
       }
     } catch (error) {
       console.error('Property save error:', error);
-      // error.response.data.detail이 있다면 해당 메시지를 사용하고, 없으면 일반적인 메시지 사용
-      const msg =
-        error.response && error.response.data && error.response.data.detail
-          ? error.response.data.detail
-          : '저장 중 오류가 발생했습니다.';
-      setErrorMessage(msg);
+      setErrorMessage(error.message || '저장 중 오류가 발생했습니다.');
       setErrorModalOpen(true);
     } finally {
       // 저장 작업이 끝나면 다시 버튼 활성화
@@ -366,20 +361,12 @@ function PropertyForm({
         </Card.Body>
       </Card>
 
-      {/* 에러 모달 */}
-      <Modal show={errorModalOpen} onHide={() => setErrorModalOpen(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>오류 발생</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {errorMessage || '상세주소가 중복되었습니다. 확인 후 다시 등록하세요.'}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="primary" onClick={() => setErrorModalOpen(false)}>
-            확인
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      {/* 개선된 에러 모달 */}
+      <ErrorModal
+        show={errorModalOpen}
+        onHide={() => setErrorModalOpen(false)}
+        errorMessage={errorMessage}
+      />
     </>
   );
 }

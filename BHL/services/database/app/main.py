@@ -34,10 +34,14 @@ async def create_indexes():
     """
     try:
         # detail_address 필드에 유니크 인덱스 생성
-        await work_db.properties.create_index("property_info.detail_address", unique=True)
-        logger.info("Unique index on property_info.detail_address created successfully.")
+        await work_db.properties.create_index(
+            "property_info.detail_address",
+            unique=True,
+            partialFilterExpression={"property_info.detail_address": {"$type": "string"}}
+        )
+        logger.info("property_info.detail_address의 유니크 인덱스가 생성되었습니다.")
     except Exception as e:
-        logger.exception("Error creating unique index on property_info.detail_address:")
+        logger.exception("property_info.detail_address의 유니크 인덱스 생성 오류:")
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):

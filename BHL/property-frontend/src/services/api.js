@@ -94,7 +94,12 @@ export const propertyService = {
       return response.data;
     } catch (error) {
       console.error('Create Property Error:', error);
-      throw new Error('부동산 정보 생성에 실패했습니다.');
+      // error.response.data.detail이 있으면 그대로 throw하거나, 아니면 기본 메시지를 포함
+      if (error.response && error.response.data && error.response.data.detail) {
+        throw new Error(error.response.data.detail);
+      } else {
+        throw new Error('알 수 없는 이유로 매물 정보 등록에 실패하였습니다.');
+      }
     }
   },
 
