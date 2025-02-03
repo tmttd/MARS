@@ -5,6 +5,7 @@ import { propertyService } from '../../services/api';
 import { formatDate } from '../../utils/FormatTools';
 import PropertyInfoModal from './detail/PropertyInfoModal';
 import { statusOptions } from '../common/FormControls/FormField';
+import { commaPrice } from '../../utils/FormatTools';
 
 const PropertyTable = ({ properties, onRefresh }) => {
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -117,13 +118,13 @@ const PropertyTable = ({ properties, onRefresh }) => {
             <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>소유주</th>
             <th style={{ maxWidth: '40px', fontWeight: 'bold', textAlign: 'center' }}>연락처</th>
             <th style={{ minWidth: '50px', fontWeight: 'bold', textAlign: 'center' }}>종류</th>
-            <th style={{ maxWidth: '40px', fontWeight: 'bold', textAlign: 'center' }}>거래 종류</th>
+            <th style={{ maxWidth: '60px', fontWeight: 'bold', textAlign: 'center' }}>거래 종류</th>
             <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>단지명</th>
             <th style={{ fontWeight: 'bold', textAlign: 'center' }}>상세주소</th>
-            <th style={{ minWidth: '100px', fontWeight: 'bold', textAlign: 'center' }}>보증금(만원)</th>
-            <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>가격(만원)</th>
+            <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>보증금(만원)</th>
+            <th style={{ minWidth: '60px', fontWeight: 'bold', textAlign: 'center' }}>가격(만원)</th>
+            <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>면적</th>
             <th style={{ maxWidth: '300px', fontWeight: 'bold', textAlign: 'center', wordWrap: 'break-word' }}>메모</th>
-            <th style={{ minWidth: '130px', fontWeight: 'bold', textAlign: 'center' }}>작업상태</th>
             <th style={{ minWidth: '140px' }}></th>
           </tr>
         </thead>
@@ -139,10 +140,10 @@ const PropertyTable = ({ properties, onRefresh }) => {
               <td>{renderCell(property, 'transaction_type')}</td>
               <td>{renderCell(property, 'property_name')}</td>
               <td>{renderCell(property, 'detail_address')}</td>
-              <td>{renderCell(property, 'deposit')}</td>
-              <td>{renderCell(property, 'price')}</td>
+              <td>{commaPrice(renderCell(property, 'deposit'))}</td>
+              <td>{commaPrice(renderCell(property, 'price'))}</td>
+              <td>{renderCell(property, 'area')}평</td>
               <td>{renderCell(property, 'summary_content')}</td>
-              <td>{renderCell(property, 'status')}</td>
               <td className="text-center">
                 <Button
                   variant="primary"
