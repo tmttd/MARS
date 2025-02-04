@@ -65,7 +65,7 @@ async def transcribe_audio_endpoint(job_id: str):
             "message": f"음성-텍스트 변환 시작: {input_file}",
             "metadata": {
                 "created_at": current_time,
-                "updated_at": current_time
+                "updated_at": current_time,
             }
         })
         

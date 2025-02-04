@@ -49,38 +49,23 @@ def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_s
         work_client = MongoClient(work_db_connection_string)
         work_db = work_client[work_db_name]
         
-        # 작업 시작 로그
-        now = datetime.now(UTC)
-        db.logs.insert_one({
-            "job_id": job_id,
-            "service": "converter",
-            "event": "processing_started",
-            "status": "processing",
-            "timestamp": now,
-            "message": f"Converting audio file: {input_path}",
-            "metadata": {
-                "created_at": now,
-                "updated_at": now,
-                "created_by": user_name
-            }
-        })
-        
         # 파일 존재 확인
         if not os.path.exists(input_path):
             error_msg = f"오디오 파일을 찾을 수 없습니다: {input_path}"
             now = datetime.now(UTC)
-            db.logs.insert_one({
-                "job_id": job_id,
-                "service": "converter",
-                "event": "error",
-                "status": "failed",
-                "timestamp": now,
-                "message": error_msg,
-                "metadata": {
-                    "updated_at": now,
-                    "created_by": user_name
-                }
-            })
+            db.logs.update_one(
+                {"job_id": job_id},
+                {
+                    "$set": {
+                        "status": "failed",
+                        "timestamp": now,
+                        "message": error_msg,
+                        "metadata": {
+                            "updated_at": now,
+                            "created_by": user_name
+                        }
+                    }
+                })
             raise FileNotFoundError(error_msg)
             
         # 출력 파일 경로 설정
@@ -109,19 +94,20 @@ def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_s
         
         # 작업 완료 로그
         now = datetime.now(UTC)
-        db.logs.insert_one({
-            "job_id": job_id,
-            "service": "converter",
-            "event": "conversion_completed",
-            "status": "completed",
-            "output_file": output_path,
-            "timestamp": now,
-            "message": f"Audio conversion completed: {output_path}",
-            "metadata": {
-                "updated_at": now,
-                "created_by": user_name
-            }
-        })
+        db.logs.update_one(
+            {"job_id": job_id},
+            {
+                "$set": {
+                    "status": "completed",
+                    "output_file": output_path,
+                    "timestamp": now,
+                    "message": f"Audio conversion completed: {output_path}",
+                    "metadata": {
+                        "updated_at": now,
+                        "created_by": user_name
+                    }
+                }
+            })
         
         # API Gateway에 웹훅 전송
         async def send_webhook():
@@ -144,19 +130,20 @@ def convert_audio(job_id: str, input_path: str, output_dir: str, db_connection_s
         try:
             # 오류 로그 기록
             now = datetime.now(UTC)
-            db.logs.insert_one({
-                "job_id": job_id,
-                "service": "converter",
-                "event": "error",
-                "status": "failed",
-                "timestamp": now,
-                "message": f"Audio conversion failed: {str(e)}",
-                "metadata": {
-                    "error": str(e),
-                    "updated_at": now,
-                    "created_by": user_name
-                }
-            })
+            db.logs.update_one(
+                {"job_id": job_id},
+                {
+                    "$set": {
+                        "event": "error",
+                        "status": "failed",
+                        "timestamp": now,
+                        "message": f"Audio conversion failed: {str(e)}",
+                        "metadata": {
+                            "updated_at": now,
+                            "created_by": user_name
+                        }
+                    }
+                })
         except Exception as inner_e:
             logger.error(f"오류 상태 업데이트 실패: {str(inner_e)}")
         finally:

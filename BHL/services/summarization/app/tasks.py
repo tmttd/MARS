@@ -37,10 +37,10 @@ celery.conf.update(
     worker_task_log_format='%(asctime)s - %(levelname)s - %(message)s',
     # 주기적 작업(beat) 스케줄
     beat_schedule={
-        # 매 1시간마다 실행
-        'retry-incomplete-jobs-every-hour': {
+        # 매 30분마다 실행
+        'retry-incomplete-jobs-every-30-minutes': {
             'task': 'retry_incomplete_jobs',
-            'schedule': 3600.0,  # 3600초 = 1시간
+            'schedule': 1800.0,  # 1800초 = 30분
         },
     },
     timezone='UTC'
@@ -59,18 +59,22 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         
         # 작업 시작 로그
         now = datetime.now(UTC)
-        db.logs.insert_one({
-            "job_id": job_id,
-            "service": "summarization",
-            "event": "processing_started",
-            "status": "processing",
-            "timestamp": now,
-            "message": "텍스트 요약 처리 중",
-            "metadata": {
-                "created_at": now,
-                "updated_at": now
+        db.logs.update_one  (
+            {"job_id": job_id},
+            {
+                "$set": {
+                    "service": "summarization",
+                    "event": "processing_started",
+                    "status": "processing",
+                    "timestamp": now,
+                    "message": "텍스트 요약 처리 중",
+                    "metadata": {
+                        "created_at": now,
+                        "updated_at": now
+                    }
+                }
             }
-        })
+        )
         
         # 작업 조회
         job = work_db.calls.find_one({"job_id": job_id})
@@ -370,7 +374,6 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                         "timestamp": now,
                         "message": f"요약 실패: {str(e)}",
                         "metadata": {
-                            "error": str(e),
                             "updated_at": now
                         }
                     }
@@ -390,7 +393,7 @@ summarize_text_task = celery.task(name='summarize_text', bind=True)(summarize_te
 @celery.task(name='retry_incomplete_jobs')
 def retry_incomplete_jobs():
     """
-    1시간마다 실행되어, db.logs에서 'failed' 상태인 job_id를 찾고,
+    30분마다 실행되어, db.logs에서 'failed' 상태인 job_id를 찾고,
     아직 'completed' 로그가 없는 경우 다시 summarize_text 태스크를 재시도한다.
     """
     logger.info("===== 재시도 대상 작업 스캐닝 시작 =====")

@@ -52,10 +52,10 @@ celery.conf.update(
     worker_task_log_format='%(asctime)s - %(levelname)s - %(message)s',
     # 주기적 작업(beat) 스케줄
     beat_schedule={
-        # 매 1시간마다 실행
-        'retry-incomplete-jobs-every-hour': {
+        # 매 30분마다 실행
+        'retry-incomplete-jobs-every-30-minutes': {
             'task': 'retry_incomplete_jobs',
-            'schedule': 3600.0,  # 3600초 = 1시간
+            'schedule': 1800.0,  # 1800초 = 30분
         },
     },
     timezone='UTC'
@@ -76,20 +76,23 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
         
         # 작업 시작 로그
         now = datetime.now(UTC)
-        db.logs.insert_one({
-            "job_id": job_id,
-            "service": "transcription",
-            "event": "processing_started",
-            "input_path": input_path,
-            "output_dir": output_dir,
-            "status": "processing",
-            "timestamp": now,
-            "message": f"Transcribing audio file: {input_path}",
-            "metadata": {
-                "created_at": now,
-                "updated_at": now
+        db.logs.update_one(
+            {"job_id": job_id},
+            {
+                "$set": {
+                    "service": "transcription",
+                    "event": "processing_started",
+                    "input_path": input_path,
+                    "status": "processing",
+                    "timestamp": now,
+                    "message": f"Transcribing audio file: {input_path}",
+                    "metadata": {
+                        "created_at": now,
+                        "updated_at": now
+                    }
+                }
             }
-        })
+        )
         
         # 파일 존재 확인
         if not os.path.exists(input_path):
@@ -102,8 +105,12 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
                         "status": "failed",
                         "timestamp": now,
                         "message": error_msg,
+                        "metadata": {
+                            "updated_at": now,
+                        }
+                    }
                 }
-            })
+            )
             raise FileNotFoundError(error_msg)
 
         # 음성-텍스트 변환
@@ -126,17 +133,17 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
 
         logger.info(f"묵음 기준으로 {len(chunks)}개의 청크로 분할됨")
 
-        # 시간 기준 병합 (약 4분 = 240000밀리초)
-        target_duration = 240000  # 4분
+        # 시간 기준 병합 (약 3분 = 180000밀리초)
+        target_duration = 180000  # 3분
         merged_chunks = []
         current_chunk = AudioSegment.empty()
 
         for chunk in chunks:
-            # 현재 청크에 다음 청크를 추가해도 4분 미만이면 병합 계속
+            # 현재 청크에 다음 청크를 추가해도 3분 미만이면 병합 계속
             if len(current_chunk) + len(chunk) <= target_duration:
                 current_chunk += chunk
             else:
-                # 4분을 초과하면 현재까지 병합된 청크 저장 후 새 청크 시작
+                # 3분을 초과하면 현재까지 병합된 청크 저장 후 새 청크 시작
                 merged_chunks.append(current_chunk)
                 current_chunk = chunk
 
@@ -144,7 +151,7 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
         if len(current_chunk) > 0:
             merged_chunks.append(current_chunk)
 
-        logger.info(f"병합 후 청크 수: {len(merged_chunks)}개 (각 약 4분 단위)")
+        logger.info(f"병합 후 청크 수: {len(merged_chunks)}개 (각 약 3분 단위)")
 
         segments_texts = []
 
@@ -262,12 +269,16 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
         db.logs.update_one(
             {"job_id": job_id},
             {
-                "$set": {
+                "$set": {   
                     "status": "completed",
                     "timestamp": now,
-                    "message": f"Transcription completed: {refined_transcribed_text}"
+                    "message": "Transcription completed",
+                    "metadata": {
+                        "updated_at": now
+                    }
+                }
             }
-        })
+        )
         
         # API Gateway에 웹훅 전송
         async def send_webhook():
@@ -294,13 +305,14 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
                 {"job_id": job_id},
                 {
                     "$set": {
-                        "input_path": input_path,
-                        "output_dir": output_dir,
                         "service": "transcription",
                         "event": "error",
                         "status": "failed",
                         "timestamp": now,
-                        "message": f"Transcription failed: {str(e)}"
+                        "message": f"Transcription failed: {str(e)}",
+                        "metadata": {
+                            "updated_at": now,
+                        }
                     }
                 }
             )
@@ -318,7 +330,7 @@ transcribe_audio_task = celery.task(name='transcribe_audio', bind=True)(transcri
 @celery.task(name='retry_incomplete_jobs')
 def retry_incomplete_jobs():
     """
-    1시간마다 실행되어, db.logs에서 'failed' 상태인 job_id를 찾고,
+    30분마다 실행되어, db.logs에서 'failed' 상태인 job_id를 찾고,
     아직 'completed' 로그가 없는 경우 다시 transcribe_audio 태스크를 재시도한다.
     """
     logger.info("===== 재시도 대상 작업 스캐닝 시작 =====")
