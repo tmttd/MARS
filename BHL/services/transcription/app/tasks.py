@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.signals import worker_ready
 from datetime import datetime, timezone
 from pymongo import MongoClient
 import os
@@ -196,8 +197,8 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
                 - 데이터가 아무리 짧더라도 최선을 다해 처리해서 반환하세요. 추가 정보 요청은 절대 하지 마세요.
                 
                 2. 오류/불필요한 반복(환각) 최소 수정
-                - 철자 오류가 섞인 반복(예: “청담동동동”처럼 철자가 엉켜서 반복된 경우)만 명백히 수정하거나 제거하세요.
-                - 철자는 맞지만 의미 없이 기계적으로 반복된 구절(예: “있는 곳에 있는 곳에 있는 곳에…”가 문맥상 불필요하다고 확실히 보이면)도, 최소한으로만 정리하세요.
+                - 철자 오류가 섞인 반복(예: "청담동동동"처럼 철자가 엉켜서 반복된 경우)만 명백히 수정하거나 제거하세요.
+                - 철자는 맞지만 의미 없이 기계적으로 반복된 구절(예: "있는 곳에 있는 곳에 있는 곳에..."가 문맥상 불필요하다고 확실히 보이면)도, 최소한으로만 정리하세요.
                 - 다만 실제 대화 맥락에서 강조하거나 습관적으로 반복한 표현이라면 그대로 두세요.
                 - 애매한 경우에는 원문을 그대로 둡니다.
                 
@@ -234,7 +235,7 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
                 (원문 내용 중 문장1) \n
                 (원문 내용 중 문장2) \n
                 (원문 내용 중 문장3) \n
-                …
+                ...
 
                 위의 지침을 바탕으로, 가능한 한 원문의 모든 내용을 그대로 살리되, 확실히 불필요한 반복이나 명백한 철자 오류, 리스트에 포함된 부동산 이름 교정 정도만 수행해 주세요.
                 가장 중요한 것은 과잉 수정이나 삭제 없이, 원문에 최대한 가깝게 유지하는 것입니다.
@@ -384,3 +385,11 @@ def retry_incomplete_jobs():
             client.close()
 
     logger.info("===== 재시도 대상 작업 스캐닝 종료 =====")
+
+@worker_ready.connect
+def at_start(sender, **kwargs):
+    """
+    Celery 워커가 준비되면 즉시 retry_incomplete_jobs 태스크를 실행
+    """
+    logger.info("Celery 워커가 준비되었습니다. 초기 retry_incomplete_jobs 태스크를 실행합니다.")
+    retry_incomplete_jobs.delay()

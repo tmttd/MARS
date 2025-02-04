@@ -1,5 +1,6 @@
 from celery import Celery
-from datetime import datetime, UTC
+from celery.signals import worker_ready
+from datetime import datetime, timezone
 from pymongo import MongoClient
 from openai import OpenAI
 import os
@@ -10,6 +11,7 @@ import json
 from .config import settings
 from .models import PropertyExtraction
 
+UTC = timezone.utc
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -85,9 +87,6 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
             
         # OpenAI 클라이언트 초기화
         openai_client = OpenAI(api_key=OPENAI_API_KEY)
-        
-        # # 테스트용 예외 발생
-        # raise Exception("test")
         
         # GPT를 사용한 텍스트 요약
         completion = openai_client.beta.chat.completions.parse(
@@ -198,7 +197,8 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
             ]
         )
 
-        response_text = completion.choices[0].message.content; logger.info(f"response_text: {response_text}")
+        response_text = completion.choices[0].message.content
+        logger.info(f"response_text: {response_text}")
         # Markdown 코드 블록 제거: 맨 앞의 "```json"과 맨 뒤의 "```"를 삭제
         if response_text.strip().startswith("```json"):
             cleaned = response_text.strip()[len("```json"):].strip()
@@ -212,7 +212,8 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         except json.JSONDecodeError as e:
             logger.error("JSON 파싱 오류: %s", e)
             extraction = {}
-        if not isinstance(extraction, dict): extraction = {}
+        if not isinstance(extraction, dict):
+            extraction = {}
         
         # full_address 생성
         try:
@@ -303,20 +304,6 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
 
         extraction['extracted_property_info']['tenant_info']['tenant_contact'] = formatted_tenant_contact
         
-        # # 출력 파일 경로 설정
-        # output_file = os.path.join(settings.OUTPUT_DIR, f"{job_id}.json")
-        # os.makedirs(settings.OUTPUT_DIR, exist_ok=True)
-        
-        # # 요약 결과를 파일로 저장
-        # summary = {
-        #     "job_id": job_id,
-        #     "extracted_property_info": extraction,
-        #     "created_at": datetime.now(UTC).isoformat()
-        # }
-        
-        # with open(output_file, 'w', encoding='utf-8') as f:
-        #     json.dump(summary, f, ensure_ascii=False, indent=2)
-            
         # 작업 데이터 업데이트
         work_db.calls.update_one(
             {"job_id": job_id},
@@ -461,3 +448,11 @@ def retry_incomplete_jobs():
             client.close()
 
     logger.info("===== 재시도 대상 작업 스캐닝 종료 =====")
+
+@worker_ready.connect
+def at_start(sender, **kwargs):
+    """
+    Celery 워커가 준비되면 즉시 retry_incomplete_jobs 태스크를 실행
+    """
+    logger.info("Celery 워커가 준비되었습니다. 초기 retry_incomplete_jobs 태스크를 실행합니다.")
+    retry_incomplete_jobs.delay()

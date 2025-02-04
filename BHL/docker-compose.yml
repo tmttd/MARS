@@ -86,7 +86,7 @@ services:
 
   transcription-worker:
     build: ./services/transcription
-    command: celery -A app.tasks worker -B --loglevel=info -Q transcription
+    command: celery -A app.tasks worker --beat --loglevel=info -Q transcription
     deploy:
       resources:
         limits:
@@ -140,7 +140,7 @@ services:
 
   summarization-worker:
     build: ./services/summarization
-    command: celery -A app.tasks worker -B --loglevel=info -Q summarization
+    command: celery -A app.tasks worker --beat --loglevel=info -Q summarization
     volumes:
       - ./services/summarization:/app
       - ./datas/transcription_outputs:/app/text_outputs

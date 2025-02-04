@@ -112,10 +112,8 @@ const CallList = () => {
   // -----------------------
   useEffect(() => {
     if (isInitialMount.current) {
-      // 첫 마운트 시에는 무시
       isInitialMount.current = false;
     } else {
-      // 검색 조건이 바뀌면 1페이지로 이동
       setPage(1);
       setSearchParams({ page: '1' });
       fetchCalls(1);
@@ -131,31 +129,38 @@ const CallList = () => {
     setSearchParams({ page: newPage.toString() });
   };
 
-  // 검색 버튼 클릭 시 동작
-  const handleSearch = () => {
-    setSearchTerm(tempSearchTerm);
+  // -----------------------
+  // 7) 통합 검색 함수 (전화번호 포맷팅 포함)
+  // -----------------------
+  const handleSearch = (value) => {
+    let finalValue = value;
+    if (searchType === 'customer_contact') {
+      finalValue = formatPhoneNumber(value) || value;
+    }
+    setSearchTerm(finalValue);
+    setPage(1);
+    setSearchParams({ page: '1' });
+    fetchCalls(1);
   };
 
   // -----------------------
-  // 7) 필터 버튼 클릭 핸들러
+  // 8) 필터 버튼 클릭 핸들러
   // -----------------------
   const handleFilterClick = (filterForm) => {
     setSearchType(filterForm.type);
     setTempSearchTerm(filterForm.value);
 
     if (filterForm.value === '기타' && filterForm.excludeNames) {
-      // '기타'인 경우, searchTerm을 '기타'로 설정하고 excludeNames를 저장
       setSearchTerm('기타');
       setExcludeNames(filterForm.excludeNames);
     } else {
-      // '기타'가 아닌 경우, searchTerm을 해당 값으로 설정하고 excludeNames를 초기화
       setSearchTerm(filterForm.value);
       setExcludeNames([]);
     }
   };
 
   // -----------------------
-  // 8) 파일 업로드 핸들러(기존과 동일)
+  // 9) 파일 업로드 핸들러 (기존과 동일)
   // -----------------------
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -164,7 +169,6 @@ const CallList = () => {
     try {
       const response = await uploadService.uploadFile(file);
       console.log('Upload response:', response);
-      // 업로드 후 현재 페이지 데이터 갱신
       fetchCalls(page);
     } catch (error) {
       console.error('Upload failed:', error);
@@ -173,7 +177,7 @@ const CallList = () => {
   };
 
   // -----------------------
-  // 9) 로딩/에러 처리
+  // 10) 로딩/에러 처리
   // -----------------------
   if (loading) {
     return (
@@ -198,16 +202,10 @@ const CallList = () => {
   }
 
   // -----------------------
-  // 10) 렌더링
+  // 11) 렌더링
   // -----------------------
-
-  // 페이지 그룹 설정
   const PAGE_GROUP_SIZE = 10;
-
-  // 현재 그룹 계산
   const currentGroup = Math.floor((page - 1) / PAGE_GROUP_SIZE);
-
-  // 현재 그룹의 시작 페이지와 끝 페이지 계산
   const startPage = currentGroup * PAGE_GROUP_SIZE + 1;
   const endPage = Math.min(startPage + PAGE_GROUP_SIZE - 1, totalPages);
 
@@ -230,11 +228,7 @@ const CallList = () => {
                 onChange={handleFileUpload}
               />
               <label htmlFor="upload-audio-file">
-                <Button
-                  variant="primary"
-                  as="span"
-                  className="d-flex align-items-center"
-                >
+                <Button variant="primary" as="span" className="d-flex align-items-center">
                   <FaCloudUploadAlt className="me-2" />
                   음성파일 업로드
                 </Button>
@@ -264,7 +258,6 @@ const CallList = () => {
                     selected={recordingDate}
                     onChange={(date) => {
                       setRecordingDate(date);
-                      // 날짜 선택 시 바로 검색 실행
                       setSearchTerm(formatToISODatetime(date));
                     }}
                     dateFormat="yyyy-MM-dd"
@@ -282,14 +275,8 @@ const CallList = () => {
                     value={tempSearchTerm}
                     onChange={(e) => setTempSearchTerm(e.target.value)}
                     onKeyDown={(e) => { 
-                      if(e.key === 'Enter') {
-                        if (searchType === 'customer_contact') {
-                          const formattedNumber = formatPhoneNumber(tempSearchTerm);
-                          setSearchTerm(formattedNumber || tempSearchTerm);
-                        } else {
-                          setSearchTerm(tempSearchTerm);
-                        }
-                        handleSearch();
+                      if (e.key === 'Enter') {
+                        handleSearch(tempSearchTerm);
                       }
                     }}
                     className="search-input shadow-sm border-0"
@@ -318,15 +305,7 @@ const CallList = () => {
                 <Button 
                   variant="secondary" 
                   size="sm" 
-                  onClick={() => {
-                    if (searchType === 'customer_contact') {
-                      const formattedNumber = formatPhoneNumber(tempSearchTerm);
-                      setSearchTerm(formattedNumber || tempSearchTerm);
-                    } else {
-                      setSearchTerm(tempSearchTerm);
-                    }
-                    handleSearch();
-                  }}
+                  onClick={() => handleSearch(tempSearchTerm)}
                   style={{
                     position: 'absolute',
                     right: '0',
@@ -362,7 +341,7 @@ const CallList = () => {
           <div className="table-container shadow-sm rounded">
             <CallTable 
               calls={calls}
-              onUpdate={() => fetchCalls(page)} // 삭제 후 새로고침 등
+              onUpdate={() => fetchCalls(page)}
               currentPage={page}
             />
           </div>
@@ -370,23 +349,18 @@ const CallList = () => {
           {/* 페이지네이션 */}
           <div className="d-flex justify-content-center mt-4">
             <Pagination>
-              {/* 처음으로 이동 */}
               {startPage > 1 && (
                 <Pagination.First
                   onClick={() => handlePageChange(1)}
                   title="처음 페이지로 이동"
                 />
               )}
-
-              {/* 이전 그룹으로 이동 */}
               {currentGroup > 0 && (
                 <Pagination.Prev
                   onClick={() => handlePageChange(startPage - 1)}
                   title="이전 그룹으로 이동"
                 />
               )}
-
-              {/* 페이지 번호 */}
               {[...Array(endPage - startPage + 1)].map((_, idx) => {
                 const pageNum = startPage + idx;
                 return (
@@ -399,16 +373,12 @@ const CallList = () => {
                   </Pagination.Item>
                 );
               })}
-
-              {/* 다음 그룹으로 이동 */}
               {endPage < totalPages && (
                 <Pagination.Next
                   onClick={() => handlePageChange(endPage + 1)}
                   title="다음 그룹으로 이동"
                 />
               )}
-
-              {/* 마지막으로 이동 */}
               {endPage < totalPages && (
                 <Pagination.Last
                   onClick={() => handlePageChange(totalPages)}
