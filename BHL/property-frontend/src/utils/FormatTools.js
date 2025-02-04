@@ -1,20 +1,55 @@
-// 연락처 포맷팅 함수
 export const formatPhoneNumber = (phoneNumber) => {
-    // null, undefined, 빈 문자열 체크
-    if (!phoneNumber) return null;
-    
-    const cleaned = phoneNumber.replace(/\D/g, '');
-    // 숫자가 없는 경우도 처리
-    if (!cleaned) return null;
-    
-    if (cleaned.startsWith('010')) {
-      return cleaned.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
-    } else if (cleaned.startsWith('02')) {
-      return cleaned.replace(/(\d{2})(\d{3})(\d{4})/, '$1-$2-$3');
-    } else {
-      return cleaned.replace(/(\d{3})(\d{3,4})(\d{4})/, '$1-$2-$3');
+  // null, undefined, 빈 문자열 체크
+  if (!phoneNumber) return null;
+
+  // 숫자만 추출
+  const cleaned = phoneNumber.replace(/\D/g, '');
+  if (!cleaned) return null;
+
+  // 모바일 번호 (010) 처리
+  if (cleaned.startsWith('010')) {
+    const group1 = cleaned.slice(0, 3);          // 항상 "010"
+    const group2 = cleaned.slice(3, 7);          // 최대 4자리
+    const group3 = cleaned.slice(7);             // 나머지 최대 4자리
+    let result = group1;
+    if (group2) {
+      result += `-${group2}`;
     }
+    if (group3) {
+      result += `-${group3}`;
+    }
+    return result;
+  }
+  // 서울 지역 번호 (02) 처리
+  else if (cleaned.startsWith('02')) {
+    const group1 = cleaned.slice(0, 2);          // "02"
+    const group2 = cleaned.slice(2, 5);          // 최대 3자리
+    const group3 = cleaned.slice(5);             // 나머지
+    let result = group1;
+    if (group2) {
+      result += `-${group2}`;
+    }
+    if (group3) {
+      result += `-${group3}`;
+    }
+    return result;
+  }
+  // 기타 번호 처리 (예: 국번 031, 032 등)
+  else {
+    const group1 = cleaned.slice(0, 3);          // 앞 3자리
+    const group2 = cleaned.slice(3, 7);          // 최대 4자리
+    const group3 = cleaned.slice(7);             // 나머지
+    let result = group1;
+    if (group2) {
+      result += `-${group2}`;
+    }
+    if (group3) {
+      result += `-${group3}`;
+    }
+    return result;
+  }
 };
+
 
 export const formatDate = (dateString) => {
   const date = new Date(dateString);

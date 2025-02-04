@@ -129,28 +129,43 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
         chunks = split_on_silence(
             audio,
             min_silence_len=1000,      # 1초 이상의 묵음
-            silence_thresh=-40         # -40 dBFS 이하를 묵음으로 판단
+            silence_thresh=-40,        # -40 dBFS 이하를 묵음으로 판단
+            keep_silence=500           # 각 청크 끝에 0.5초의 묵음을 유지
         )
 
         logger.info(f"묵음 기준으로 {len(chunks)}개의 청크로 분할됨")
 
-        # 시간 기준 병합 (약 3분 = 180000밀리초)
+        # 시간 기준 병합 (약 3분 = 180000밀리초) 및 크기 기준 병합
         target_duration = 180000  # 3분
+        max_duration = 180000      # 최대 3분
         merged_chunks = []
         current_chunk = AudioSegment.empty()
+        chunk_index = 1  # 청크 인덱스 초기화
 
         for chunk in chunks:
             # 현재 청크에 다음 청크를 추가해도 3분 미만이면 병합 계속
             if len(current_chunk) + len(chunk) <= target_duration:
                 current_chunk += chunk
             else:
-                # 3분을 초과하면 현재까지 병합된 청크 저장 후 새 청크 시작
-                merged_chunks.append(current_chunk)
-                current_chunk = chunk
+                if len(current_chunk) > 0:
+                    merged_chunks.append(current_chunk)
+                    logger.info(f"병합된 청크 {chunk_index}: {len(current_chunk)} 밀리초")
+                    chunk_index += 1
+                # 만약 현재 청크에 추가할 청크가 들어갈 수 없다면, 추가적인 분할 수행
+                if len(chunk) > max_duration:
+                    # 청크를 추가로 분할
+                    split_chunks = chunk[::max_duration]
+                    for split_chunk in split_chunks:
+                        merged_chunks.append(split_chunk)
+                        logger.info(f"추가 분할된 청크 {chunk_index}: {len(split_chunk)} 밀리초")
+                        chunk_index += 1
+                else:
+                    current_chunk = chunk
 
         # 남은 부분 처리: 남은 current_chunk가 존재하면 추가
         if len(current_chunk) > 0:
             merged_chunks.append(current_chunk)
+            logger.info(f"병합된 청크 {chunk_index}: {len(current_chunk)} 밀리초")
 
         logger.info(f"병합 후 청크 수: {len(merged_chunks)}개 (각 약 3분 단위)")
 
@@ -159,11 +174,15 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
         for idx, chunk in enumerate(merged_chunks):
             temp_segment_path = f"/tmp/{job_id}_chunk_{idx}.wav"
             chunk.export(temp_segment_path, format="wav")
+            logger.info(f"청크 {idx+1}/{len(merged_chunks)} 저장: {temp_segment_path}, 용량: {len(chunk)} 밀리초")
 
             try:
                 logger.info(f"청크 {idx+1}/{len(merged_chunks)} 변환 중...")
                 segment_result = whisper_client.automatic_speech_recognition(temp_segment_path)
                 segments_texts.append(segment_result.text)
+            except Exception as e:
+                logger.error(f"청크 {idx+1}/{len(merged_chunks)} 변환 중 오류 발생: {str(e)}")
+                raise
             finally:
                 if os.path.exists(temp_segment_path):
                     os.remove(temp_segment_path)
