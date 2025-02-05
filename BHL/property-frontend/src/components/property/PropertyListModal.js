@@ -1,13 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { Modal, Button, Table, Pagination, Badge } from 'react-bootstrap';
-import { formatPrice } from '../../utils/FormatTools';
+// src/components/PropertyListModal.js
+import React, { useState, useEffect, useRef } from 'react';
+import { Modal, Button, Table, Pagination, Badge, Form } from 'react-bootstrap';
+import { FaSearch, FaTimes } from 'react-icons/fa';
+import { formatPrice, formatPhoneNumber } from '../../utils/FormatTools';
 import { propertyService } from '../../services/api';
+import FilterButton from '../../components/common/FilterButton';
+import { filterForms } from '../../components/common/FormControls/FormField';
 
 const PropertyListModal = ({ show, onHide, properties: initialProperties, onSelect }) => {
+  // -----------------------
+  // 1) 상태 관리
+  // -----------------------
   const [currentPage, setCurrentPage] = useState(1);
   const [properties, setProperties] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const limit = 10;
+
+  // 필터 관련 상태 (PropertyList와 동일)
+  const [tempSearchTerm, setTempSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchType, setSearchType] = useState('property_name');
+  const [excludeNames, setExcludeNames] = useState([]);
+
+  // 첫 마운트 구분용 (필터 조건 변경 시 페이지 리셋 처리)
+  const isInitialMount = useRef(true);
 
   // 매물 종류별 Badge 색상 정의
   const propertyTypeColors = {
@@ -27,13 +43,21 @@ const PropertyListModal = ({ show, onHide, properties: initialProperties, onSele
     );
   };
 
-  useEffect(() => {
-    fetchProperties(currentPage);
-  }, [currentPage]);
-
+  // -----------------------
+  // 2) 서버 호출 함수 (필터 포함)
+  // -----------------------
   const fetchProperties = async (page) => {
     try {
-      const { results, totalCount } = await propertyService.getProperties(page, limit);
+      // 필터 객체 구성 (필요한 경우 필터를 확장 가능)
+      const filters = {};
+      if (searchTerm) {
+        filters[searchType] = searchTerm;
+      }
+      if (searchTerm === '기타' && excludeNames.length > 0) {
+        filters.exclude_property_names = excludeNames;
+      }
+
+      const { results, totalCount } = await propertyService.getProperties(page, limit, filters);
       
       // 페이지별 번호 부여
       const offset = (page - 1) * limit;
@@ -51,10 +75,58 @@ const PropertyListModal = ({ show, onHide, properties: initialProperties, onSele
 
   const totalPages = Math.ceil(totalCount / limit);
 
+  // -----------------------
+  // 3) 페이지 변경 및 필터링 조건 변경 시 서버 호출
+  // -----------------------
+  // 페이지 번호 변경 시 호출
+  useEffect(() => {
+    fetchProperties(currentPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
+
+  // 필터 조건 변경 시 페이지를 1로 리셋하고 서버 호출
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+    } else {
+      setCurrentPage(1);
+      fetchProperties(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, searchType, excludeNames]);
+
+  // -----------------------
+  // 4) 이벤트 핸들러
+  // -----------------------
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
 
+  const handleSearch = (value) => {
+    let finalValue = value;
+    if (searchType === 'owner_contact') {
+      finalValue = formatPhoneNumber(value) || value;
+    }
+    setSearchTerm(finalValue);
+    setCurrentPage(1);
+  };
+
+  const handleFilterClick = (filterForm) => {
+    setSearchType(filterForm.type);
+    setTempSearchTerm(filterForm.value);
+
+    if (filterForm.value === '기타' && filterForm.excludeNames) {
+      setSearchTerm('기타');
+      setExcludeNames(filterForm.excludeNames);
+    } else {
+      setSearchTerm(filterForm.value);
+      setExcludeNames([]);
+    }
+  };
+
+  // -----------------------
+  // 5) 렌더링
+  // -----------------------
   return (
     <>
       {console.info("properties:", properties)}
@@ -63,19 +135,108 @@ const PropertyListModal = ({ show, onHide, properties: initialProperties, onSele
           <Modal.Title>현재 매물 목록</Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-          <Table className='table-striped table-bordered'>
+          {/* 검색 및 필터링 UI */}
+          <div className="mb-3">
+            <div className="d-flex align-items-center">
+              <Form.Select
+                value={searchType}
+                onChange={(e) => setSearchType(e.target.value)}
+                style={{ width: '150px' }}
+                className="me-2"
+              >
+                <option value="property_name">단지명</option>
+                <option value="owner_contact">연락처</option>
+              </Form.Select>
+              <div className="position-relative flex-grow-1 me-2">
+                <FaSearch
+                  style={{
+                    position: 'absolute',
+                    left: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: '#aaa'
+                  }}
+                />
+                <Form.Control
+                  type="text"
+                  placeholder={searchType === 'property_name' ? '단지명 검색' : '연락처 검색'}
+                  value={tempSearchTerm}
+                  onChange={(e) => setTempSearchTerm(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch(tempSearchTerm);
+                    }
+                  }}
+                  style={{ paddingLeft: '2.5rem' }}
+                />
+                {tempSearchTerm && (
+                  <Button
+                    variant="link"
+                    onClick={() => {
+                      setTempSearchTerm('');
+                      setSearchTerm('');
+                    }}
+                    style={{
+                      position: 'absolute',
+                      right: '40px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      padding: 0,
+                      color: '#aaa'
+                    }}
+                  >
+                    <FaTimes />
+                  </Button>
+                )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleSearch(tempSearchTerm)}
+                  style={{
+                    position: 'absolute',
+                    right: '0',
+                    top: '50%',
+                    transform: 'translateY(-50%)'
+                  }}
+                >
+                  검색
+                </Button>
+              </div>
+            </div>
+            {/* 필터 버튼 영역 */}
+            <div className="d-flex flex-wrap align-items-center mt-2">
+              {filterForms.map((filterForm, index) => (
+                <FilterButton
+                  key={index}
+                  label={filterForm.label}
+                  value={filterForm.value}
+                  isActive={
+                    searchTerm === filterForm.value && searchType === filterForm.type
+                  }
+                  onClick={() => handleFilterClick(filterForm)}
+                  activeVariant={filterForm.activeVariant}
+                  inactiveVariant={filterForm.inactiveVariant}
+                  className="me-2 mb-2"
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* 매물 테이블 */}
+          <Table className="table-striped table-bordered">
             <thead>
               <tr>
                 <th className="text-center" style={{ fontWeight: 'bold' }}>번호</th>
                 <th className="text-center" style={{ fontWeight: 'bold' }}>소유주</th>
-                <th className="text-center" style={{ fontWeight: 'bold' }}>소유주 연락처</th>
-                <th className="text-center" style={{ fontWeight: 'bold' }}>매물종류</th>
-                <th className="text-center" style={{ fontWeight: 'bold' }}>거래종류</th>
+                <th className="text-center" style={{ fontWeight: 'bold' }}>연락처</th>
+                <th className="text-center" style={{ fontWeight: 'bold' }}>종류</th>
+                <th className="text-center" style={{ fontWeight: 'bold' }}>거래 종류</th>
                 <th className="text-center" style={{ fontWeight: 'bold' }}>단지명</th>
-                <th className="text-center" style={{ fontWeight: 'bold' }}>세부주소</th>
+                <th className="text-center" style={{ fontWeight: 'bold' }}>상세주소</th>
+                <th className="text-center" style={{ fontWeight: 'bold' }}>보증금(만원)</th>
+                <th className="text-center" style={{ fontWeight: 'bold' }}>가격(만원)</th>
                 <th className="text-center" style={{ fontWeight: 'bold' }}>면적</th>
-                <th className="text-center" style={{ fontWeight: 'bold' }}>가격</th>
-                <th className="text-center" style={{ fontWeight: 'bold' }}>상태</th>
+                <th className="text-center" style={{ fontWeight: 'bold' }}>메모</th>
               </tr>
             </thead>
             <tbody>
@@ -83,12 +244,7 @@ const PropertyListModal = ({ show, onHide, properties: initialProperties, onSele
                 <tr
                   key={property.property_id}
                   onDoubleClick={() => onSelect(property)}
-                  style={{ 
-                    cursor: 'pointer',
-                    '&:hover': {
-                      backgroundColor: '#f8f9fa'
-                    }
-                  }}
+                  style={{ cursor: 'pointer' }}
                 >
                   <td className="text-center">{property.property_number}</td>
                   <td>{property.owner_name || '-'}</td>
@@ -97,11 +253,12 @@ const PropertyListModal = ({ show, onHide, properties: initialProperties, onSele
                     {renderPropertyTypeBadge(property.property_type)}
                   </td>
                   <td className="text-center">{property.transaction_type || '-'}</td>
-                  <td>{property.property_name || '이름 없음'}</td>
+                  <td>{property.property_name || '-'}</td>
                   <td>{property.detail_address || '-'}</td>
-                  <td className="text-center">{property.area ? `${property.area}m²` : '-'}</td>
-                  <td className="text-end">{property.price ? `${formatPrice(property.price)}` : '가격 정보 없음'}</td>
-                  <td>{property.status || '-'}</td>
+                  <td className="text-center">{property.area ? `${property.area}평` : '-'}</td>
+                  <td className="text-end">{property.deposit ? `${property.deposit}` : '-'}</td>
+                  <td className="text-end">{property.price ? `${property.price}` : '-'}</td>
+                  <td>{property.memo || '-'}</td>
                 </tr>
               ))}
             </tbody>
