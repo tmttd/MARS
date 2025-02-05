@@ -13,6 +13,11 @@ textarea::placeholder {
   color: #b8b8b8; /* 색상 조정 (선택 사항) */
 }
 
+/* 원하는 색상으로 변경 (예: 연한 회색 #e9ecef) */
+table.table-hover tbody tr:hover td {
+  background-color: #a2c7ff !important;
+}
+
 body {
   background-color: var(--background-color);
   color: var(--primary-color);

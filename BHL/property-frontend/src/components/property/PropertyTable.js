@@ -6,6 +6,7 @@ import { formatDate } from '../../utils/FormatTools';
 import PropertyInfoModal from './detail/PropertyInfoModal';
 import { statusOptions } from '../common/FormControls/FormField';
 import { commaPrice } from '../../utils/FormatTools';
+import '../../styles/common.css';
 
 const PropertyTable = ({ properties, onRefresh }) => {
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -110,7 +111,7 @@ const PropertyTable = ({ properties, onRefresh }) => {
 
   return (
     <div className="table-responsive">
-      <Table striped bordered hover>
+      <Table striped bordered hover className="table-hover">
         <thead style={{ backgroundColor: '#f2f2f2', borderBottom: '2px solid #dee2e6' }}>
           <tr>
             <th style={{ maxWidth: '20px', fontWeight: 'bold', textAlign: 'center' }}>번호</th>

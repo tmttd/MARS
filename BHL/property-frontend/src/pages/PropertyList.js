@@ -215,7 +215,7 @@ const PropertyList = () => {
                 부동산 매물 장부
               </h1>
             </div>
-            <div className="d-flex align-items-center">
+            {/* <div className="d-flex align-items-center">
               <span className="me-3 fw-bold">작업 상태:</span>
               {statusOptions.map((status, index) => (
                 <Form.Check
@@ -229,7 +229,7 @@ const PropertyList = () => {
                   className="me-3"
                 />
               ))}
-            </div>
+            </div> */}
             <div>
               <Button variant="primary" className="d-flex align-items-center" onClick={handlePropertyCreate}>
                 <FaPlus className="me-2" />

@@ -1,0 +1,4 @@
+/* PropertyListModal.css */
+table.table-striped tbody tr.selected-row > td {
+  background-color: #77adff !important;
+}

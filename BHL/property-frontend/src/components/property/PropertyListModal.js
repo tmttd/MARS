@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Table, Pagination, Badge, Form } from 'react-bootstrap';
 import { FaSearch, FaTimes } from 'react-icons/fa';
-import { formatPrice, formatPhoneNumber } from '../../utils/FormatTools';
+import { formatPhoneNumber } from '../../utils/FormatTools';
 import { propertyService } from '../../services/api';
 import FilterButton from '../../components/common/FilterButton';
 import { filterForms } from '../../components/common/FormControls/FormField';
+import '../../styles/PropertyListModal.css'; // CSS 파일 추가
 
 const PropertyListModal = ({ show, onHide, properties: initialProperties, onSelect }) => {
   // -----------------------
@@ -22,13 +23,16 @@ const PropertyListModal = ({ show, onHide, properties: initialProperties, onSele
   const [searchType, setSearchType] = useState('property_name');
   const [excludeNames, setExcludeNames] = useState([]);
 
+  // 선택된 매물을 구분하기 위한 상태 추가
+  const [selectedPropertyId, setSelectedPropertyId] = useState(null);
+
   // 첫 마운트 구분용 (필터 조건 변경 시 페이지 리셋 처리)
   const isInitialMount = useRef(true);
 
   // 매물 종류별 Badge 색상 정의
   const propertyTypeColors = {
     아파트: 'primary',
-    오피스텔: 'primary',
+    오피스텔: 'success',
     상가: 'info',
     기타: 'secondary'
   };
@@ -243,7 +247,12 @@ const PropertyListModal = ({ show, onHide, properties: initialProperties, onSele
               {properties.map(property => (
                 <tr
                   key={property.property_id}
+                  onClick={() => {
+                    console.log('Row clicked:', property.property_id);
+                    setSelectedPropertyId(property.property_id);
+                  }}
                   onDoubleClick={() => onSelect(property)}
+                  className={selectedPropertyId === property.property_id ? 'selected-row' : ''}
                   style={{ cursor: 'pointer' }}
                 >
                   <td className="text-center">{property.property_number}</td>
