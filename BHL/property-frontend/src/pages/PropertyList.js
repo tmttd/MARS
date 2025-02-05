@@ -12,7 +12,7 @@ import { formatPhoneNumber } from '../utils/FormatTools';
 
 const PropertyList = () => {
   // -----------------------
-  // 1) URL & 상태 관리
+  // 1) URL 및 상태 관리
   // -----------------------
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -20,15 +20,18 @@ const PropertyList = () => {
   const initialPage = Number(searchParams.get('page')) || 1;
   const [page, setPage] = useState(initialPage);
 
+  // 검색어 관련 상태
   const [tempSearchTerm, setTempSearchTerm] = useState('');
-  const [searchTerm, setSearchTerm] = useState(''); 
+  const [searchTerm, setSearchTerm] = useState(''); // 실제 검색어로 서버 호출 시 사용
   const [searchType, setSearchType] = useState('property_name');
 
   // '기타' 필터에서 제외할 이름들을 저장하는 상태
   const [excludeNames, setExcludeNames] = useState([]);
 
-  const [statusFilter, setStatusFilter] = useState(''); // 단일 선택을 위한 상태 변수로 변경
+  // 작업 상태 필터 (라디오 버튼)
+  const [statusFilter, setStatusFilter] = useState('');
 
+  // 서버로부터 가져온 데이터 상태
   const [properties, setProperties] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -44,6 +47,7 @@ const PropertyList = () => {
     setLoading(true);
     setError(null);
     try {
+      // 필터 객체 구성
       const filters = {};
       if (searchTerm) {
         filters[searchType] = searchTerm;
@@ -56,8 +60,10 @@ const PropertyList = () => {
         filters.exclude_property_names = excludeNames;
       }
 
+      // 서버에서 { results, totalCount } 구조의 데이터를 반환한다고 가정
       const { results, totalCount } = await propertyService.getProperties(pageNum, ITEMS_PER_PAGE, filters);
 
+      // 페이지별 번호 부여
       const offset = (pageNum - 1) * ITEMS_PER_PAGE;
       const numberedData = results.map((item, idx) => ({
         ...item,
@@ -66,10 +72,10 @@ const PropertyList = () => {
 
       setProperties(numberedData);
       setTotalPages(Math.ceil(totalCount / ITEMS_PER_PAGE));
-      setLoading(false);
     } catch (err) {
       console.error(err);
       setError(err.message || "매물 정보를 불러오는 데 실패했습니다.");
+    } finally {
       setLoading(false);
     }
   };
@@ -104,7 +110,7 @@ const PropertyList = () => {
       fetchProperties(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, searchType, excludeNames, statusFilter]); // statusFilter 추가
+  }, [searchTerm, searchType, excludeNames, statusFilter]);
 
   // -----------------------
   // 6) 페이지네이션 핸들러
@@ -115,10 +121,17 @@ const PropertyList = () => {
   };
 
   // -----------------------
-  // 7) 검색 버튼 클릭 핸들러
+  // 7) 통합 검색 함수 (전화번호 포맷팅 포함)
   // -----------------------
-  const handleSearch = () => {
-    setSearchTerm(tempSearchTerm);
+  const handleSearch = (value) => {
+    let finalValue = value;
+    if (searchType === 'owner_contact') {
+      finalValue = formatPhoneNumber(value) || value;
+    }
+    setSearchTerm(finalValue);
+    setPage(1);
+    setSearchParams({ page: '1' });
+    fetchProperties(1);
   };
 
   // -----------------------
@@ -137,28 +150,28 @@ const PropertyList = () => {
     }
   };
 
-  // 라디오 변경 핸들러
+  // -----------------------
+  // 9) 작업 상태(라디오) 변경 핸들러
+  // -----------------------
   const handleStatusFilterChange = (status) => {
     if (status === '전체') {
-      // '전체'가 선택되면 상태 필터를 해제
+      // '전체'가 선택되면 상태 필터 해제
       setStatusFilter('');
     } else {
-      // '전체' 외 다른 항목이면 해당 상태로 설정
-      if (statusFilter === status) {
-        setStatusFilter('');
-      } else {
-        setStatusFilter(status);
-      }
+      // 같은 상태가 다시 선택되면 해제, 아니면 해당 상태로 설정
+      setStatusFilter(statusFilter === status ? '' : status);
     }
   };
 
+  // -----------------------
+  // 10) 신규 매물 등록 핸들러
+  // -----------------------
   const handlePropertyCreate = () => {
-    console.log('신규 매물 추가');
     navigate('/properties/create');
   };
 
   // -----------------------
-  // 9) 로딩/에러 처리
+  // 11) 로딩/에러 처리
   // -----------------------
   if (loading) {
     return (
@@ -183,16 +196,10 @@ const PropertyList = () => {
   }
 
   // -----------------------
-  // 10) 렌더링
+  // 12) 렌더링
   // -----------------------
-
-  // 페이지 그룹 설정
   const PAGE_GROUP_SIZE = 10;
-
-  // 현재 그룹 계산
   const currentGroup = Math.floor((page - 1) / PAGE_GROUP_SIZE);
-
-  // 현재 그룹의 시작 페이지와 끝 페이지 계산
   const startPage = currentGroup * PAGE_GROUP_SIZE + 1;
   const endPage = Math.min(startPage + PAGE_GROUP_SIZE - 1, totalPages);
 
@@ -200,17 +207,14 @@ const PropertyList = () => {
     <Container fluid className="py-4 bg-light min-vh-100">
       <Card className="shadow-sm mb-4">
         <Card.Body>
-          {/* 상단의 타이틀, 상태 필터, 신규 매물 등록 버튼 */}
+          {/* 상단 타이틀, 작업 상태 필터, 신규 매물 등록 버튼 */}
           <div className="d-flex justify-content-between align-items-center mb-4">
-            {/* 왼쪽: 타이틀 */}
             <div>
               <h1 className="text-primary mb-0" style={{ fontSize: '1.5rem' }}>
                 <FaBuilding className="me-2" />
                 부동산 매물 장부
               </h1>
             </div>
-
-            {/* 가운데: 작업 상태 라디오 버튼 */}
             <div className="d-flex align-items-center">
               <span className="me-3 fw-bold">작업 상태:</span>
               {statusOptions.map((status, index) => (
@@ -220,23 +224,14 @@ const PropertyList = () => {
                   id={`status-${index}`}
                   name="status-filter"
                   label={status}
-                  checked={
-                    // '전체'인 경우 checked는 statusFilter가 ''일 때
-                    status === '전체' ? statusFilter === '' : statusFilter === status
-                  }
+                  checked={status === '전체' ? statusFilter === '' : statusFilter === status}
                   onChange={() => handleStatusFilterChange(status)}
                   className="me-3"
                 />
               ))}
             </div>
-
-            {/* 오른쪽: 신규 매물 등록 버튼 */}
             <div>
-              <Button
-                variant="primary"
-                className="d-flex align-items-center"
-                onClick={handlePropertyCreate}
-              >
+              <Button variant="primary" className="d-flex align-items-center" onClick={handlePropertyCreate}>
                 <FaPlus className="me-2" />
                 신규 매물 등록
               </Button>
@@ -251,12 +246,8 @@ const PropertyList = () => {
                 onChange={(e) => setSearchType(e.target.value)}
                 className="shadow-sm border-0"
               >
-                <option value="property_name">
-                  단지명
-                </option>
-                <option value="owner_contact">
-                  연락처
-                </option>
+                <option value="property_name">단지명</option>
+                <option value="owner_contact">연락처</option>
               </Form.Select>
             </Col>
             <Col md={3}>
@@ -267,63 +258,49 @@ const PropertyList = () => {
                   placeholder={searchType === 'property_name' ? '단지명 검색' : '연락처 검색'}
                   value={tempSearchTerm}
                   onChange={(e) => setTempSearchTerm(e.target.value)}
-                  onKeyDown={(e) => { 
-                    if(e.key === 'Enter') {
-                      if (searchType === 'owner_contact') {
-                        const formattedNumber = formatPhoneNumber(tempSearchTerm);
-                        setSearchTerm(formattedNumber || tempSearchTerm);
-                      } else {
-                        setSearchTerm(tempSearchTerm);
-                      }
-                      handleSearch();
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSearch(tempSearchTerm);
                     }
                   }}
                   className="search-input shadow-sm border-0"
                 />
                 {tempSearchTerm && (
-                  <button 
-                    className="clear-button" 
+                  <button
+                    className="clear-button"
                     onClick={() => {
                       setTempSearchTerm('');
                       setSearchTerm('');
                     }}
-                    style={{ 
-                      background: 'none', 
-                      border: 'none', 
-                      cursor: 'pointer', 
-                      position: 'absolute', 
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      position: 'absolute',
                       right: '40px',
-                      top: '50%', 
-                      transform: 'translateY(-50%)'
+                      top: '50%',
+                      transform: 'translateY(-50%)',
                     }}
                   >
                     <FaTimes />
                   </button>
                 )}
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
-                  onClick={() => {
-                    if (searchType === 'owner_contact') {
-                      const formattedNumber = formatPhoneNumber(tempSearchTerm);
-                      setSearchTerm(formattedNumber || tempSearchTerm);
-                    } else {
-                      setSearchTerm(tempSearchTerm);
-                    }
-                    handleSearch();
-                  }}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleSearch(tempSearchTerm)}
                   style={{
                     position: 'absolute',
                     right: '0',
                     top: '50%',
-                    transform: 'translateY(-50%)'
+                    transform: 'translateY(-50%)',
                   }}
                 >
                   검색
                 </Button>
               </div>
             </Col>
-            {/* 필터 버튼 추가 */}
+            {/* 필터 버튼 영역 */}
             <Col md={8}>
               <div className="d-flex flex-wrap align-items-center h-100">
                 {filterForms.map((filterForm, index) => (
@@ -331,9 +308,7 @@ const PropertyList = () => {
                     key={index}
                     label={filterForm.label}
                     value={filterForm.value}
-                    isActive={
-                      searchTerm === filterForm.value && searchType === filterForm.type
-                    }
+                    isActive={searchTerm === filterForm.value && searchType === filterForm.type}
                     onClick={() => handleFilterClick(filterForm)}
                     activeVariant={filterForm.activeVariant}
                     inactiveVariant={filterForm.inactiveVariant}
@@ -343,34 +318,20 @@ const PropertyList = () => {
             </Col>
           </Row>
 
-          {/* 테이블 */}
+          {/* PropertyTable 렌더링 */}
           <div className="table-container shadow-sm rounded">
-            <PropertyTable
-              properties={properties}
-              onRefresh={() => fetchProperties(page)} // 삭제 후 새로고침
-            />
+            <PropertyTable properties={properties} onRefresh={() => fetchProperties(page)} />
           </div>
 
           {/* 페이지네이션 */}
           <div className="d-flex justify-content-center mt-4">
             <Pagination>
-              {/* 처음으로 이동 */}
               {startPage > 1 && (
-                <Pagination.First
-                  onClick={() => handlePageChange(1)}
-                  title="처음 페이지로 이동"
-                />
+                <Pagination.First onClick={() => handlePageChange(1)} title="처음 페이지로 이동" />
               )}
-
-              {/* 이전 그룹으로 이동 */}
               {currentGroup > 0 && (
-                <Pagination.Prev
-                  onClick={() => handlePageChange(startPage - 1)}
-                  title="이전 그룹으로 이동"
-                />
+                <Pagination.Prev onClick={() => handlePageChange(startPage - 1)} title="이전 그룹으로 이동" />
               )}
-
-              {/* 페이지 번호 */}
               {[...Array(endPage - startPage + 1)].map((_, idx) => {
                 const pageNum = startPage + idx;
                 return (
@@ -383,21 +344,11 @@ const PropertyList = () => {
                   </Pagination.Item>
                 );
               })}
-
-              {/* 다음 그룹으로 이동 */}
               {endPage < totalPages && (
-                <Pagination.Next
-                  onClick={() => handlePageChange(endPage + 1)}
-                  title="다음 그룹으로 이동"
-                />
+                <Pagination.Next onClick={() => handlePageChange(endPage + 1)} title="다음 그룹으로 이동" />
               )}
-
-              {/* 마지막으로 이동 */}
               {endPage < totalPages && (
-                <Pagination.Last
-                  onClick={() => handlePageChange(totalPages)}
-                  title="마지막 페이지로 이동"
-                />
+                <Pagination.Last onClick={() => handlePageChange(totalPages)} title="마지막 페이지로 이동" />
               )}
             </Pagination>
           </div>
