@@ -43,7 +43,7 @@ class ExtractedPropertyInfo(BaseModel):
     property_type: Optional[str] = None
     memo: Optional[str] = None
     floor: Optional[int] = None
-    area: Optional[int] = None
+    area: Optional[float] = None
     premium: Optional[int] = None
     owner_property_memo: Optional[str] = None
     tenant_property_memo: Optional[str] = None
@@ -116,7 +116,7 @@ class PropertyInfo(BaseModel):
     property_type: Optional[str] = None
     memo: Optional[str] = None
     floor: Optional[int] = None
-    area: Optional[int] = None
+    area: Optional[float] = None
     premium: Optional[int] = None
     moving_date: Optional[datetime] = None
     owner_property_memo: Optional[str] = None

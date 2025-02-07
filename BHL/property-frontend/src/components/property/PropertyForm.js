@@ -32,13 +32,13 @@ function PropertyForm({
   const [propertyList, setPropertyList] = useState([]);
   const [selectedProperty, setSelectedProperty] = useState(null);
 
-  // 상태 옵션 추가
-  const statusOptions = [
-    '등록 대기',
-    '등록 완료',
-    '계약 완료',
-    '기간 만료',
-  ];
+  // // 상태 옵션 추가
+  // const statusOptions = [
+  //   '등록 대기',
+  //   '등록 완료',
+  //   '계약 완료',
+  //   '기간 만료',
+  // ];
 
   useEffect(() => {
     setFormData(propertyData);
@@ -156,28 +156,28 @@ function PropertyForm({
     }, 0);
   };
 
-  // handleStatusChange 함수 추가
-  const handleStatusChange = async (newStatus) => {
-    try {
-      // 항상 로컬 formData는 업데이트
-      setFormData(prev => ({
-        ...prev,
-        status: newStatus
-      }));
+  // // handleStatusChange 함수 추가
+  // const handleStatusChange = async (newStatus) => {
+  //   try {
+  //     // 항상 로컬 formData는 업데이트
+  //     setFormData(prev => ({
+  //       ...prev,
+  //       status: newStatus
+  //     }));
 
-      // property_id가 있을 때만 서버 업데이트
-      if (formData.property_id) {
-        const updatedData = {
-          ...formData,
-          status: newStatus
-        };
+  //     // property_id가 있을 때만 서버 업데이트
+  //     if (formData.property_id) {
+  //       const updatedData = {
+  //         ...formData,
+  //         status: newStatus
+  //       };
         
-        await propertyService.updateProperty(formData.property_id, updatedData);
-      }
-    } catch (error) {
-      console.error('Status update error:', error);
-    }
-  };
+  //       await propertyService.updateProperty(formData.property_id, updatedData);
+  //     }
+  //   } catch (error) {
+  //     console.error('Status update error:', error);
+  //   }
+  // };
 
   const renderRightButton = () => {
     if (rightButton) {
@@ -227,7 +227,7 @@ function PropertyForm({
             
             {/* 상태 드롭다운 추가 */}
             <div className="d-flex align-items-center gap-3">
-              <div className="d-flex align-items-center">
+              {/* <div className="d-flex align-items-center">
                 <span className="me-2 fw-bold">작업 상태:</span>
                 <Form.Select
                   size="sm"
@@ -247,7 +247,7 @@ function PropertyForm({
                     </option>
                   ))}
                 </Form.Select>
-              </div>
+              </div> */}
               {renderRightButton()}
             </div>
           </div>
