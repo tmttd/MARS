@@ -36,8 +36,6 @@ export const filterForms = [
         { label: '르엘', value: '르엘', type: 'property_name', activeVariant: 'success', inactiveVariant: 'outline-success' },
         { label: '아크로', value: '아크로', type: 'property_name', activeVariant: 'warning', inactiveVariant: 'outline-warning' },
         { label: '자이', value: '자이', type: 'property_name', activeVariant: 'info', inactiveVariant: 'outline-info' },
-        { label: '아이파크', value: '아이파크', type: 'property_name', activeVariant: 'primary', inactiveVariant: 'outline-primary' },
-        { label: '진흥', value: '진흥', type: 'property_name', activeVariant: 'dark', inactiveVariant: 'outline-dark' },
         { label: '엘프론트', value: '엘프론트', type: 'property_name', activeVariant: 'primary', inactiveVariant: 'outline-primary' },
         { 
             label: '기타', 
@@ -45,7 +43,7 @@ export const filterForms = [
             type: 'property_name',
             activeVariant: 'secondary',
             inactiveVariant: 'outline-secondary',
-            excludeNames: ['르엘', '아크로', '자이', '아이파크', '진흥', '엘프론트']
+            excludeNames: ['르엘', '아크로', '자이', '엘프론트']
         }
       ];
 

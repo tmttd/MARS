@@ -251,9 +251,10 @@ async def list_properties(
     offset: int = Query(0),
     property_name: Optional[str] = None,
     owner_contact: Optional[str] = None,
+    owner_name: Optional[str] = None,
     tenant_contact: Optional[str] = None,
-    district: Optional[str] = None,
     property_type: Optional[str] = None,
+    detail_address: Optional[str] = None,
     status: Optional[str] = None,
     created_by: Optional[str] = None,
     exclude_property_names: Optional[List[str]] = Query(None)
@@ -264,8 +265,8 @@ async def list_properties(
     try:
         logger.info(
             f"Listing properties with parameters: limit={limit}, offset={offset}, "
-            f"property_name={property_name}, owner_contact={owner_contact}, tenant_contact={tenant_contact}, "
-            f"district={district}, property_type={property_type}, created_by={created_by}, exclude_property_names={exclude_property_names}"
+            f"property_name={property_name}, owner_contact={owner_contact}, owner_name={owner_name}, tenant_contact={tenant_contact}, "
+            f"detail_address={detail_address}, property_type={property_type}, created_by={created_by}, exclude_property_names={exclude_property_names}"
         )
 
         query = {}
@@ -285,10 +286,12 @@ async def list_properties(
                 query["property_info.property_name"] = {"$regex": property_name, "$options": "i"}
         if owner_contact:
             query["property_info.owner_info.owner_contact"] = {"$regex": owner_contact, "$options": "i"}
+        if owner_name:
+            query["property_info.owner_info.owner_name"] = {"$regex": owner_name, "$options": "i"}
         if tenant_contact:
             query["property_info.tenant_info.tenant_contact"] = {"$regex": tenant_contact, "$options": "i"}
-        if district:
-            query["property_info.district"] = {"$regex": district, "$options": "i"}
+        if detail_address:
+            query["property_info.detail_address"] = {"$regex": detail_address, "$options": "i"}
         if property_type:
             query["property_info.property_type"] = {"$regex": property_type, "$options": "i"}
         if status:

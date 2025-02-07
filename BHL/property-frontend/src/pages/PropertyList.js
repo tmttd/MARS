@@ -20,18 +20,25 @@ const PropertyList = () => {
   const initialPage = Number(searchParams.get('page')) || 1;
   const [page, setPage] = useState(initialPage);
 
-  // 검색어 관련 상태
+  // 검색 관련 상태
+  // 드롭다운에서는 '연락처', '동호수', '소유주' 옵션만 제공 (단지명 검색은 필터 버튼으로 처리)
+  const [searchType, setSearchType] = useState('owner_contact'); // 기본값: 연락처
   const [tempSearchTerm, setTempSearchTerm] = useState('');
-  const [searchTerm, setSearchTerm] = useState(''); // 실제 검색어로 서버 호출 시 사용
-  const [searchType, setSearchType] = useState('property_name');
+  // **중요:** 페이지 최초 렌더링 시 "전체" 버튼이 활성화되도록,
+  // 초기값은 filterForms의 "전체" 버튼의 value인 '' (빈 문자열)로 설정
+  const [searchFilters, setSearchFilters] = useState({ property_name: '' });
 
-  // '기타' 필터에서 제외할 이름들을 저장하는 상태
+  // '기타' 필터에서 제외할 이름들을 저장하는 상태 (필터 버튼 사용 시)
   const [excludeNames, setExcludeNames] = useState([]);
+  // ※ 필요하지 않으면 이 상태는 주석 처리 가능
+  // const [excludeNames, setExcludeNames] = useState([]); // (불필요하면 주석 처리)
 
-  // 작업 상태 필터 (라디오 버튼)
+  // 작업 상태 필터 (라디오 버튼 등, 필요 시 사용)
   const [statusFilter, setStatusFilter] = useState('');
+  // ※ 필요하지 않으면 이 상태는 주석 처리 가능
+  // const [statusFilter, setStatusFilter] = useState(''); // (불필요하면 주석 처리)
 
-  // 서버로부터 가져온 데이터 상태
+  // 서버로부터 받아온 데이터 상태
   const [properties, setProperties] = useState([]);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -47,23 +54,15 @@ const PropertyList = () => {
     setLoading(true);
     setError(null);
     try {
-      // 필터 객체 구성
-      const filters = {};
-      if (searchTerm) {
-        filters[searchType] = searchTerm;
-      }
+      // searchFilters와 statusFilter를 합쳐서 API 호출에 사용
+      const filters = { ...searchFilters };
       if (statusFilter) {
         filters.status = statusFilter;
       }
-      // "기타" 조건일 때 excludeNames 적용
-      if (searchTerm === '기타' && excludeNames.length > 0) {
-        filters.exclude_property_names = excludeNames;
-      }
-
-      // 서버에서 { results, totalCount } 구조의 데이터를 반환한다고 가정
+      // 서버에서는 { results, totalCount } 형태의 데이터를 반환한다고 가정
       const { results, totalCount } = await propertyService.getProperties(pageNum, ITEMS_PER_PAGE, filters);
 
-      // 페이지별 번호 부여
+      // 각 항목에 페이지 내 번호를 부여
       const offset = (pageNum - 1) * ITEMS_PER_PAGE;
       const numberedData = results.map((item, idx) => ({
         ...item,
@@ -99,7 +98,7 @@ const PropertyList = () => {
   }, [searchParams, page]);
 
   // -----------------------
-  // 5) 검색 조건 변경 시 page=1 리셋
+  // 5) 검색 조건 변경 시 page=1 리셋 및 데이터 재호출
   // -----------------------
   useEffect(() => {
     if (isInitialMount.current) {
@@ -109,8 +108,15 @@ const PropertyList = () => {
       setSearchParams({ page: '1' });
       fetchProperties(1);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, searchType, excludeNames, statusFilter]);
+  }, [searchFilters, statusFilter]);
+
+  // -----------------------
+  // 5-1) 페이지 변경 시 검색 입력창 초기화
+  // -----------------------
+  useEffect(() => {
+    // 페이지 변경 시 검색 입력창을 초기화하여 불편함을 해소
+    setTempSearchTerm('');
+  }, [page]);
 
   // -----------------------
   // 6) 페이지네이션 핸들러
@@ -121,47 +127,52 @@ const PropertyList = () => {
   };
 
   // -----------------------
-  // 7) 통합 검색 함수 (전화번호 포맷팅 포함)
+  // 7) 검색 함수 (연락처 또는 상세주소 또는 소유주 검색)
   // -----------------------
   const handleSearch = (value) => {
-    let finalValue = value;
+    let finalValue = value.trim();
     if (searchType === 'owner_contact') {
-      finalValue = formatPhoneNumber(value) || value;
+      finalValue = formatPhoneNumber(finalValue) || finalValue;
     }
-    setSearchTerm(finalValue);
-    setPage(1);
-    setSearchParams({ page: '1' });
-    fetchProperties(1);
+    setSearchFilters((prevFilters) => ({
+      ...prevFilters,
+      [searchType]: finalValue,
+    }));
+    // setPage와 setSearchParams는 이미 useEffect에 의해 관리됨
+    // fetchProperties(1); 호출을 제거하여 중복 호출을 방지합니다.
   };
 
   // -----------------------
-  // 8) 필터 버튼 클릭 핸들러
+  // 8) 필터 버튼 클릭 핸들러 (예: 단지명 관련 필터)
   // -----------------------
   const handleFilterClick = (filterForm) => {
-    setSearchType(filterForm.type);
-    setTempSearchTerm(filterForm.value);
-
-    if (filterForm.value === '기타' && filterForm.excludeNames) {
-      setSearchTerm('기타');
-      setExcludeNames(filterForm.excludeNames);
+    // 검색 입력창 초기화
+    setTempSearchTerm('');
+    // 만약 "전체" 버튼이라면, 모든 검색 조건을 초기화합니다.
+    if (filterForm.value === '') {
+      setSearchFilters({ property_name: '' });
     } else {
-      setSearchTerm(filterForm.value);
-      setExcludeNames([]);
+      // "전체"가 아닌 경우, 기존의 다른 검색 조건(예: 연락처 등)을 제거하고, 해당 단지명으로만 설정합니다.
+      const newFilters = { property_name: filterForm.value };
+      if (filterForm.value === '기타' && filterForm.excludeNames) {
+        newFilters.exclude_property_names = filterForm.excludeNames;
+      }
+      setSearchFilters(newFilters);
     }
   };
 
   // -----------------------
-  // 9) 작업 상태(라디오) 변경 핸들러
+  // 9) 작업 상태(라디오) 변경 핸들러 (필요 시)
   // -----------------------
   const handleStatusFilterChange = (status) => {
     if (status === '전체') {
-      // '전체'가 선택되면 상태 필터 해제
       setStatusFilter('');
     } else {
-      // 같은 상태가 다시 선택되면 해제, 아니면 해당 상태로 설정
       setStatusFilter(statusFilter === status ? '' : status);
     }
   };
+  // ※ 작업 상태 필터가 사용되지 않는다면 위 함수와 관련 상태는 주석 처리 가능:
+  // const handleStatusFilterChange = (status) => { ... }; // (불필요하면 주석 처리)
 
   // -----------------------
   // 10) 신규 매물 등록 핸들러
@@ -196,7 +207,7 @@ const PropertyList = () => {
   }
 
   // -----------------------
-  // 12) 렌더링
+  // 12) 페이지네이션 계산
   // -----------------------
   const PAGE_GROUP_SIZE = 10;
   const currentGroup = Math.floor((page - 1) / PAGE_GROUP_SIZE);
@@ -207,7 +218,7 @@ const PropertyList = () => {
     <Container fluid className="py-4 bg-light min-vh-100">
       <Card className="shadow-sm mb-4">
         <Card.Body>
-          {/* 상단 타이틀, 작업 상태 필터, 신규 매물 등록 버튼 */}
+          {/* 상단 타이틀 및 신규 매물 등록 버튼 */}
           <div className="d-flex justify-content-between align-items-center mb-4">
             <div>
               <h1 className="text-primary mb-0" style={{ fontSize: '1.5rem' }}>
@@ -215,21 +226,6 @@ const PropertyList = () => {
                 부동산 매물 장부
               </h1>
             </div>
-            {/* <div className="d-flex align-items-center">
-              <span className="me-3 fw-bold">작업 상태:</span>
-              {statusOptions.map((status, index) => (
-                <Form.Check
-                  key={index}
-                  type="radio"
-                  id={`status-${index}`}
-                  name="status-filter"
-                  label={status}
-                  checked={status === '전체' ? statusFilter === '' : statusFilter === status}
-                  onChange={() => handleStatusFilterChange(status)}
-                  className="me-3"
-                />
-              ))}
-            </div> */}
             <div>
               <Button variant="primary" className="d-flex align-items-center" onClick={handlePropertyCreate}>
                 <FaPlus className="me-2" />
@@ -240,22 +236,43 @@ const PropertyList = () => {
 
           {/* 검색 및 필터 버튼 영역 */}
           <Row className="g-3 mb-4">
+            {/* 검색 타입 선택 드롭다운: 단지명 관련 옵션은 필터 버튼으로 처리하므로,
+                드롭다운에서는 연락처, 동호수, 소유주 옵션만 제공 */}
             <Col md={1}>
               <Form.Select
                 value={searchType}
-                onChange={(e) => setSearchType(e.target.value)}
+                onChange={(e) => {
+                  const newType = e.target.value;
+                  setSearchType(newType);
+                  // 검색 입력창 초기화
+                  setTempSearchTerm('');
+                  // 드롭다운과 관련된 모든 필터(연락처, 동호수, 소유주)를 제거
+                  setSearchFilters((prevFilters) => {
+                    const newFilters = { ...prevFilters };
+                    delete newFilters["owner_contact"];
+                    delete newFilters["detail_address"];
+                    delete newFilters["owner_name"];
+                    return newFilters;
+                  });
+                }}
                 className="shadow-sm border-0"
               >
-                <option value="property_name">단지명</option>
                 <option value="owner_contact">연락처</option>
+                <option value="detail_address">동호수</option>
+                <option value="owner_name">소유주</option>
               </Form.Select>
             </Col>
+            {/* 검색 입력창 */}
             <Col md={3}>
               <div className="search-container" style={{ position: 'relative' }}>
                 <FaSearch className="search-icon" />
                 <Form.Control
                   type="text"
-                  placeholder={searchType === 'property_name' ? '단지명 검색' : '연락처 검색'}
+                  placeholder={
+                    searchType === 'owner_contact' ? '연락처 검색' :
+                    searchType === 'detail_address' ? '동호수로 검색' :
+                    searchType === 'owner_name' ? '소유주 검색' : ''
+                  }
                   value={tempSearchTerm}
                   onChange={(e) => setTempSearchTerm(e.target.value)}
                   onKeyDown={(e) => {
@@ -265,12 +282,18 @@ const PropertyList = () => {
                   }}
                   className="search-input shadow-sm border-0"
                 />
-                {tempSearchTerm && (
+                {/* 수정된 X 버튼 조건: tempSearchTerm 또는 searchFilters[searchType]가 있을 때 */}
+                {(tempSearchTerm || searchFilters[searchType]) && (
                   <button
                     className="clear-button"
                     onClick={() => {
                       setTempSearchTerm('');
-                      setSearchTerm('');
+                      // 현재 검색 타입에 해당하는 검색 조건을 제거
+                      setSearchFilters((prev) => {
+                        const newFilters = { ...prev };
+                        delete newFilters[searchType];
+                        return newFilters;
+                      });
                     }}
                     style={{
                       background: 'none',
@@ -300,7 +323,7 @@ const PropertyList = () => {
                 </Button>
               </div>
             </Col>
-            {/* 필터 버튼 영역 */}
+            {/* 필터 버튼 영역 (예: 단지명 필터 관련) */}
             <Col md={8}>
               <div className="d-flex flex-wrap align-items-center h-100">
                 {filterForms.map((filterForm, index) => (
@@ -308,7 +331,7 @@ const PropertyList = () => {
                     key={index}
                     label={filterForm.label}
                     value={filterForm.value}
-                    isActive={searchTerm === filterForm.value && searchType === filterForm.type}
+                    isActive={searchFilters[filterForm.type] === filterForm.value}
                     onClick={() => handleFilterClick(filterForm)}
                     activeVariant={filterForm.activeVariant}
                     inactiveVariant={filterForm.inactiveVariant}

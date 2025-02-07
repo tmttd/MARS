@@ -382,6 +382,8 @@ async def list_properties(
     offset: Optional[int] = Query(0),
     property_name: Optional[str] = Query(None),
     owner_contact: Optional[str] = Query(None),
+    owner_name: Optional[str] = Query(None),
+    detail_address: Optional[str] = Query(None),
     exclude_property_names: Optional[List[str]] = Query(None),
     status: Optional[str] = Query(None)
 ):
@@ -394,6 +396,8 @@ async def list_properties(
             "offset": offset,
             "property_name": property_name,
             "owner_contact": owner_contact,
+            "owner_name": owner_name,
+            "detail_address": detail_address,
             "exclude_property_names": exclude_property_names,
             "status": status,
             "created_by": user_name  # 사용자 정보 추가
