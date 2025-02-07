@@ -141,7 +141,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                 ---
 
                 Your final response **must**:
-                1. Be in Korean.
+                1. Always be in Korean.
                 2. Strictly follow the above Pydantic model's JSON structure (use the same keys and nesting).
                 3. If any value is missing or uncertain, set it to `null` (i.e., `None` in Python terms).
                 4. Constrain `summary_title` to 20 characters or fewer.
@@ -184,7 +184,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                 }}
 
                 **Note**:
-                - Please write all responses in Korean.
+                - You must write all responses in Korean.
                 - The unit of amount is based on 10,000 won. If necessary, you should omit '10,000 won' after the number, but please enter only integers for JSON values ​​(e.g. 1억원 → 10000 / 1000만원 → 1000 / 1억 5천 → 15000).
                 - If the same information is mentioned multiple times, use the most specific information.
                 - Please null out any missing or unclear information.
