@@ -385,7 +385,8 @@ async def list_properties(
     owner_name: Optional[str] = Query(None),
     detail_address: Optional[str] = Query(None),
     exclude_property_names: Optional[List[str]] = Query(None),
-    status: Optional[str] = Query(None)
+    status: Optional[str] = Query(None),
+    ordering: Optional[str] = Query(None)
 ):
     try:
         # 미들웨어에서 설정된 사용자 정보 사용
@@ -400,6 +401,7 @@ async def list_properties(
             "detail_address": detail_address,
             "exclude_property_names": exclude_property_names,
             "status": status,
+            "ordering": ordering,
             "created_by": user_name  # 사용자 정보 추가
         }
         # None 값 필터링

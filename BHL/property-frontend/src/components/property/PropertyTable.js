@@ -8,14 +8,14 @@ import { statusOptions } from '../common/FormControls/FormField';
 import { commaPrice } from '../../utils/FormatTools';
 import '../../styles/common.css';
 
-const PropertyTable = ({ properties, onRefresh }) => {
+const PropertyTable = ({ properties, onRefresh, onSortDetailAddress, detailAddressSort }) => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
 
   const handleShowDetail = (property) => {
     setSelectedProperty(property);
   };
-   
+
   useEffect(() => {
     if (selectedProperty) {
       setShowDetailModal(true);
@@ -31,7 +31,6 @@ const PropertyTable = ({ properties, onRefresh }) => {
     if (window.confirm('정말로 삭제하시겠습니까?')) {
       try {
         await propertyService.deleteProperty(propertyId);
-        // 삭제 성공 후 리스트 갱신
         if (onRefresh) onRefresh();
       } catch (error) {
         alert('삭제 중 오류가 발생했습니다.');
@@ -39,21 +38,17 @@ const PropertyTable = ({ properties, onRefresh }) => {
     }
   };
 
-  // status 변경 처리 함수
+  // 상태 변경 처리 함수 (기존 코드 그대로)
   const handleStatusChange = async (propertyId, newStatus) => {
     try {
-      // 현재 property 데이터 찾기
       const currentProperty = properties.find(p => p.property_id === propertyId);
       if (!currentProperty) {
         throw new Error('Property not found');
       }
-
-      // 기존 데이터를 유지하면서 status만 업데이트
       const updatedData = {
         ...currentProperty,
         status: newStatus
       };
-
       await propertyService.updateProperty(propertyId, updatedData);
       if (onRefresh) onRefresh();
     } catch (error) {
@@ -63,12 +58,11 @@ const PropertyTable = ({ properties, onRefresh }) => {
   };
 
   const renderCell = (property, field) => {
-    // address 필드 (city + district + legal_dong 등 합치기)
+    // 주소 관련 필드는 여러 정보를 결합하여 표시
     if (field === 'address') {
       return `${property.district || ''} ${property.legal_dong || ''} ${property.detail_address || ''}`.trim() || '-';
     }
-    
-    // status 필드일 경우 드롭다운 렌더링
+    // 상태 필드는 드롭다운으로 렌더링
     if (field === 'status') {
       return (
         <Form.Select
@@ -76,11 +70,11 @@ const PropertyTable = ({ properties, onRefresh }) => {
           value={property.status || ''}
           onChange={(e) => handleStatusChange(property.property_id, e.target.value)}
           style={{
-            fontWeight: 'bold',         // 글씨 굵기
-            fontSize: '0.9rem',         // 글씨 크기
-            color: '#000000',          // 글씨 색상
-            opacity: 1,                // 투명도
-            padding: '4px 8px'         // 패딩
+            fontWeight: 'bold',
+            fontSize: '0.9rem',
+            color: '#000000',
+            opacity: 1,
+            padding: '4px 8px'
           }}     
         >
           <option value="">선택</option>
@@ -92,8 +86,6 @@ const PropertyTable = ({ properties, onRefresh }) => {
         </Form.Select>
       );
     }
-
-    // 일반 필드 처리
     return property[field] || '-';
   };
 
@@ -121,7 +113,20 @@ const PropertyTable = ({ properties, onRefresh }) => {
             <th style={{ minWidth: '50px', fontWeight: 'bold', textAlign: 'center' }}>종류</th>
             <th style={{ maxWidth: '60px', fontWeight: 'bold', textAlign: 'center' }}>거래 종류</th>
             <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>단지명</th>
-            <th style={{ fontWeight: 'bold', textAlign: 'center' }}>상세주소</th>
+            {/* 상세주소 헤더에 정렬 토글 onClick 핸들러 추가 */}
+            <th
+              style={{
+                fontWeight: 'bold',
+                textAlign: 'center',
+                cursor: 'pointer'
+              }}
+              onClick={onSortDetailAddress}
+            >
+              상세주소
+              {detailAddressSort === 'asc' && <span> ▲</span>}
+              {detailAddressSort === 'desc' && <span> ▼</span>}
+              {detailAddressSort === null && <span> ↕</span>}
+            </th>
             <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>보증금(만원)</th>
             <th style={{ minWidth: '60px', fontWeight: 'bold', textAlign: 'center' }}>가격(만원)</th>
             <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>면적</th>
@@ -132,7 +137,6 @@ const PropertyTable = ({ properties, onRefresh }) => {
         <tbody>
           {properties.map((property, index) => (
             <tr key={property.property_id}>
-              {/* property_number가 있다면 property.property_number */}
               <td>{property.property_number || index + 1}</td>
               <td>{formatDate(property.created_at)}</td>
               <td>{renderCell(property, 'owner_name')}</td>

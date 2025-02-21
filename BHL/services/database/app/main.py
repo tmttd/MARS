@@ -257,7 +257,8 @@ async def list_properties(
     detail_address: Optional[str] = None,
     status: Optional[str] = None,
     created_by: Optional[str] = None,
-    exclude_property_names: Optional[List[str]] = Query(None)
+    exclude_property_names: Optional[List[str]] = Query(None),
+    ordering: Optional[str] = Query(None)
 ):
     """
     부동산 정보 목록 조회
@@ -266,7 +267,7 @@ async def list_properties(
         logger.info(
             f"Listing properties with parameters: limit={limit}, offset={offset}, "
             f"property_name={property_name}, owner_contact={owner_contact}, owner_name={owner_name}, tenant_contact={tenant_contact}, "
-            f"detail_address={detail_address}, property_type={property_type}, created_by={created_by}, exclude_property_names={exclude_property_names}"
+            f"detail_address={detail_address}, property_type={property_type}, created_by={created_by}, exclude_property_names={exclude_property_names}, ordering={ordering}"
         )
 
         query = {}
@@ -302,7 +303,25 @@ async def list_properties(
         total_count = await work_db.properties.count_documents(query)
 
         properties = []
-        cursor = work_db.properties.find(query).sort("created_at", -1).skip(offset).limit(limit)
+        
+        # 정렬 관련 처리
+        # 프론트엔드에서 전달하는 ordering 값은 예를 들어 "detail_address", "-property_type" 등으로 전달됨.
+        # 실제 DB 필드명과 매핑합니다.
+        sort_mapping = {
+            "detail_address": "property_info.detail_address",
+            "property_type": "property_info.property_type",
+            "owner_contact": "property_info.owner_info.owner_contact",
+            "owner_name": "property_info.owner_info.owner_name",
+        }
+        if ordering:
+            sort_field_raw = ordering.lstrip('-')
+            sort_order = 1 if ordering[0] != '-' else -1
+            mapped_field = sort_mapping.get(sort_field_raw, sort_field_raw)
+            sort_tuple = (mapped_field, sort_order)
+        else:
+            sort_tuple = ("created_at", -1)
+        
+        cursor = work_db.properties.find(query).sort([sort_tuple]).skip(offset).limit(limit)
         async for doc in cursor:
             prop_model = Property.model_validate(doc)
             properties.append(prop_model)
@@ -362,7 +381,6 @@ async def create_property(property: PropertyUpdate):
 
     except DuplicateKeyError as dke:
         logger.exception("Duplicate detail_address error:")
-        # 프론트엔드 handlesubmit 또는 api.js에서 이 에러 메시지를 표시하도록 합니다.
         raise HTTPException(status_code=409, detail="상세주소가 중복되었습니다. 확인 후 다시 등록하세요.")
     except Exception as e:
         logger.exception("Create property error:")
