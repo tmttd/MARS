@@ -8,7 +8,7 @@ import { statusOptions } from '../common/FormControls/FormField';
 import { commaPrice } from '../../utils/FormatTools';
 import '../../styles/common.css';
 
-const PropertyTable = ({ properties, onRefresh, onSortDetailAddress, detailAddressSort }) => {
+const PropertyTable = ({ properties, onRefresh, onSortDetailAddress, ordering }) => {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState(null);
 
@@ -123,9 +123,9 @@ const PropertyTable = ({ properties, onRefresh, onSortDetailAddress, detailAddre
               onClick={onSortDetailAddress}
             >
               상세주소
-              {detailAddressSort === 'asc' && <span> ▲</span>}
-              {detailAddressSort === 'desc' && <span> ▼</span>}
-              {detailAddressSort === null && <span> ↕</span>}
+              {ordering === 'asc' && <span> ▲</span>}
+              {ordering === 'desc' && <span> ▼</span>}
+              {ordering === null && <span> ↕</span>}
             </th>
             <th style={{ minWidth: '80px', fontWeight: 'bold', textAlign: 'center' }}>보증금(만원)</th>
             <th style={{ minWidth: '60px', fontWeight: 'bold', textAlign: 'center' }}>가격(만원)</th>
