@@ -75,6 +75,7 @@ services:
       - OUTPUT_DIR=/app/text_outputs
       - PYTHONWARNINGS=ignore
       - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      - HUGGINGFACE_API_KEY_2=${HUGGINGFACE_API_KEY_2}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     networks:
       - mars_network
@@ -107,6 +108,7 @@ services:
       - OUTPUT_DIR=/app/text_outputs
       - PYTHONWARNINGS=ignore
       - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      - HUGGINGFACE_API_KEY_2=${HUGGINGFACE_API_KEY_2}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     networks:
       - mars_network

@@ -380,8 +380,9 @@ summarize_text_task = celery.task(name='summarize_text', bind=True)(summarize_te
 @celery.task(name='retry_incomplete_jobs')
 def retry_incomplete_jobs():
     """
-    30분마다 실행되어, db.logs에서 'failed' 상태인 job_id를 찾고,
-    아직 'completed' 로그가 없는 경우 다시 summarize_text 태스크를 재시도한다.
+    30분마다 실행되어, db.logs에서 'failed' 상태인 summarization 작업과
+    work_db.calls에서 전사(text)가 완료되었으나 요약 결과(extracted_property_info)가 없는 경우
+    작업을 찾아 다시 summarize_text 태스크를 재시도한다.
     """
     logger.info("===== 재시도 대상 작업 스캐닝 시작 =====")
 
@@ -391,15 +392,26 @@ def retry_incomplete_jobs():
         db = client[settings.MONGODB_DB]
         work_db = client[settings.WORK_MONGODB_DB]
 
-        # 'failed' 상태인 job 목록 추출
-        failed_jobs = db.logs.find({"status": "failed"}).distinct("job_id")
+        # 1. 로그에서 summarization 실패 상태의 job_id 집합
+        failed_job_ids = set(db.logs.find({"service": "summarization", "status": "failed"}).distinct("job_id"))
 
-        if not failed_jobs:
-            logger.info("실패 상태의 작업이 없습니다.")
+        # 2. work_db.calls에서 전사 결과가 존재하면서 요약 결과가 없는 job_id 집합
+        pending_job_ids = set(
+            work_db.calls.find({
+                "text": {"$ne": None},
+                "summary_content": {"$exists": False}
+            }).distinct("job_id")
+        )
+
+        # 두 집합의 합집합으로 재시도 대상 job_id 결정
+        jobs_to_retry = failed_job_ids.union(pending_job_ids)
+
+        if not jobs_to_retry:
+            logger.info("재시도 대상 작업이 없습니다.")
             return
 
-        for job_id in failed_jobs:
-            # 혹시 이미 "completed" 로그가 존재한다면(재시도 전에 해결된 경우) 스킵
+        for job_id in jobs_to_retry:
+            # 이미 "completed" 로그가 존재한다면(재시도 전에 해결된 경우) 스킵
             completed_log = db.logs.find_one({"job_id": job_id, "status": "completed"})
             if completed_log:
                 logger.info(f"job_id={job_id} 는 이미 완료 로그가 있으므로 재시도하지 않음")
@@ -411,29 +423,17 @@ def retry_incomplete_jobs():
                 logger.warning(f"work_db.calls에서 job_id={job_id} 관련 정보를 찾을 수 없어 재시도 불가")
                 continue
 
-            # text 필드 유효성 검사 추가
-            if 'text' not in call_doc or not call_doc['text']:
-                logger.warning(f"job_id={job_id}의 text 필드가 없거나 비어있어 재시도 불가")
-                now = datetime.utcnow()
-                db.logs.update_one(
-                    {"job_id": job_id, "status": "failed"},
-                    {
-                        "$set": {
-                            "service": "summarization",
-                            "event": "error",
-                            "status": "invalid_input",
-                            "timestamp": now,
-                            "message": "요약 실패: 입력 텍스트가 없거나 비어있음",
-                            "metadata": {
-                                "error": "text field is missing or empty",
-                                "updated_at": now
-                            }
-                        }
-                    }
-                )
+            # 전사 결과가 있어야 summarization 진행
+            if call_doc.get("text") is None:
+                logger.warning(f"job_id={job_id} 는 전사 결과가 없으므로 요약 재시도 대상에서 제외")
                 continue
 
-            logger.info(f"job_id={job_id} 재시도 수행")
+            # 만약 이미 요약 결과가 존재하면 재시도 대상에서 제외
+            if "summary_content" in call_doc:
+                logger.info(f"job_id={job_id} 는 이미 요약 결과가 존재하므로 재시도 대상에서 제외")
+                continue
+
+            logger.info(f"job_id={job_id} 재시도 수행 (요약 작업 실행)")
             # summarize_text 태스크 재등록 (비동기)
             summarize_text_task.apply_async(kwargs={
                 'job_id': job_id,

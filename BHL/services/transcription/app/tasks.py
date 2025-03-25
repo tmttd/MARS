@@ -118,7 +118,7 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
         logger.info(f"변환 중: {input_path}")
         whisper_client = InferenceClient(
             "openai/whisper-large-v3-turbo",
-            token=os.getenv('HUGGINGFACE_API_KEY'),
+            token=HUGGINGFACE_API_KEY,
             headers={"x-wait-for-model": "true"},
         )
 
@@ -181,8 +181,23 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
                 segment_result = whisper_client.automatic_speech_recognition(temp_segment_path)
                 segments_texts.append(segment_result.text)
             except Exception as e:
-                logger.error(f"청크 {idx+1}/{len(merged_chunks)} 변환 중 오류 발생: {str(e)}")
-                raise
+                # 402 에러가 발생하면 fallback으로 HUGGINGFACE_API_KEY_2 사용
+                if "402" in str(e):
+                    logger.warning(f"402 에러 발생. 청크 {idx+1}에 대해 HUGGINGFACE_API_KEY_2 사용합니다.")
+                    fallback_whisper_client = InferenceClient(
+                        "openai/whisper-large-v3-turbo",
+                        token=os.getenv("HUGGINGFACE_API_KEY_2"),
+                        headers={"x-wait-for-model": "true"},
+                    )
+                    try:
+                        segment_result = fallback_whisper_client.automatic_speech_recognition(temp_segment_path)
+                        segments_texts.append(segment_result.text)
+                    except Exception as e2:
+                        logger.error(f"청크 {idx+1}/{len(merged_chunks)} fallback 변환 중 오류 발생: {str(e2)}")
+                        raise
+                else:
+                    logger.error(f"청크 {idx+1}/{len(merged_chunks)} 변환 중 오류 발생: {str(e)}")
+                    raise
             finally:
                 if os.path.exists(temp_segment_path):
                     os.remove(temp_segment_path)
@@ -203,8 +218,9 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
         # GPT를 사용한 텍스트 요약
         completion = openai_client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": f"""
+            messages=[{
+                "role": "system", 
+                "content": f"""
                 당신은 다음 전화 통화 녹취록(STT 출력)을 처리할 것입니다. 
                 이 통화는 서울시 강남구 청담동 소재의 부동산(중개사)에서 사장님과 고객이 나눈 대화입니다. 
                 아래의 지침을 엄격히 따라주세요:
@@ -234,7 +250,6 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
                 9) 진흥
                 10) 래미안 로이뷰
                 
-
                 - 만약 실제로는 다른 단어이거나, 리스트에 속하지 않는 이름으로 확실하게 보이면 그대로 두세요.
 
                 4. 한국어 이외 텍스트 처리
@@ -261,8 +276,8 @@ def transcribe_audio(job_id: str, input_path: str, output_dir: str, db_connectio
                 ---
                 통화 녹취록:
                 {transcribed_text}
-                """},
-            ],
+                """
+            }],
         )
         
         refined_transcribed_text = completion.choices[0].message.content
@@ -369,30 +384,32 @@ def retry_incomplete_jobs():
             return
 
         for job_id in failed_jobs:
-            # 혹시 이미 "completed" 로그가 존재한다면(재시도 전에 해결된 경우) 스킵
+            # 이미 "completed" 로그가 존재한다면 스킵
             completed_log = db.logs.find_one({"job_id": job_id, "status": "completed"})
             if completed_log:
                 logger.info(f"job_id={job_id} 는 이미 완료 로그가 있으므로 재시도하지 않음")
                 continue
 
-            # 재시도할 job의 입력값들(파일 경로 등)을 work_db에서 조회
+            # 재시도할 job의 입력값(파일 경로 등)을 work_db에서 조회
             call_doc = work_db.calls.find_one({"job_id": str(job_id)})
             if not call_doc:
                 logger.warning(f"work_db.calls에서 job_id={job_id} 관련 정보를 찾을 수 없어 재시도 불가")
                 continue
 
-            input_path = db.logs.find_one({"job_id": job_id, "status": "failed"})["input_path"]
-            output_dir = db.logs.find_one({"job_id": job_id, "status": "failed"})["output_dir"]
-            if not input_path or not output_dir:
-                logger.warning(f"job_id={job_id} 의 input_path/output_dir 정보가 불충분하여 재시도 불가")
+            # 로그에서 input_path만 추출 (output_dir 검사는 제거)
+            log_doc = db.logs.find_one({"job_id": job_id, "status": "failed"})
+            input_path = log_doc.get("input_path") if log_doc else None
+            if not input_path:
+                logger.warning(f"job_id={job_id} 의 input_path 정보가 불충분하여 재시도 불가")
                 continue
 
             logger.info(f"job_id={job_id} 재시도 수행")
             # transcribe_audio 태스크 재등록 (비동기)
+            # output_dir는 settings에서 제공하는 기본 경로를 사용
             transcribe_audio_task.apply_async(args=[
                 job_id,
                 input_path,
-                output_dir,
+                settings.OUTPUT_DIR,
                 settings.MONGODB_URI,
                 settings.MONGODB_URI,
                 settings.WORK_MONGODB_DB
