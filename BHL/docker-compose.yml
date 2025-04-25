@@ -63,20 +63,25 @@ services:
       - "8001:8000"
     volumes:
       - ./services/transcription:/app
-      - ./datas/audio_converted:/app/audio_outputs
-      - ./datas/transcription_outputs:/app/text_outputs
+      - ./datas/audio_converted:/app/audio_outputs # Input audio
+      - ./datas/transcription_outputs:/app/text_outputs # Output text (if needed)
     environment:
       - MONGODB_URI=${MONGODB_URI}
       - MONGODB_DB=transcription_db
       - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
-      - CONVERTER_SERVICE_URL=http://converter:8000
-      - UPLOAD_DIR=/app/audio_outputs
-      - OUTPUT_DIR=/app/text_outputs
+      - CONVERTER_SERVICE_URL=http://converter:8000 # 사용 여부 확인 필요
+      - UPLOAD_DIR=/app/audio_outputs # Task가 읽을 경로
+      - OUTPUT_DIR=/app/text_outputs # Task가 쓸 경로 (retry 등에서 사용)
       - PYTHONWARNINGS=ignore
-      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
-      - HUGGINGFACE_API_KEY_2=${HUGGINGFACE_API_KEY_2}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY} # GPT 보정에 필요
+      # ===== [삭제됨] Hugging Face API 키 제거 =====
+      # - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      # - HUGGINGFACE_API_KEY_2=${HUGGINGFACE_API_KEY_2}
+      # ===== [추가됨] Cloudflare API 키 추가 =====
+      - CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID}
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      # ============================================
     networks:
       - mars_network
     depends_on:
@@ -91,25 +96,32 @@ services:
     deploy:
       resources:
         limits:
-          memory: 24G
+          memory: 24G # 메모리 설정 유지 (오디오 처리 고려)
         reservations:
           memory: 12G
     volumes:
       - ./services/transcription:/app
-      - ./datas/audio_converted:/app/audio_outputs
-      - ./datas/transcription_outputs:/app/text_outputs
-      - ./datas/whisper_cache:/app/whisper_cache
+      - ./datas/audio_converted:/app/audio_outputs # Input audio
+      - ./datas/transcription_outputs:/app/text_outputs # Output text (if needed)
+      # ===== [삭제됨] Whisper 캐시 볼륨 마운트 제거 =====
+      # - ./datas/whisper_cache:/app/whisper_cache
+      # ================================================
     environment:
       - MONGODB_URI=${MONGODB_URI}
       - MONGODB_DB=transcription_db
       - WORK_MONGODB_DB=mars_work_db
       - REDIS_URL=redis://redis:6379/0
-      - UPLOAD_DIR=/app/audio_outputs
-      - OUTPUT_DIR=/app/text_outputs
+      - UPLOAD_DIR=/app/audio_outputs # Task가 읽을 경로
+      - OUTPUT_DIR=/app/text_outputs # Task가 쓸 경로 (retry 등에서 사용)
       - PYTHONWARNINGS=ignore
-      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
-      - HUGGINGFACE_API_KEY_2=${HUGGINGFACE_API_KEY_2}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY} # GPT 보정에 필요
+      # ===== [삭제됨] Hugging Face API 키 제거 =====
+      # - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      # - HUGGINGFACE_API_KEY_2=${HUGGINGFACE_API_KEY_2}
+      # ===== [추가됨] Cloudflare API 키 추가 =====
+      - CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID}
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      # ============================================
     networks:
       - mars_network
     depends_on:
@@ -313,7 +325,6 @@ services:
       - auth
 
 volumes:
-  whisper_cache:
   datas:
     driver: local
     driver_opts:

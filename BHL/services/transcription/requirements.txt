@@ -7,9 +7,6 @@ redis==5.0.1
 httpx==0.25.2
 pydantic-settings==2.1.0
 python-multipart==0.0.6
-torch
-accelerate
-huggingface_hub
 requests
 pydub
 openai

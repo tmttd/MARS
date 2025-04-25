@@ -44,7 +44,7 @@ async def health_check():
         raise HTTPException(status_code=503, detail=str(e))
 
 @app.post("/transcribe")
-async def transcribe_audio_endpoint(job_id: str):
+async def transcribe_audio_endpoint(job_id: str = Query(..., description="처리할 작업의 고유 ID")): # <--- Query 사용
     try:
         # 입력 파일 경로 확인
         input_file = os.path.join(settings.UPLOAD_DIR, f"{job_id}.wav")

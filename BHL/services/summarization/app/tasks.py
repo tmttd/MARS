@@ -10,6 +10,7 @@ import asyncio
 import json
 from .config import settings
 from .models import PropertyExtraction
+from pydantic import ValidationError
 
 UTC = timezone.utc
 # 로깅 설정
@@ -49,7 +50,7 @@ celery.conf.update(
 )
 
 @celery.task(name='summarize_text')
-def summarize_text(job_id: str, db_connection_string: str, work_db_connection_string: str, work_db_name: str):
+def summarize_text(job_id: str, db_connection_string: str, work_db_connection_string: str, work_db_name: str, text_to_summarize: str):
     try:
         # MongoDB 연결 (로그용)
         client = MongoClient(db_connection_string)
@@ -61,6 +62,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         
         # 작업 시작 로그
         now = datetime.now(UTC)
+        logger.info(f"Summarize task 시작: job_id={job_id}")
         db.logs.update_one  (
             {"job_id": job_id},
             {
@@ -77,22 +79,17 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                 }
             }
         )
-        
-        # 작업 조회
-        job = work_db.calls.find_one({"job_id": job_id})
-        if not job:
-            raise ValueError("작업을 찾을 수 없습니다")
-            
-        text_to_summarize = job.get("text")
             
         # OpenAI 클라이언트 초기화
         openai_client = OpenAI(api_key=OPENAI_API_KEY)
         
         # GPT를 사용한 텍스트 요약
-        completion = openai_client.beta.chat.completions.parse(
-            model="o1-mini",
+        completion = openai_client.chat.completions.create( # <-- 'create' 사용
+            model="o4-mini", # <-- 모델 이름 변경
+            response_format={"type": "json_object"},# <`-- JSON 모드 지정
+            reasoning_effort='medium',
             messages=[
-                {"role": "user", "content": """You are an AI assistant specialized in real estate. Your goal is to provide quick yet comprehensive summaries of phone calls between a real estate agent and their client. This summary must help the agent identify key action items, property details, and next steps. 
+                {"role": "system", "content": """You are an AI assistant specialized in real estate. Your goal is to provide quick yet comprehensive summaries of phone calls between a real estate agent and their client. This summary must help the agent identify key action items, property details, and next steps. 
                 Additionally, you must parse the given conversation transcript and convert the relevant information into a structured JSON format **exactly matching** the following Pydantic model:
 
                 ---
@@ -151,7 +148,8 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                 8. Resolve duplicate or conflicting information by using the most recent or most specific mention.
                 9. Use ISO 8601 format (e.g., "2025-01-14") for all date fields.
                 """},
-                {"role": "user", "content": f"""Below is a transcript of a phone call between a real estate agent and a client. Analyze this transcript and write it into a JSON structure that fits the given Pydantic model.
+                {"role": "user", "content": f"""
+                 Below is a transcript of a phone call between a real estate agent and a client. Analyze this transcript and write it into a JSON structure that fits the given Pydantic model.
 
                 **JSON Structure Details**:
                 {{
@@ -191,144 +189,112 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
                 - Please exclude unnecessary greetings, small talk, responses, etc. from the summary and include only the key content.
                 - Please use ISO 8601 format (e.g., "2025-01-14") for all date fields.
                 ---
-                **call transcript**:
+                --- 녹취록 ---
                 {text_to_summarize}
+                --- 녹취록 끝 ---
                 """}
             ]
         )
+        logger.info(f"OpenAI API 호출 완료: job_id={job_id}")
 
-        response_text = completion.choices[0].message.content
-        logger.info(f"response_text: {response_text}")
-        # Markdown 코드 블록 제거: 맨 앞의 "```json"과 맨 뒤의 "```"를 삭제
-        if response_text.strip().startswith("```json"):
-            cleaned = response_text.strip()[len("```json"):].strip()
-            if cleaned.endswith("```"):
-                cleaned = cleaned[:-3].strip()
-        else:
-            cleaned = response_text.strip()
-        extraction = {}
+        # ===== [수정됨] 결과 처리: JSON 파싱 및 Pydantic 검증 추가 =====
+        response_content = completion.choices[0].message.content
+        extraction_dict = {} # 파싱 결과를 저장할 딕셔너리
+        property_extraction_obj = None # 검증된 Pydantic 객체를 저장할 변수
+
         try:
-            extraction = json.loads(cleaned)
+            extraction_dict = json.loads(response_content) # 1. JSON 문자열 파싱
+            logger.info(f"JSON 파싱 성공: job_id={job_id}")
+
+            # 2. Pydantic 모델로 유효성 검사 및 객체 생성
+            property_extraction_obj = PropertyExtraction(**extraction_dict)
+            logger.info(f"Pydantic 모델 검증 성공: job_id={job_id}")
+            # DB 저장을 위해 다시 딕셔너리로 변환 (옵션: mode='json'은 datetime 등을 ISO 문자열로 변환)
+            extraction_to_save = property_extraction_obj.model_dump(mode='json')
+
         except json.JSONDecodeError as e:
-            logger.error("JSON 파싱 오류: %s", e)
-            extraction = {}
-        if not isinstance(extraction, dict):
-            extraction = {}
+            logger.error(f"JSON 파싱 오류 (Job ID: {job_id}): {e}. 응답 내용(일부): {response_content[:500]}...")
+            raise ValueError(f"OpenAI 응답 JSON 파싱 실패: {e}") # 오류 발생시켜 종료
+        except ValidationError as e:
+            logger.error(f"Pydantic 모델 검증 실패 (Job ID: {job_id}): {e}. 파싱된 내용: {extraction_dict}")
+            # 모델 검증 실패 시 어떻게 처리할지 결정 필요
+            # 예: 실패 상태로 업데이트하고 종료 or 파싱된 dict라도 저장 시도(위험)
+            raise ValueError(f"OpenAI 응답 데이터 검증 실패: {e}") # 오류 발생시켜 종료
+        except Exception as e:
+             logger.error(f"파싱 또는 검증 중 예상치 못한 오류 (Job ID: {job_id}): {e}", exc_info=True)
+             raise # 예상치 못한 오류는 그대로 발생
+
+        if not isinstance(extraction_to_save, dict): # 최종 저장할 데이터 타입 확인
+            logger.error(f"최종 저장 데이터가 dictionary가 아님 (Job ID: {job_id}).")
+            raise TypeError("최종 저장 데이터 타입 오류")
+        # ====================================================================
+        
+        # 이제 extraction_to_save 딕셔너리 사용
+        try:
+            # extracted_property_info가 없거나 dict가 아니면 초기화
+            # model_dump 시 default_factory=Properties 로 인해 항상 dict가 존재할 것으로 기대됨
+            if 'extracted_property_info' not in extraction_to_save or not isinstance(extraction_to_save.get('extracted_property_info'), dict):
+                 extraction_to_save['extracted_property_info'] = {} # 안전장치
+
+            extracted_info = extraction_to_save['extracted_property_info']
         
         # full_address 생성
-        try:
-            # extracted_property_info가 None인 경우 빈 딕셔너리로 초기화
-            if extraction.get('extracted_property_info') is None or not isinstance(extraction.get('extracted_property_info'), dict):
-                extraction['extracted_property_info'] = {}
-
-            extracted_info = extraction['extracted_property_info']
-            address_fields = ['city', 'district', 'legal_dong', 'detail_address']
-            full_address_parts = [str(extracted_info.get(field, '') or '') for field in address_fields]
-            extraction['extracted_property_info']['full_address'] = ' '.join(full_address_parts).strip()
-        except Exception as e:
-            logger.error(f"full_address 생성 중 오류 발생: {e}")
-            # extracted_property_info가 없는 경우에도 안전하게 빈 딕셔너리 할당
-            if extraction.get('extracted_property_info') is None:
-                extraction['extracted_property_info'] = {}
-            extraction['extracted_property_info']['full_address'] = ''
-
-        # ★ job 문서에서 customer_name, customer_contact 사용하여 owner_info 업데이트 ★
-        customer_name = job.get("customer_name", "")
-        customer_contact = job.get("customer_contact", "")
-
-        try:
-            # 1) extraction['extracted_property_info']가 None인 경우 미리 빈 딕셔너리로 만들기
-            if not extraction.get('extracted_property_info'):
-                extraction['extracted_property_info'] = {}
-
-            extracted_info = extraction['extracted_property_info']
-            
-            # 2) owner_info가 None이거나 키 자체가 없으면 빈 딕셔너리 할당
-            if not extracted_info.get('owner_info'):
-                extracted_info['owner_info'] = {}
-
-            # 3) tenant_info도 필요하다면 마찬가지로 처리
-            if not extracted_info.get('tenant_info'):
-                extracted_info['tenant_info'] = {}
-
-            # 이제 dictionary 구조가 확실히 만들어졌으므로 값 할당 가능
             address_fields = ['city', 'district', 'legal_dong', 'detail_address']
             full_address_parts = [str(extracted_info.get(field, '') or '') for field in address_fields]
             extracted_info['full_address'] = ' '.join(full_address_parts).strip()
+            logger.debug(f"full_address 생성됨: {extracted_info['full_address']} (Job ID: {job_id})")
+
+            # owner_info 업데이트 (DB에서 고객 정보 가져와서)
+            job_for_customer_info = work_db.calls.find_one({"job_id": job_id}, {"customer_name": 1, "customer_contact": 1})
+            if job_for_customer_info:
+                 customer_name = job_for_customer_info.get("customer_name", "")
+                 customer_contact = job_for_customer_info.get("customer_contact", "")
+                 # Pydantic 모델 사용 시 owner_info 는 Properties의 기본값(None) 또는 객체일 것임
+                 if extracted_info.get('owner_info') is None:
+                     extracted_info['owner_info'] = {} # 또는 OwnerInfo().model_dump()
+                 elif not isinstance(extracted_info['owner_info'], dict):
+                      extracted_info['owner_info'] = {} # 안전 장치
+
+                 extracted_info['owner_info']['owner_name'] = customer_name # 덮어쓰기
+                 # 연락처 포맷팅 (이전과 동일)
+                 cleaned_owner_contact = ''.join(filter(str.isdigit, str(customer_contact)))
+                 if cleaned_owner_contact.startswith('010') and len(cleaned_owner_contact) == 11: formatted_owner_contact = f"{cleaned_owner_contact[:3]}-{cleaned_owner_contact[3:7]}-{cleaned_owner_contact[7:]}"
+                 elif cleaned_owner_contact.startswith('02') and (len(cleaned_owner_contact) in (9, 10)): formatted_owner_contact = f"02-{cleaned_owner_contact[2:-4]}-{cleaned_owner_contact[-4:]}"
+                 elif len(cleaned_owner_contact) in (10, 11): formatted_owner_contact = f"{cleaned_owner_contact[:3]}-{cleaned_owner_contact[3:-4]}-{cleaned_owner_contact[-4:]}"
+                 else: formatted_owner_contact = customer_contact
+                 extracted_info['owner_info']['owner_contact'] = formatted_owner_contact
+                 logger.debug(f"owner_info 업데이트됨 (Job ID: {job_id})")
+
+            # tenant_contact 포맷팅 (이전과 동일)
+            if extracted_info.get('tenant_info') is None: extracted_info['tenant_info'] = {}
+            elif not isinstance(extracted_info.get('tenant_info'), dict): extracted_info['tenant_info'] = {}
+            tenant_contact_raw = extracted_info.get('tenant_info', {}).get('tenant_contact', '')
+            cleaned_tenant_contact = ''.join(filter(str.isdigit, str(tenant_contact_raw)))
+            if cleaned_tenant_contact.startswith('010') and len(cleaned_tenant_contact) == 11: formatted_tenant_contact = f"{cleaned_tenant_contact[:3]}-{cleaned_tenant_contact[3:7]}-{cleaned_tenant_contact[7:]}"
+            elif cleaned_tenant_contact.startswith('02') and len(cleaned_tenant_contact) in (9, 10): formatted_tenant_contact = f"02-{cleaned_tenant_contact[2:-4]}-{cleaned_tenant_contact[-4:]}"
+            elif len(cleaned_tenant_contact) in (10, 11): formatted_tenant_contact = f"{cleaned_tenant_contact[:3]}-{cleaned_tenant_contact[3:-4]}-{cleaned_tenant_contact[-4:]}"
+            else: formatted_tenant_contact = tenant_contact_raw
+            extracted_info['tenant_info']['tenant_contact'] = formatted_tenant_contact
+            logger.debug(f"tenant_contact 포맷팅됨 (Job ID: {job_id})")
 
         except Exception as e:
-            logger.error(f"full_address 생성 중 오류 발생: {e}")
-            # 혹은 필요하다면 여기서도 extracted_property_info 초기화
-            if not extraction.get('extracted_property_info'):
-                extraction['extracted_property_info'] = {}
-            extraction['extracted_property_info']['full_address'] = ''
-
-        # -------------------------------------------------------
-        # 이제 job 문서의 customer_name, customer_contact 사용
-        customer_name = job.get("customer_name", "")
-        customer_contact = job.get("customer_contact", "")
-
-        # 다시 한 번 안전하게 초기화(혹시 위에서 에러로 건너뛴 경우 등)
-        if not extraction.get('extracted_property_info'):
-            extraction['extracted_property_info'] = {}
-        if not extraction['extracted_property_info'].get('owner_info'):
-            extraction['extracted_property_info']['owner_info'] = {}
-
-        extraction['extracted_property_info']['owner_info']['owner_name'] = customer_name
-
-        # 연락처 숫자만 추출 후 포맷팅
-        cleaned_owner_contact = ''.join(filter(str.isdigit, str(customer_contact)))
-        if cleaned_owner_contact.startswith('010') and len(cleaned_owner_contact) == 11:
-            formatted_owner_contact = f"{cleaned_owner_contact[:3]}-{cleaned_owner_contact[3:7]}-{cleaned_owner_contact[7:]}"
-        elif cleaned_owner_contact.startswith('02') and (len(cleaned_owner_contact) in (9, 10)):
-            formatted_owner_contact = f"02-{cleaned_owner_contact[2:-4]}-{cleaned_owner_contact[-4:]}"
-        elif len(cleaned_owner_contact) in (10, 11):
-            formatted_owner_contact = f"{cleaned_owner_contact[:3]}-{cleaned_owner_contact[3:-4]}-{cleaned_owner_contact[-4:]}"
-        else:
-            formatted_owner_contact = ""
-
-        extraction['extracted_property_info']['owner_info']['owner_contact'] = formatted_owner_contact
-
-        # tenant_contact 포맷팅 로직 추가 (GPT 결과를 그대로 쓰는 예시)
-        # GPT가 추출해 준 tenant_contact 값을 가져와 동일한 방식으로 숫자만 남긴 뒤 하이픈 삽입
-
-        cleaned_tenant_contact = ''.join(filter(str.isdigit, str(extraction['extracted_property_info']['tenant_info'].get('tenant_contact', ''))))
-        if cleaned_tenant_contact.startswith('010') and len(cleaned_tenant_contact) == 11:
-            formatted_tenant_contact = f"{cleaned_tenant_contact[:3]}-{cleaned_tenant_contact[3:7]}-{cleaned_tenant_contact[7:]}"
-        elif cleaned_tenant_contact.startswith('02') and len(cleaned_tenant_contact) in (9, 10):
-            formatted_tenant_contact = f"02-{cleaned_tenant_contact[2:-4]}-{cleaned_tenant_contact[-4:]}"
-        elif len(cleaned_tenant_contact) in (10, 11):
-            formatted_tenant_contact = f"{cleaned_tenant_contact[:3]}-{cleaned_tenant_contact[3:-4]}-{cleaned_tenant_contact[-4:]}"
-        else:
-            formatted_tenant_contact = ""
-
-        extraction['extracted_property_info']['tenant_info']['tenant_contact'] = formatted_tenant_contact
-        
-        # 작업 데이터 업데이트
-        work_db.calls.update_one(
+            logger.error(f"후처리 중 오류 발생 (Job ID: {job_id}): {e}", exc_info=True)
+            # 후처리 실패 시에도 일단 검증된/파싱된 내용 저장 시도
+        # ====================================================================
+                
+        # 작업 데이터 업데이트 (검증 후 다시 딕셔너리로 변환된 객체 사용)
+        logger.info(f"작업 DB 업데이트 시도: job_id={job_id}")
+        update_result = work_db.calls.update_one(
             {"job_id": job_id},
-            {
-                "$set": extraction
-            }
+            {"$set": extraction_to_save} # <-- Pydantic 검증 후 dict 사용
         )
-        
-        # 작업 완료 로그
+        logger.info(f"작업 DB 업데이트 완료: matched={update_result.matched_count}, modified={update_result.modified_count} (job_id={job_id})")
+
+        # 작업 완료 로그 (기존 로직 유지)
         now = datetime.now(UTC)
         db.logs.update_one(
-            {"job_id": job_id},
-            {
-                "$set": {
-                    "service": "summarization",
-                    "event": "summarization_completed",
-                    "status": "completed",
-                    "timestamp": now,
-                    "message": "텍스트 요약 완료",
-                    "metadata": {
-                        "updated_at": now
-                    }
-                }
-            },
-            upsert=True
+            {"job_id": job_id, "service": "summarization"},
+            {"$set": {"event": "summarization_completed", "status": "completed", "timestamp": now, "message": "텍스트 요약 및 검증 완료", "metadata.updated_at": now}} # 메시지 변경
         )
             
         async def send_webhook():
@@ -344,7 +310,7 @@ def summarize_text(job_id: str, db_connection_string: str, work_db_connection_st
         client.close()
         work_client.close()
         
-        return {"status": "completed", "extracted_property_info": extraction}
+        return {"status": "completed", "extracted_property_info": extraction_to_save}
         
     except Exception as e:
         logger.error(f"요약 중 오류 발생: {str(e)}")
@@ -409,7 +375,8 @@ def retry_incomplete_jobs():
         if not jobs_to_retry:
             logger.info("재시도 대상 작업이 없습니다.")
             return
-
+        
+        processed_count = 0
         for job_id in jobs_to_retry:
             # 이미 "completed" 로그가 존재한다면(재시도 전에 해결된 경우) 스킵
             completed_log = db.logs.find_one({"job_id": job_id, "status": "completed"})
@@ -439,13 +406,17 @@ def retry_incomplete_jobs():
                 'job_id': job_id,
                 'db_connection_string': settings.MONGODB_URI,
                 'work_db_connection_string': settings.MONGODB_URI,
-                'work_db_name': settings.WORK_MONGODB_DB
-            })
+                'work_db_name': settings.WORK_MONGODB_DB,
+                'text_to_summarize': call_doc.get("text")
+            }, queue='summarization')
+            processed_count += 1
+            # ====================================================================
+
     except Exception as e:
-        logger.error(f"재시도 작업 처리 중 오류 발생: {str(e)}")
+        logger.error(f"재시도 작업 처리 중 오류 발생: {str(e)}", exc_info=True) # <-- exc_info 추가
     finally:
-        if 'client' in locals():
-            client.close()
+        if client: client.close()
+        logger.info(f"===== 재시도 대상 작업 스캐닝 종료 (총 {processed_count}건 큐 등록) =====") # <-- 처리 건수 로깅
 
     logger.info("===== 재시도 대상 작업 스캐닝 종료 =====")
 
